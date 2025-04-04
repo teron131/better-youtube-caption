@@ -1,3 +1,5 @@
+![preview](https://github.com/za01br/yt-subtitle-extension/blob/main/preview.png)
+
 # Chrome Extension: YouTube Subtitles Generator
 
 Chrome extension that allows users to generate subtitles for YouTube videos using their own Gemini AI API key. The extension stores generated subtitles locally, so they can be reused without needing to regenerate them.
