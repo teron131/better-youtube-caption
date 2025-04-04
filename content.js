@@ -1,3 +1,4 @@
+// Global variables
 let currentSubtitles = [];
 let subtitleContainer = null;
 let subtitleText = null;
@@ -8,6 +9,7 @@ let initAttempts = 0;
 const MAX_INIT_ATTEMPTS = 10;
 let currentUrl = window.location.href;
 
+// Loads stored subtitles for the current video from local storage
 function loadStoredSubtitles() {
   const cleanedUrl = cleanYouTubeUrl(window.location.href);
 
@@ -22,6 +24,7 @@ function loadStoredSubtitles() {
   });
 }
 
+// Cleans a YouTube URL to extract only the video ID and essential parameters
 function cleanYouTubeUrl(originalUrl) {
   try {
     const url = new URL(originalUrl);
@@ -37,6 +40,7 @@ function cleanYouTubeUrl(originalUrl) {
   return originalUrl;
 }
 
+// Monitors URL changes on YouTube (SPA behavior)
 function monitorUrlChanges() {
   const observer = new MutationObserver(() => {
     if (currentUrl !== window.location.href) {
@@ -49,17 +53,14 @@ function monitorUrlChanges() {
   observer.observe(document.body, { childList: true, subtree: true });
 }
 
+// Handles actions when the URL changes
 function onUrlChange() {
-  // Reinitialize the script when the URL changes
   console.log("YouTube Subtitles Generator: Reinitializing for new video...");
-
-  // Clear the current subtitles and stop displaying them
-  clearSubtitles();
-
-  // Reinitialize the script for the new video
-  initialize();
+  clearSubtitles(); // Clear current subtitles
+  initialize(); // Reinitialize for the new video
 }
 
+// Finds video elements on the YouTube page
 function findVideoElements() {
   videoPlayer = document.querySelector("video.html5-main-video");
   if (!videoPlayer) return false;
@@ -73,6 +74,7 @@ function findVideoElements() {
   return !!videoContainer; // Return true if both found
 }
 
+// Initializes the content script
 function initialize() {
   console.log("YouTube Subtitles Generator: Initializing content script...");
 
@@ -97,11 +99,8 @@ function initialize() {
     videoContainer
   );
 
-  // Create subtitle elements (only once)
-  createSubtitleElements();
-
-  // Load stored subtitles for the current video
-  loadStoredSubtitles();
+  createSubtitleElements(); // Create subtitle elements
+  loadStoredSubtitles(); // Load stored subtitles for the current video
 
   // Listen for messages from popup or background
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -111,8 +110,7 @@ function initialize() {
 
       console.log("Content Script: Sending URL to background:", videoUrl);
 
-      // Clear previous subtitles immediately
-      clearSubtitles();
+      clearSubtitles(); // Clear previous subtitles
 
       // Request subtitles from background script
       chrome.runtime.sendMessage(
@@ -148,8 +146,7 @@ function initialize() {
       console.log(`Received ${currentSubtitles.length} subtitle entries.`);
 
       if (currentSubtitles.length > 0) {
-        // Start displaying subtitles
-        startSubtitleDisplay();
+        startSubtitleDisplay(); // Start displaying subtitles
 
         // Store the subtitles locally for future use
         const cleanedUrl = cleanYouTubeUrl(window.location.href);
@@ -172,25 +169,22 @@ function initialize() {
   );
 }
 
+// Creates subtitle elements and appends them to the video container
 function createSubtitleElements() {
-  // Check if elements already exist
   if (document.getElementById("youtube-gemini-subtitles-container")) return;
 
   subtitleContainer = document.createElement("div");
-  subtitleContainer.id = "youtube-gemini-subtitles-container"; // Use ID for easier check
-  // Styles are applied via CSS now mostly, but keep essentials
+  subtitleContainer.id = "youtube-gemini-subtitles-container";
   subtitleContainer.style.position = "absolute";
   subtitleContainer.style.zIndex = "9999";
   subtitleContainer.style.pointerEvents = "none";
-  subtitleContainer.style.display = "none"; // Initially hidden
+  subtitleContainer.style.display = "none";
 
   subtitleText = document.createElement("div");
   subtitleText.id = "youtube-gemini-subtitles-text";
   subtitleContainer.appendChild(subtitleText);
 
-  // Append to the found video container
   if (videoContainer) {
-    // Ensure the container can host absolutely positioned elements
     if (getComputedStyle(videoContainer).position === "static") {
       videoContainer.style.position = "relative";
     }
@@ -198,32 +192,27 @@ function createSubtitleElements() {
     console.log("Subtitle container added to video container.");
   } else {
     console.error("Cannot add subtitle container, video container not found.");
-    // Fallback to body? Might not position correctly.
-    // document.body.appendChild(subtitleContainer);
   }
 }
 
+// Starts displaying subtitles
 function startSubtitleDisplay() {
   if (!videoPlayer || !subtitleContainer) {
     console.warn("Cannot start subtitle display: Player or container missing.");
     return;
   }
-  // Clear any existing interval
-  stopSubtitleDisplay();
 
-  // Show subtitle container (will be managed by updateSubtitles)
-  // subtitleContainer.style.display = 'block'; // Let updateSubtitles control visibility
+  stopSubtitleDisplay(); // Clear any existing interval
 
   console.log("Starting subtitle display interval.");
-  // Check for current subtitle frequently
   checkInterval = setInterval(updateSubtitles, 100); // 100ms interval
 
-  // Also listen for video events
   videoPlayer.addEventListener("play", updateSubtitles);
   videoPlayer.addEventListener("seeked", updateSubtitles);
-  videoPlayer.addEventListener("pause", hideCurrentSubtitle); // Hide on pause
+  videoPlayer.addEventListener("pause", hideCurrentSubtitle);
 }
 
+// Stops displaying subtitles
 function stopSubtitleDisplay() {
   if (checkInterval) {
     clearInterval(checkInterval);
@@ -237,13 +226,15 @@ function stopSubtitleDisplay() {
   }
 }
 
+// Clears subtitles and stops display
 function clearSubtitles() {
   currentSubtitles = [];
   stopSubtitleDisplay();
-  hideCurrentSubtitle(); // Ensure text is cleared immediately
+  hideCurrentSubtitle();
   console.log("Subtitles cleared.");
 }
 
+// Hides the current subtitle
 function hideCurrentSubtitle() {
   if (subtitleContainer) {
     subtitleContainer.style.display = "none";
@@ -253,6 +244,7 @@ function hideCurrentSubtitle() {
   }
 }
 
+// Updates subtitles based on the current video time
 function updateSubtitles() {
   if (
     !videoPlayer ||
@@ -260,33 +252,27 @@ function updateSubtitles() {
     !subtitleContainer ||
     videoPlayer.paused
   ) {
-    // Don't update if paused or elements are missing
-    // hideCurrentSubtitle(); // Optionally hide if paused
     return;
   }
 
-  // Ensure player provides a valid time
   if (isNaN(videoPlayer.currentTime)) return;
 
   const currentTime = videoPlayer.currentTime * 1000; // Convert to ms
   let foundSubtitle = null;
 
-  // Find subtitle for current time (more efficient loop)
   for (const subtitle of currentSubtitles) {
     if (currentTime >= subtitle.startTime && currentTime <= subtitle.endTime) {
       foundSubtitle = subtitle;
-      break; // Found the first matching subtitle for this timestamp
+      break;
     }
   }
 
   if (foundSubtitle) {
-    // Avoid updating DOM if text is the same
     if (subtitleText.textContent !== foundSubtitle.text) {
       subtitleText.textContent = foundSubtitle.text;
     }
-    subtitleContainer.style.display = "block"; // Use block for layout
+    subtitleContainer.style.display = "block";
   } else {
-    // Hide subtitles if no match found or text is empty
     hideCurrentSubtitle();
   }
 }
