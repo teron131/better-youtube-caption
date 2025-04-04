@@ -1,8 +1,11 @@
 document.addEventListener("DOMContentLoaded", function () {
+  // DOM elements
   const apiKeyInput = document.getElementById("apiKey");
   const generateBtn = document.getElementById("generateBtn");
   const statusDiv = document.getElementById("status");
-  const existingSubtitlesDiv = document.createElement("div"); // Create a new div for the message
+
+  // Create a div for displaying existing subtitles message
+  const existingSubtitlesDiv = document.createElement("div");
   existingSubtitlesDiv.id = "existingSubtitles";
   existingSubtitlesDiv.style.marginTop = "10px";
   existingSubtitlesDiv.style.color = "green";
@@ -11,7 +14,7 @@ document.addEventListener("DOMContentLoaded", function () {
     generateBtn.nextSibling
   ); // Add it below the button
 
-  // Load saved API key
+  // Load saved API key from local storage
   chrome.storage.local.get(["geminiApiKey"], function (result) {
     if (result.geminiApiKey) {
       apiKeyInput.value = result.geminiApiKey;
@@ -20,6 +23,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Check if subtitles already exist for the current video
   chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+    // Helper function to clean YouTube URLs
     function cleanYouTubeUrl(originalUrl) {
       try {
         const url = new URL(originalUrl);
@@ -36,12 +40,14 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     const currentTab = tabs[0];
-    console.log("url to check " + cleanYouTubeUrl(currentTab.url));
+    console.log("URL to check:", cleanYouTubeUrl(currentTab.url));
+
     if (currentTab && currentTab.url && currentTab.url.includes("youtube")) {
       const videoUrl = new URL(currentTab.url);
       const videoId = videoUrl.searchParams.get("v"); // Extract the video ID
-      console.log("videoUrl " + videoUrl);
-      console.log("videoId " + videoId);
+      console.log("Video URL:", videoUrl);
+      console.log("Video ID:", videoId);
+
       if (videoId) {
         chrome.storage.local.get(
           [cleanYouTubeUrl(currentTab.url)],
@@ -58,7 +64,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  // Handle generate button click
+  // Handle the "Generate Subtitles" button click
   generateBtn.addEventListener("click", function () {
     const apiKey = apiKeyInput.value.trim();
     statusDiv.textContent = ""; // Clear previous status
@@ -68,7 +74,7 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-    // Save API key
+    // Save the API key to local storage
     chrome.storage.local.set({ geminiApiKey: apiKey });
 
     // Show loading status
@@ -82,12 +88,13 @@ document.addEventListener("DOMContentLoaded", function () {
         "Popup: Active tab URL:",
         currentTab ? currentTab.url : "No tab found"
       );
+
       if (
         currentTab &&
         currentTab.url &&
         currentTab.url.includes("youtube.com/watch")
       ) {
-        // Send message to content script
+        // Send a message to the content script to generate subtitles
         chrome.tabs.sendMessage(
           currentTab.id,
           { action: "generateSubtitles", apiKey: apiKey },
@@ -98,7 +105,7 @@ document.addEventListener("DOMContentLoaded", function () {
               generateBtn.disabled = false;
             } else if (response && response.status === "started") {
               statusDiv.textContent =
-                "Processing video... (This may take a while) ";
+                "Processing video... (This may take a while)";
             } else if (response && response.status === "error") {
               statusDiv.textContent = `Error: ${
                 response.message || "Could not start process."

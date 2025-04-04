@@ -1,14 +1,13 @@
+// Converts a time string (e.g., "00:01:23,456") to milliseconds
 function timeStringToMs(timeStr) {
   if (!timeStr) return 0;
 
-  // Trim whitespace from the start and end
   const trimmedTimeStr = timeStr.trim();
 
-  // First try to match HH:MM:SS,ms format
+  // Match HH:MM:SS,ms format
   let match = trimmedTimeStr.match(
     /(\d{2})\s*:\s*(\d{2})\s*:\s*(\d{2})[.,](\d{3})/
   );
-
   if (match) {
     const hours = parseInt(match[1], 10);
     const minutes = parseInt(match[2], 10);
@@ -17,9 +16,8 @@ function timeStringToMs(timeStr) {
     return hours * 3600000 + minutes * 60000 + seconds * 1000 + milliseconds;
   }
 
-  // If that doesn't match, try MM:SS,ms format (missing hours)
+  // Match MM:SS,ms format (missing hours)
   match = trimmedTimeStr.match(/(\d{2})\s*:\s*(\d{2})[.,](\d{3})/);
-
   if (match) {
     const minutes = parseInt(match[1], 10);
     const seconds = parseInt(match[2], 10);
@@ -27,11 +25,11 @@ function timeStringToMs(timeStr) {
     return minutes * 60000 + seconds * 1000 + milliseconds;
   }
 
-  // Log the string that failed to parse for easier debugging
   console.warn("Could not parse time string:", `"${trimmedTimeStr}"`);
   return 0;
 }
 
+// Parses SRT text into an array of subtitle objects
 function parseSrt(srtText) {
   if (!srtText || typeof srtText !== "string") {
     console.error("Invalid SRT text input:", srtText);
@@ -41,43 +39,21 @@ function parseSrt(srtText) {
   console.log("Attempting to parse SRT:\n", srtText);
 
   const subtitles = [];
-  // Regex to match SRT blocks: index, timestamp, text lines
-  // Handles potential variations in line breaks and spacing
   const srtBlockRegex =
     /(\d+)\s*([\d:,.-]+)\s*-->\s*([\d:,.-]+)\s*((?:.|\n(?!(\d+\s*[\d:,.-]+\s*-->)))+)/g;
-  // Explanation:
-  // (\d+)                     - Capture group 1: Subtitle index (numeric)
-  // \s* - Optional whitespace
-  // ([\d:,.-]+)               - Capture group 2: Start timestamp (digits, :, ,, .)
-  // \s*-->\s* - Arrow separator with optional whitespace
-  // ([\d:,.-]+)               - Capture group 3: End timestamp
-  // \s* - Optional whitespace
-  // (                         - Capture group 4: Subtitle text
-  //   (?:.|\n                - Match any character OR a newline...
-  //      (?!                 - ...IF that newline is NOT followed by:
-  //         (\d+\s* - A potential next subtitle index number
-  //         [\d:,.-]+\s*-->) - and a timestamp line start
-  //      )
-  //   )
-  // )+                        - Match one or more characters/lines of text
 
   let match;
   while ((match = srtBlockRegex.exec(srtText)) !== null) {
     const index = parseInt(match[1], 10);
-    const startTimeStr = match[2].trim().replace(".", ","); // Normalize to comma
-    const endTimeStr = match[3].trim().replace(".", ","); // Normalize to comma
-    const text = match[4].trim().replace(/[\r\n]+/g, " "); // Join multi-line text
+    const startTimeStr = match[2].trim().replace(".", ",");
+    const endTimeStr = match[3].trim().replace(".", ",");
+    const text = match[4].trim().replace(/[\r\n]+/g, " ");
 
     const startTime = timeStringToMs(startTimeStr);
     const endTime = timeStringToMs(endTimeStr);
 
-    // Basic validation
     if (!isNaN(startTime) && !isNaN(endTime) && text) {
-      subtitles.push({
-        startTime,
-        endTime,
-        text,
-      });
+      subtitles.push({ startTime, endTime, text });
     } else {
       console.warn(
         `Skipping malformed SRT block near index ${index}:`,
@@ -88,17 +64,17 @@ function parseSrt(srtText) {
 
   if (subtitles.length === 0 && srtText.trim().length > 0) {
     console.warn("Could not parse any valid SRT blocks from the text.");
-    // TODO: Handle model response other than SRT (e.g., an error message)
   }
 
   console.log("Parsed subtitles count:", subtitles.length);
   return subtitles;
 }
 
+// Listener for messages from content or popup scripts
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "fetchSubtitles") {
     const { videoUrl, apiKey } = message;
-    const tabId = sender.tab?.id; // Get tab ID for sending updates
+    const tabId = sender.tab?.id;
 
     console.log(
       "Background Script: Received fetchSubtitles request for URL:",
@@ -112,7 +88,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     chrome.storage.local.get(cleanedUrl, (result) => {
       if (result[cleanedUrl]) {
         console.log("Subtitles found in local storage for this video.");
-        // Send the stored subtitles to the content script
         if (tabId) {
           chrome.tabs.sendMessage(tabId, {
             action: "subtitlesGenerated",
@@ -123,7 +98,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       } else {
         console.log("No cached subtitles found. Fetching from Gemini API...");
 
-        // Notify popup that fetching has started
         if (tabId) {
           chrome.runtime.sendMessage({
             action: "updatePopupStatus",
@@ -135,12 +109,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         fetchSubtitlesFromGemini(cleanedUrl, apiKey, tabId)
           .then((subtitles) => {
             if (tabId) {
-              // Send subtitles to content script
               chrome.tabs.sendMessage(tabId, {
                 action: "subtitlesGenerated",
                 subtitles: subtitles,
               });
-              // Notify popup of success
               chrome.runtime.sendMessage({
                 action: "updatePopupStatus",
                 text: "Subtitles generated!",
@@ -149,7 +121,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               });
             }
 
-            // Store the subtitles locally for future use
             chrome.storage.local.set({ [cleanedUrl]: subtitles }, () => {
               console.log("Subtitles saved to local storage for:", cleanedUrl);
             });
@@ -161,7 +132,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             const errorMessage = `Error: ${
               error.message || "Unknown error fetching subtitles."
             }`;
-            // Notify popup of error
             if (tabId) {
               chrome.runtime.sendMessage({
                 action: "updatePopupStatus",
@@ -170,7 +140,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 tabId: tabId,
               });
             }
-            // Respond to original sender (content script)
             sendResponse({ status: "error", message: error.message });
           });
       }
@@ -180,21 +149,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
+// Cleans a YouTube URL to extract only the video ID and essential parameters
 function cleanYouTubeUrl(originalUrl) {
   try {
     const url = new URL(originalUrl);
     const videoId = url.searchParams.get("v");
     if (videoId) {
-      // Reconstruct a minimal URL
       return `${url.protocol}//${url.hostname}${url.pathname}?v=${videoId}`;
     }
   } catch (e) {
     console.error("Error parsing URL for cleaning:", originalUrl, e);
   }
-  // Fallback to original if cleaning fails or no 'v' param found
   return originalUrl;
 }
 
+// Fetches subtitles from the Gemini API
 async function fetchSubtitlesFromGemini(videoUrl, apiKey, tabId) {
   const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro-exp-03-25:generateContent?key=${apiKey}`;
 
@@ -203,10 +172,8 @@ async function fetchSubtitlesFromGemini(videoUrl, apiKey, tabId) {
     videoUrl
   );
 
-  const prompt = `Generate ONLY the SRT subtitles for the YouTube video.\nDo NOT include any introductory text, explanations, or summaries.\nThe output MUST strictly follow the Standard SRT format:\n1\n00:00:01,000 --> 00:00:05,000\nSubtitle text line 1\nSubtitle text line 2 (if needed).\nEnsure timestamps use milliseconds (,) and sequential numbering is correct. Ensure time stamps are in the following format: HH:MM,ms, example: 00:00:01,000. DO NOT recite training data in the prompt.
-  `;
+  const prompt = `Generate ONLY the SRT subtitles for the YouTube video.\nDo NOT include any introductory text, explanations, or summaries.\nThe output MUST strictly follow the Standard SRT format:\n1\n00:00:01,000 --> 00:00:05,000\nSubtitle text line 1\nSubtitle text line 2 (if needed).\nEnsure timestamps use milliseconds (,) and sequential numbering is correct. Ensure time stamps are in the following format: HH:MM,ms, example: 00:00:01,000. DO NOT recite training data in the prompt.`;
 
-  // Notify popup
   if (tabId) {
     chrome.runtime.sendMessage({
       action: "updatePopupStatus",
@@ -217,22 +184,11 @@ async function fetchSubtitlesFromGemini(videoUrl, apiKey, tabId) {
 
   const response = await fetch(geminiUrl, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       contents: [
         {
-          parts: [
-            {
-              text: prompt,
-            },
-            {
-              file_data: {
-                file_uri: `${videoUrl}`,
-              },
-            },
-          ],
+          parts: [{ text: prompt }, { file_data: { file_uri: `${videoUrl}` } }],
         },
       ],
     }),
@@ -260,9 +216,8 @@ async function fetchSubtitlesFromGemini(videoUrl, apiKey, tabId) {
   }
 
   const data = await response.json();
-  console.log("Gemini API Success Response:", JSON.stringify(data, null, 2)); // Log the full response
+  console.log("Gemini API Success Response:", JSON.stringify(data, null, 2));
 
-  // Notify popup
   if (tabId) {
     chrome.runtime.sendMessage({
       action: "updatePopupStatus",
@@ -283,19 +238,13 @@ async function fetchSubtitlesFromGemini(videoUrl, apiKey, tabId) {
   ) {
     srtText = data.candidates[0].content.parts[0].text;
 
-    // Sometimes Gemini might wrap the SRT in markdown code blocks
     const codeBlockMatch = srtText.match(/```(?:srt)?\s*([\s\S]*?)\s*```/);
     if (codeBlockMatch && codeBlockMatch[1]) {
       console.log("Extracted SRT from markdown code block.");
       srtText = codeBlockMatch[1];
     }
   } else if (data?.promptFeedback?.blockReason) {
-    // Handle cases where content was blocked by safety settings
-    console.error(
-      "Gemini response blocked:",
-      data.promptFeedback.blockReason,
-      data.promptFeedback.safetyRatings
-    );
+    console.error("Gemini response blocked:", data.promptFeedback.blockReason);
     throw new Error(
       `Content blocked by Gemini: ${data.promptFeedback.blockReason}`
     );
@@ -304,16 +253,12 @@ async function fetchSubtitlesFromGemini(videoUrl, apiKey, tabId) {
     throw new Error("Invalid response format from Gemini API.");
   }
 
-  // Parse SRT text into structured format
   const parsedSubtitles = parseSrt(srtText);
 
   if (parsedSubtitles.length === 0 && srtText.trim().length > 0) {
-    // If parsing failed but we got *some* text back from Gemini
     console.warn(
       "SRT parsing yielded no results. The response might not be valid SRT."
     );
-    // Optionally, you could throw an error here to indicate failure clearly
-    // throw new Error("Failed to parse valid SRT data from Gemini response.");
   }
 
   return parsedSubtitles;

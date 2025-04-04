@@ -10,9 +10,12 @@ This extension uses the **Gemini 2.5 Pro Experimental Model** (`gemini-2.5-pro-e
 
 ## Features
 
-- **Use Your Own Gemini API Key**: Integrate your Gemini AI API key to generate subtitles.
-- **Generate Subtitles for YouTube Videos**: Automatically fetch subtitles in SRT format for any YouTube video.
-- **Local Storage of Subtitles**: Subtitles are stored locally for each video, enabling quick access when revisiting the same video.
+- [x] **Use Your Own Gemini API Key**: Integrate your Gemini AI API key to generate subtitles.
+- [x] **Generate Subtitles for YouTube Videos**: Automatically fetch subtitles in SRT format for any YouTube video.
+- [x] **Local Storage of Subtitles**: Subtitles are stored locally for each video, enabling quick access when revisiting the same video.
+- [ ] Delete stored subtitles
+- [ ] Enable multiple languages
+- [ ] Different display customizations (fontSize, color, etc.)
 
 ## Installation
 
