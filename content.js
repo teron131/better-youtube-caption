@@ -1,3 +1,21 @@
+// Import utility functions
+// Note: In content scripts, we can't use importScripts, so we'll define utility functions inline
+// Alternatively, we could create a shared utility file and load it via script tag in manifest
+
+// URL utility function (duplicated from utils/urlUtils.js for content script)
+function cleanYouTubeUrl(originalUrl) {
+  try {
+    const url = new URL(originalUrl);
+    const videoId = url.searchParams.get("v");
+    if (videoId) {
+      return `${url.protocol}//${url.hostname}${url.pathname}?v=${videoId}`;
+    }
+  } catch (e) {
+    console.error("Error parsing URL for cleaning:", originalUrl, e);
+  }
+  return originalUrl;
+}
+
 // Global variables
 let currentSubtitles = [];
 let subtitleContainer = null;
@@ -22,22 +40,6 @@ function loadStoredSubtitles() {
       console.log("Content Script: No stored subtitles found for this video.");
     }
   });
-}
-
-// Cleans a YouTube URL to extract only the video ID and essential parameters
-function cleanYouTubeUrl(originalUrl) {
-  try {
-    const url = new URL(originalUrl);
-    const videoId = url.searchParams.get("v");
-    if (videoId) {
-      // Reconstruct a minimal URL
-      return `${url.protocol}//${url.hostname}${url.pathname}?v=${videoId}`;
-    }
-  } catch (e) {
-    console.error("Error parsing URL for cleaning:", originalUrl, e);
-  }
-  // Fallback to original if cleaning fails or no 'v' param found
-  return originalUrl;
 }
 
 // Monitors URL changes on YouTube (SPA behavior)

@@ -1,73 +1,22 @@
-// Converts a time string (e.g., "00:01:23,456") to milliseconds
-function timeStringToMs(timeStr) {
-  if (!timeStr) return 0;
+// Import utility modules
+importScripts("utils/srtParser.js");
+importScripts("utils/urlUtils.js");
+importScripts("utils/storageManager.js");
+importScripts("utils/transcriptFetcher.js");
+importScripts("config.js");
 
-  const trimmedTimeStr = timeStr.trim();
-
-  // Match HH:MM:SS,ms format
-  let match = trimmedTimeStr.match(
-    /(\d{2})\s*:\s*(\d{2})\s*:\s*(\d{2})[.,](\d{3})/
-  );
-  if (match) {
-    const hours = parseInt(match[1], 10);
-    const minutes = parseInt(match[2], 10);
-    const seconds = parseInt(match[3], 10);
-    const milliseconds = parseInt(match[4], 10);
-    return hours * 3600000 + minutes * 60000 + seconds * 1000 + milliseconds;
+// Get API key with fallback to test config
+async function getApiKeyWithFallback(keyName) {
+  const testConfig = getConfig();
+  
+  // If test config is enabled and has a value, use it
+  if (testConfig.useTestConfig && testConfig[keyName]) {
+    console.log(`Using test config for ${keyName}`);
+    return testConfig[keyName];
   }
 
-  // Match MM:SS,ms format (missing hours)
-  match = trimmedTimeStr.match(/(\d{2})\s*:\s*(\d{2})[.,](\d{3})/);
-  if (match) {
-    const minutes = parseInt(match[1], 10);
-    const seconds = parseInt(match[2], 10);
-    const milliseconds = parseInt(match[3], 10);
-    return minutes * 60000 + seconds * 1000 + milliseconds;
-  }
-
-  console.warn("Could not parse time string:", `"${trimmedTimeStr}"`);
-  return 0;
-}
-
-// Parses SRT text into an array of subtitle objects
-function parseSrt(srtText) {
-  if (!srtText || typeof srtText !== "string") {
-    console.error("Invalid SRT text input:", srtText);
-    return [];
-  }
-
-  console.log("Attempting to parse SRT:\n", srtText);
-
-  const subtitles = [];
-  const srtBlockRegex =
-    /(\d+)\s*([\d:,.-]+)\s*-->\s*([\d:,.-]+)\s*((?:.|\n(?!(\d+\s*[\d:,.-]+\s*-->)))+)/g;
-
-  let match;
-  while ((match = srtBlockRegex.exec(srtText)) !== null) {
-    const index = parseInt(match[1], 10);
-    const startTimeStr = match[2].trim().replace(".", ",");
-    const endTimeStr = match[3].trim().replace(".", ",");
-    const text = match[4].trim().replace(/[\r\n]+/g, " ");
-
-    const startTime = timeStringToMs(startTimeStr);
-    const endTime = timeStringToMs(endTimeStr);
-
-    if (!isNaN(startTime) && !isNaN(endTime) && text) {
-      subtitles.push({ startTime, endTime, text });
-    } else {
-      console.warn(
-        `Skipping malformed SRT block near index ${index}:`,
-        match[0]
-      );
-    }
-  }
-
-  if (subtitles.length === 0 && srtText.trim().length > 0) {
-    console.warn("Could not parse any valid SRT blocks from the text.");
-  }
-
-  console.log("Parsed subtitles count:", subtitles.length);
-  return subtitles;
+  // Otherwise, get from browser storage
+  return await getApiKeyFromStorage(keyName);
 }
 
 // Listener for messages from content or popup scripts
@@ -85,28 +34,47 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log("Background Script: Using cleaned URL for API:", cleanedUrl);
 
     // Check if subtitles for this video are already stored locally
-    chrome.storage.local.get(cleanedUrl, (result) => {
-      if (result[cleanedUrl]) {
+    getStoredSubtitles(cleanedUrl)
+      .then((cachedSubtitles) => {
+        if (cachedSubtitles) {
         console.log("Subtitles found in local storage for this video.");
         if (tabId) {
           chrome.tabs.sendMessage(tabId, {
             action: "subtitlesGenerated",
-            subtitles: result[cleanedUrl],
+              subtitles: cachedSubtitles,
           });
         }
         sendResponse({ status: "completed", cached: true });
       } else {
-        console.log("No cached subtitles found. Fetching from Gemini API...");
+          console.log("No cached subtitles found. Fetching transcript...");
 
         if (tabId) {
           chrome.runtime.sendMessage({
             action: "updatePopupStatus",
-            text: "Calling Gemini API...",
+              text: "Fetching YouTube transcript...",
             tabId: tabId,
           });
         }
 
-        fetchSubtitlesFromGemini(cleanedUrl, apiKey, tabId)
+          // First, fetch transcript from Scrape Creators API
+          (async () => {
+            // Get Scrape Creators API key
+            const scrapeCreatorsKey = await getApiKeyWithFallback("scrapeCreatorsApiKey");
+            if (!scrapeCreatorsKey) {
+              throw new Error("Scrape Creators API key not found. Please set it in config.js or popup.");
+            }
+            return scrapeCreatorsKey;
+          })()
+            .then((key) => fetchYouTubeTranscript(cleanedUrl, key))
+            .then((transcriptData) => {
+              console.log(`Fetched ${transcriptData.segments.length} transcript segments`);
+              console.log(`Video title: ${transcriptData.title}`);
+              
+              // For now, return transcript segments directly (refinement will be added later)
+              // The transcript segments are already in the correct format: {startTime, endTime, text}
+              // Metadata (title, description, transcriptText) is available for future refinement
+              return transcriptData.segments;
+            })
           .then((subtitles) => {
             if (tabId) {
               chrome.tabs.sendMessage(tabId, {
@@ -115,16 +83,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               });
               chrome.runtime.sendMessage({
                 action: "updatePopupStatus",
-                text: "Subtitles generated!",
+                  text: "Transcript fetched and ready!",
                 success: true,
                 tabId: tabId,
               });
             }
 
-            chrome.storage.local.set({ [cleanedUrl]: subtitles }, () => {
-              console.log("Subtitles saved to local storage for:", cleanedUrl);
-            });
-
+              return saveSubtitles(cleanedUrl, subtitles);
+            })
+            .then(() => {
             sendResponse({ status: "completed" });
           })
           .catch((error) => {
@@ -143,25 +110,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             sendResponse({ status: "error", message: error.message });
           });
       }
+      })
+      .catch((error) => {
+        console.error("Error checking storage:", error);
+        sendResponse({ status: "error", message: error.message });
     });
 
     return true; // Keep the message channel open for async response
   }
 });
 
-// Cleans a YouTube URL to extract only the video ID and essential parameters
-function cleanYouTubeUrl(originalUrl) {
-  try {
-    const url = new URL(originalUrl);
-    const videoId = url.searchParams.get("v");
-    if (videoId) {
-      return `${url.protocol}//${url.hostname}${url.pathname}?v=${videoId}`;
-    }
-  } catch (e) {
-    console.error("Error parsing URL for cleaning:", originalUrl, e);
-  }
-  return originalUrl;
-}
+// Note: cleanYouTubeUrl is now imported from utils/urlUtils.js
 
 // Fetches subtitles from the Gemini API
 async function fetchSubtitlesFromGemini(videoUrl, apiKey, tabId) {

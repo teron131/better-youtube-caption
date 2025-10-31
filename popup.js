@@ -15,6 +15,8 @@ document.addEventListener("DOMContentLoaded", function () {
   ); // Add it below the button
 
   // Load saved API key from local storage
+  // Note: In popup context, we can't directly access config.js
+  // API keys are stored in browser storage and can be overridden via config.js in background script
   chrome.storage.local.get(["geminiApiKey"], function (result) {
     if (result.geminiApiKey) {
       apiKeyInput.value = result.geminiApiKey;
