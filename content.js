@@ -1,4 +1,4 @@
-// Content script for YouTube Subtitles Generator
+// Content script for Better YouTube Caption
 // Handles subtitle display, auto-generation, and communication with background script
 
 // Global state
@@ -11,6 +11,7 @@ let checkInterval = null;
 let initAttempts = 0;
 let currentUrl = window.location.href;
 let autoGenerationTriggered = new Set(); // Track which videos have had auto-generation triggered
+let showSubtitlesEnabled = true; // Whether subtitles should be displayed
 
 // Loads stored subtitles for the current video from local storage
 // Also checks for auto-generation setting and triggers generation if enabled
@@ -29,6 +30,7 @@ function loadStoredSubtitles() {
       STORAGE_KEYS.SCRAPE_CREATORS_API_KEY,
       STORAGE_KEYS.OPENROUTER_API_KEY,
       STORAGE_KEYS.MODEL_SELECTION,
+      STORAGE_KEYS.SHOW_SUBTITLES,
     ], (result) => {
       try {
         if (chrome.runtime.lastError) {
@@ -36,10 +38,15 @@ function loadStoredSubtitles() {
           return;
         }
 
+        // Update show subtitles setting
+        showSubtitlesEnabled = result[STORAGE_KEYS.SHOW_SUBTITLES] !== false;
+
         if (result && result[videoId]) {
           console.log("Content Script: Found stored subtitles for this video.");
           currentSubtitles = result[videoId]; // Load stored subtitles
-          startSubtitleDisplay(); // Start displaying the subtitles
+          if (showSubtitlesEnabled) {
+            startSubtitleDisplay(); // Start displaying the subtitles
+          }
         } else {
           console.log("Content Script: No stored subtitles found for this video.");
           
@@ -108,7 +115,7 @@ function triggerAutoGeneration(videoId, scrapeCreatorsApiKey, openRouterApiKey, 
 function monitorUrlChanges() {
   const observer = new MutationObserver(() => {
     if (currentUrl !== window.location.href) {
-      console.log("YouTube Subtitles Generator: URL changed.");
+      console.log("Better YouTube Caption: URL changed.");
       const oldVideoId = extractVideoId(currentUrl);
       currentUrl = window.location.href;
       const newVideoId = extractVideoId(currentUrl);
@@ -127,7 +134,7 @@ function monitorUrlChanges() {
 
 // Handles actions when the URL changes
 function onUrlChange() {
-  console.log("YouTube Subtitles Generator: Reinitializing for new video...");
+  console.log("Better YouTube Caption: Reinitializing for new video...");
   clearSubtitles(); // Clear current subtitles
   // Note: We don't clear autoGenerationTriggered here because we want to prevent
   // re-triggering for the same video if user navigates back
@@ -150,7 +157,7 @@ function findVideoElements() {
 
 // Initializes the content script
 function initialize() {
-  console.log("YouTube Subtitles Generator: Initializing content script...");
+  console.log("Better YouTube Caption: Initializing content script...");
 
   if (!findVideoElements()) {
     initAttempts++;
@@ -161,15 +168,15 @@ function initialize() {
       setTimeout(initialize, TIMING.INIT_RETRY_DELAY_MS);
     } else {
       console.error(
-        "YouTube Subtitles Generator: Video player or container not found after multiple attempts."
+        "Better YouTube Caption: Video player or container not found after multiple attempts."
       );
     }
     return;
   }
 
-  console.log("YouTube Subtitles Generator: Video player found.", videoPlayer);
+  console.log("Better YouTube Caption: Video player found.", videoPlayer);
   console.log(
-    "YouTube Subtitles Generator: Video container found.",
+    "Better YouTube Caption: Video container found.",
     videoContainer
   );
 
@@ -233,7 +240,10 @@ function initialize() {
       console.log(`Received ${currentSubtitles.length} subtitle entries.`);
 
       if (currentSubtitles.length > 0) {
-        startSubtitleDisplay(); // Start displaying subtitles
+        // Only start display if subtitles are enabled
+        if (showSubtitlesEnabled) {
+          startSubtitleDisplay(); // Start displaying subtitles
+        }
 
         // Store the subtitles locally for future use
         // Use the videoId from message if provided (captured at button click),
@@ -264,11 +274,24 @@ function initialize() {
         sendResponse({ status: "no_subtitles_found" });
       }
       return true; // Indicate response sent
+    } else if (message.action === MESSAGE_ACTIONS.TOGGLE_SUBTITLES) {
+      console.log("Content Script: Received toggleSubtitles request");
+      showSubtitlesEnabled = message.showSubtitles !== false;
+      
+      if (showSubtitlesEnabled && currentSubtitles.length > 0) {
+        startSubtitleDisplay();
+      } else {
+        stopSubtitleDisplay();
+        hideCurrentSubtitle();
+      }
+      
+      sendResponse({ status: "success" });
+      return true;
     }
   });
 
   console.log(
-    "YouTube Subtitles Generator: Initialization complete. Listening for messages."
+    "Better YouTube Caption: Initialization complete. Listening for messages."
   );
 }
 

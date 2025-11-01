@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>YouTube Subtitles Generator</title>
+    <title>Better YouTube Caption</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <style>
       /* Root variables for consistent styling */
@@ -196,7 +196,7 @@
     <!-- Main container for the popup -->
     <div class="container">
       <!-- Header -->
-      <h2>YouTube Subtitles Generator</h2>
+      <h2>Better YouTube Caption</h2>
 
       <!-- Input for Scrape Creators API Key -->
       <div>
@@ -235,6 +235,17 @@
         </label>
         <label class="toggle-switch">
           <input type="checkbox" id="autoGenerateToggle" />
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <!-- Show subtitles toggle -->
+      <div class="toggle-container">
+        <label for="showSubtitlesToggle" class="toggle-label">
+          Show subtitles on video
+        </label>
+        <label class="toggle-switch">
+          <input type="checkbox" id="showSubtitlesToggle" />
           <span class="toggle-slider"></span>
         </label>
       </div>

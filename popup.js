@@ -4,6 +4,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const openRouterApiKeyInput = document.getElementById("openRouterApiKey");
   const modelSelectionInput = document.getElementById("modelSelection");
   const autoGenerateToggle = document.getElementById("autoGenerateToggle");
+  const showSubtitlesToggle = document.getElementById("showSubtitlesToggle");
   const generateBtn = document.getElementById("generateBtn");
   const statusDiv = document.getElementById("status");
 
@@ -17,13 +18,14 @@ document.addEventListener("DOMContentLoaded", function () {
     generateBtn.nextSibling
   ); // Add it below the button
 
-  // Load saved API keys, model, and auto-generation setting from local storage
+  // Load saved API keys, model, and settings from local storage
   chrome.storage.local.get(
     [
       STORAGE_KEYS.SCRAPE_CREATORS_API_KEY,
       STORAGE_KEYS.OPENROUTER_API_KEY,
       STORAGE_KEYS.MODEL_SELECTION,
       STORAGE_KEYS.AUTO_GENERATE,
+      STORAGE_KEYS.SHOW_SUBTITLES,
     ],
     function (result) {
       if (result[STORAGE_KEYS.SCRAPE_CREATORS_API_KEY]) {
@@ -40,6 +42,8 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       // Load auto-generation setting (default to false)
       autoGenerateToggle.checked = result[STORAGE_KEYS.AUTO_GENERATE] === true;
+      // Load show subtitles setting (default to true)
+      showSubtitlesToggle.checked = result[STORAGE_KEYS.SHOW_SUBTITLES] !== false;
     }
   );
 
@@ -72,6 +76,32 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
 
+  // Handle show subtitles toggle change
+  showSubtitlesToggle.addEventListener("change", function () {
+    chrome.storage.local.set({ [STORAGE_KEYS.SHOW_SUBTITLES]: showSubtitlesToggle.checked }, () => {
+      console.log("Show subtitles setting saved:", showSubtitlesToggle.checked);
+      
+      // Send message to content script to toggle subtitle display
+      chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+        const currentTab = tabs[0];
+        if (currentTab && currentTab.url && currentTab.url.includes("youtube.com/watch")) {
+          chrome.tabs.sendMessage(
+            currentTab.id,
+            {
+              action: MESSAGE_ACTIONS.TOGGLE_SUBTITLES,
+              showSubtitles: showSubtitlesToggle.checked,
+            },
+            () => {
+              if (chrome.runtime.lastError) {
+                console.log("Could not send toggle message to content script:", chrome.runtime.lastError.message);
+              }
+            }
+          );
+        }
+      });
+    });
+  });
+
   // Handle the "Generate Subtitles" button click
   generateBtn.addEventListener("click", function () {
     // Prevent multiple clicks while processing
@@ -90,12 +120,13 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-    // Save the API keys, model, and auto-generation setting to local storage
+    // Save the API keys, model, and settings to local storage
     chrome.storage.local.set({
       [STORAGE_KEYS.SCRAPE_CREATORS_API_KEY]: scrapeCreatorsApiKey,
       [STORAGE_KEYS.OPENROUTER_API_KEY]: openRouterApiKey,
       [STORAGE_KEYS.MODEL_SELECTION]: modelSelection,
       [STORAGE_KEYS.AUTO_GENERATE]: autoGenerateToggle.checked,
+      [STORAGE_KEYS.SHOW_SUBTITLES]: showSubtitlesToggle.checked,
     });
 
     // Show loading status

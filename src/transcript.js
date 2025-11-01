@@ -165,7 +165,7 @@ Return the refined transcript with the same number of lines and timestamps prese
       "Content-Type": "application/json",
       "Authorization": `Bearer ${openRouterApiKey}`,
       "HTTP-Referer": chrome.runtime.getURL(""), // Optional: for OpenRouter analytics
-      "X-Title": "YouTube Subtitles Generator", // Optional: for OpenRouter analytics
+      "X-Title": "Better YouTube Caption", // Optional: for OpenRouter analytics
     },
     body: JSON.stringify({
       model: model,

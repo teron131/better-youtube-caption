@@ -1,4 +1,4 @@
-// Constants for YouTube Subtitles Generator Extension
+// Constants for Better YouTube Caption Extension
 
 // Storage keys
 const STORAGE_KEYS = {
@@ -6,6 +6,7 @@ const STORAGE_KEYS = {
   OPENROUTER_API_KEY: "openRouterApiKey",
   MODEL_SELECTION: "modelSelection",
   AUTO_GENERATE: "autoGenerate",
+  SHOW_SUBTITLES: "showSubtitles",
 };
 
 // Timing constants
@@ -28,6 +29,7 @@ const STORAGE = {
 const DEFAULTS = {
   MODEL: "google/gemini-2.5-flash-lite",
   AUTO_GENERATE: false,
+  SHOW_SUBTITLES: true, // Subtitles shown by default
 };
 
 // API endpoints
@@ -52,6 +54,7 @@ const MESSAGE_ACTIONS = {
   GENERATE_SUBTITLES: "generateSubtitles",
   SUBTITLES_GENERATED: "subtitlesGenerated",
   UPDATE_POPUP_STATUS: "updatePopupStatus",
+  TOGGLE_SUBTITLES: "toggleSubtitles",
 };
 
 // Element IDs

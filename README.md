@@ -1,21 +1,18 @@
-![preview](https://github.com/za01br/yt-subtitle-extension/blob/main/preview.png)
+# Better YouTube Caption
 
-# Chrome Extension: YouTube Subtitles Generator
+A Chrome extension that enhances YouTube video captions by automatically refining transcripts using AI. Captions are stored locally for instant access when revisiting videos.
 
-Chrome extension that allows users to generate subtitles for YouTube videos using their own Gemini AI API key. The extension stores generated subtitles locally, so they can be reused without needing to regenerate them.
-
-## Gemini Model
-
-This extension uses the **Gemini 2.5 Pro Experimental Model** (`gemini-2.5-pro-exp-03-25`) to generate subtitles.
+![preview](preview.png)
 
 ## Features
 
-- [x] **Use Your Own Gemini API Key**: Integrate your Gemini AI API key to generate subtitles.
-- [x] **Generate Subtitles for YouTube Videos**: Automatically fetch subtitles in SRT format for any YouTube video.
-- [x] **Local Storage of Subtitles**: Subtitles are stored locally for each video, enabling quick access when revisiting the same video.
-- [ ] Delete stored subtitles
-- [ ] Enable multiple languages
-- [ ] Different display customizations (fontSize, color, etc.)
+- ✨ **AI-Powered Caption Refinement**: Automatically fixes typos and grammar errors in YouTube transcripts using OpenRouter (Gemini, GPT-4, etc.)
+- 🔄 **Auto-Generation**: Automatically generate and refine captions for new videos (toggleable)
+- 💾 **Local Storage**: Captions are cached locally per video for instant playback
+- 🎛️ **Model Selection**: Choose your preferred AI model from OpenRouter
+- 👁️ **Toggle Display**: Show or hide captions on videos with a simple toggle
+- 📦 **Smart Storage Management**: Automatic cleanup to manage Chrome's 10MB storage limit
+- 🔑 **Your Own API Keys**: Use your Scrape Creators and OpenRouter API keys
 
 ## Installation
 
@@ -25,66 +22,127 @@ This extension uses the **Gemini 2.5 Pro Experimental Model** (`gemini-2.5-pro-e
 4. Click **Load unpacked** and select the folder containing this project.
 5. The extension will now appear in your Chrome extensions list.
 
+## Setup
+
+1. **Get API Keys**:
+   - [Scrape Creators API](https://scrapecreators.com/) - For fetching YouTube transcripts
+   - [OpenRouter API](https://openrouter.ai/) - For AI-powered caption refinement
+
+2. **Configure the Extension**:
+   - Click the extension icon in your Chrome toolbar
+   - Enter your Scrape Creators API key (required)
+   - Enter your OpenRouter API key (optional, for refinement)
+   - Select your preferred AI model (default: `google/gemini-2.5-flash-lite`)
+
 ## How to Use
 
-1. Open a YouTube video.
-2. Click on the extension icon in the Chrome toolbar.
-3. Enter your Gemini API key in the input field.
-4. Click **Generate Subtitles** to fetch subtitles for the video.
-5. If subtitles have already been generated for the video, they will load automatically.
+### Manual Generation
+1. Navigate to any YouTube video
+2. Click the extension icon
+3. Click **Generate Subtitles**
+4. Wait for processing (transcript fetching + AI refinement)
+
+### Auto-Generation
+1. Enable **Auto-generate subtitles for new videos** toggle
+2. Navigate to any YouTube video
+3. Captions will automatically generate after a short delay
+
+### Toggle Display
+- Use the **Show subtitles on video** toggle to show/hide captions
+- Setting persists across page reloads
+
+## Project Structure
+
+```
+better-youtube-caption/
+├── src/                    # Core library code
+│   ├── constants.js       # Configuration constants
+│   ├── storage.js         # Storage management utilities
+│   ├── transcript.js       # Transcript fetching & refinement
+│   ├── parser.js          # SRT parsing utilities
+│   └── url.js             # URL manipulation utilities
+├── background.js          # Service worker (API calls, storage)
+├── content.js             # Content script (subtitle display)
+├── popup.html             # Extension popup UI
+├── popup.js               # Popup logic and event handlers
+├── subtitles.css          # Subtitle styling
+├── manifest.json          # Extension manifest
+└── config.js             # Development config (optional)
+```
 
 ## File Overview
 
-### `manifest.json`
+### Core Files
 
-Defines the extension's metadata, permissions, and resources. It specifies the background script, content script, and popup interface.
+**`manifest.json`**
+- Defines extension metadata, permissions, and resources
+- Specifies background service worker, content scripts, and popup
 
-### `background.js`
+**`background.js`**
+- Service worker handling API communication
+- Manages transcript fetching (Scrape Creators API)
+- Coordinates AI refinement (OpenRouter API)
+- Handles storage operations and cleanup
 
-Handles communication with the Gemini API and manages local storage for subtitles. It processes requests from the content script and popup.
+**`content.js`**
+- Runs on YouTube pages
+- Manages subtitle display and synchronization
+- Handles auto-generation logic
+- Listens for user interactions
 
-### `content.js`
+**`popup.html` & `popup.js`**
+- Extension popup interface
+- API key configuration
+- Model selection
+- Toggle controls (auto-generation, show/hide)
 
-Runs on YouTube pages to manage subtitle display. It listens for messages from the background script and popup, loads stored subtitles, and updates the UI.
+### Source Library (`src/`)
 
-### `popup.html`
+**`constants.js`**
+- Centralized configuration constants
+- Storage keys, timing values, defaults, API endpoints
 
-Defines the structure and layout of the popup interface.
+**`storage.js`**
+- Chrome storage management
+- Quota handling and cleanup
+- Video transcript storage operations
 
-### `popup.js`
+**`transcript.js`**
+- Transcript fetching from Scrape Creators API
+- AI refinement via OpenRouter
+- Format conversion and parsing
 
-Manages the popup interface. It allows users to input their Gemini API key, check for existing subtitles, and request new subtitles.
+**`parser.js`**
+- SRT format parsing utilities
+- Time string conversion
 
-### `subtitles.css`
+**`url.js`**
+- YouTube URL manipulation
+- Video ID extraction
 
-Contains styles for the subtitle display on YouTube videos.
+## Storage Management
 
-### `README.md`
+The extension uses Chrome's `chrome.storage.local` API with a 10MB limit:
+- **Quota Management**: Automatic cleanup when storage exceeds 9MB
+- **Smart Cleanup**: Removes oldest videos when space is needed
+- **Per-Video Storage**: Each video's transcript is stored with its video ID as the key
 
-Provides documentation for the project.
+## Technical Details
 
-## Flow Diagram
+### API Integration
 
-```plaintext
-+-------------------+       +-------------------+       +-------------------+
-|   popup.html      |       |   popup.js        |       |   content.js      |
-|-------------------|       |-------------------|       |-------------------|
-| User interacts    | ----> | Sends requests    | ----> | Displays subtitles|
-| with the popup    |       | to background.js  |       | and updates UI    |
-+-------------------+       +-------------------+       +-------------------+
+**Scrape Creators API**
+- Fetches YouTube video transcripts with timestamps
+- Includes video metadata (title, description)
 
-+-------------------+
-|   background.js   |
-|-------------------|
-| Handles API calls |
-| and stores data   |
-+-------------------+
-```
+**OpenRouter API**
+- Provides access to multiple providers and LLMs
+- Prioritizes throughput for faster processing
+- Uses system prompts to preserve transcript structure
 
-## Contributing
+### Caption Display
 
-Feel free to fork this repository and submit pull requests for improvements or new features.
-
-## License
-
-This project is licensed under the MIT License. See the LICENSE file for details.
+- Synchronized with video playback
+- Updates every 100ms for smooth transitions
+- Hidden when video is paused
+- Respects user toggle preferences
