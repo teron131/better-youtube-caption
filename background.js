@@ -22,7 +22,156 @@ async function getApiKeyWithFallback(keyName) {
 
 // Listener for messages from content or popup scripts
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === MESSAGE_ACTIONS.FETCH_SUBTITLES) {
+  if (message.action === MESSAGE_ACTIONS.GENERATE_SUMMARY) {
+    const {
+      videoId,
+      scrapeCreatorsApiKey: messageScrapeCreatorsKey,
+      openRouterApiKey: messageOpenRouterKey,
+      modelSelection: messageModelSelection,
+    } = message;
+    const tabId = sender.tab?.id;
+
+    console.log("Background Script: Received generateSummary request for Video ID:", videoId);
+
+    if (!videoId) {
+      sendResponse({ status: "error", message: "Video ID is required." });
+      return true;
+    }
+
+    const urlForApi = `https://www.youtube.com/watch?v=${videoId}`;
+
+    // Check if summary is already cached
+    chrome.storage.local.get([`summary_${videoId}`], async (result) => {
+      if (result[`summary_${videoId}`]) {
+        console.log("Summary found in cache");
+        if (tabId) {
+          chrome.tabs.sendMessage(tabId, {
+            action: "SUMMARY_GENERATED",
+            summary: result[`summary_${videoId}`],
+          });
+        }
+        sendResponse({ status: "completed", cached: true });
+        return;
+      }
+
+      // Fetch transcript and generate summary
+      try {
+        if (tabId) {
+          chrome.runtime.sendMessage({
+            action: MESSAGE_ACTIONS.UPDATE_POPUP_STATUS,
+            text: "Fetching YouTube transcript...",
+            tabId: tabId,
+          });
+        }
+
+        // Get Scrape Creators API key
+        const scrapeCreatorsKey = messageScrapeCreatorsKey || (await getApiKeyWithFallback("scrapeCreatorsApiKey"));
+        if (!scrapeCreatorsKey) {
+          throw new Error("Scrape Creators API key not found");
+        }
+
+        // Get OpenRouter API key
+        const openRouterKey = messageOpenRouterKey || (await getApiKeyWithFallback("openRouterApiKey"));
+        if (!openRouterKey) {
+          throw new Error("OpenRouter API key not found");
+        }
+
+        // Get model selection
+        const customModel = await getApiKeyFromStorage(STORAGE_KEYS.CUSTOM_MODEL);
+        const recommendedModel = await getApiKeyFromStorage(STORAGE_KEYS.RECOMMENDED_MODEL);
+        const modelSelection = messageModelSelection || (customModel?.trim() || recommendedModel || DEFAULTS.MODEL);
+
+        // Fetch transcript
+        const transcriptData = await fetchYouTubeTranscript(urlForApi, scrapeCreatorsKey);
+        console.log(`Fetched ${transcriptData.segments.length} transcript segments for summary`);
+
+        if (tabId) {
+          chrome.runtime.sendMessage({
+            action: MESSAGE_ACTIONS.UPDATE_POPUP_STATUS,
+            text: "Generating summary with AI...",
+            tabId: tabId,
+          });
+        }
+
+        // Generate summary using OpenRouter
+        const transcriptText = transcriptData.segments.map(seg => seg.text).join(' ');
+        
+        const summaryPrompt = `You are a helpful assistant that creates concise, informative summaries of YouTube videos.
+
+Based on the following video transcript, create a well-structured summary in markdown format that includes:
+
+1. A brief overview paragraph (2-3 sentences)
+2. A "Key Points" section with bullet points highlighting the main topics covered
+
+Video Title: ${transcriptData.title}
+${transcriptData.description ? `Description: ${transcriptData.description}` : ''}
+
+Transcript:
+${transcriptText}
+
+Format your response in markdown with clear sections.`;
+
+        const summaryResponse = await fetch(API_ENDPOINTS.OPENROUTER, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${openRouterKey}`,
+            'HTTP-Referer': 'https://github.com/better-youtube-caption',
+            'X-Title': 'Better YouTube Caption'
+          },
+          body: JSON.stringify({
+            model: modelSelection,
+            messages: [
+              {
+                role: 'user',
+                content: summaryPrompt
+              }
+            ]
+          })
+        });
+
+        if (!summaryResponse.ok) {
+          throw new Error(`OpenRouter API error: ${summaryResponse.status}`);
+        }
+
+        const summaryData = await summaryResponse.json();
+        const summary = summaryData.choices[0].message.content;
+
+        // Save summary to storage
+        chrome.storage.local.set({ [`summary_${videoId}`]: summary });
+
+        // Send summary to content script/popup
+        if (tabId) {
+          chrome.tabs.sendMessage(tabId, {
+            action: "SUMMARY_GENERATED",
+            summary: summary,
+          });
+          chrome.runtime.sendMessage({
+            action: MESSAGE_ACTIONS.UPDATE_POPUP_STATUS,
+            text: "Summary generated successfully!",
+            success: true,
+            tabId: tabId,
+          });
+        }
+
+        sendResponse({ status: "completed" });
+      } catch (error) {
+        console.error("Error generating summary:", error);
+        const errorMessage = `Error: ${error.message || "Unknown error"}`;
+        if (tabId) {
+          chrome.runtime.sendMessage({
+            action: MESSAGE_ACTIONS.UPDATE_POPUP_STATUS,
+            text: errorMessage,
+            error: true,
+            tabId: tabId,
+          });
+        }
+        sendResponse({ status: "error", message: error.message });
+      }
+    });
+
+    return true; // Keep channel open for async response
+  } else if (message.action === MESSAGE_ACTIONS.FETCH_SUBTITLES) {
     const {
       videoId, // Video ID - URL will be constructed from this when needed
       scrapeCreatorsApiKey: messageScrapeCreatorsKey,

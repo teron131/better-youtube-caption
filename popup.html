@@ -5,186 +5,489 @@
     <title>Better YouTube Caption</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <style>
-      /* Root variables for consistent styling */
       :root {
-        --radius: 0.5rem;
-        --input-padding: 0.5rem 0.75rem;
-        --font-size: 14px;
-        --bg: #ffffff;
-        --text: #111827;
-        --muted: #6b7280;
-        --border: #d1d5db;
-        --primary: #ef4444;
-        --primary-hover: #dc2626;
+        --bg-gradient: linear-gradient(
+          150deg,
+          rgba(255, 0, 0, 0.18) 0%,
+          rgba(20, 20, 20, 0.92) 52%,
+          #050505 100%
+        );
+        --surface-primary: rgba(18, 18, 18, 0.94);
+        --surface-secondary: rgba(28, 28, 28, 0.94);
+        --text-primary: #f5f5f5;
+        --text-secondary: #c8c8c8;
+        --border: rgba(255, 255, 255, 0.06);
+        --border-strong: rgba(255, 0, 0, 0.4);
+        --primary: #ff0000;
+        --primary-soft: #ff4d4d;
+        --primary-dark: #cc0000;
+        --success: #3ad369;
+        --error: #ff6b6b;
+        --radius-lg: 22px;
+        --radius-md: 16px;
+        --radius-sm: 12px;
+        --shadow-card: 0 28px 60px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.02);
+        --shadow-button: 0 24px 48px rgba(255, 0, 0, 0.45);
       }
 
-      /* General body styling */
+      * {
+        box-sizing: border-box;
+        -webkit-font-smoothing: antialiased;
+      }
+
       body {
-        width: 380px;
-        min-height: 450px;
-        padding: 18px;
+        width: 520px;
+        min-height: 560px;
         margin: 0;
-        font-family: system-ui, sans-serif;
-        background-color: var(--bg);
-        color: var(--text);
+        padding: 32px 28px;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: var(--bg-gradient), #030303;
+        color: var(--text-primary);
+        display: flex;
+        justify-content: center;
         overflow-y: auto;
-        overflow-x: hidden;
-        box-sizing: border-box;
       }
 
-      html {
-        overflow-y: visible;
-      }
-
-      /* Container for layout */
-      .container {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        width: 100%;
-        max-width: 100%;
-        box-sizing: border-box;
-      }
-
-      /* Header styling */
-      h2 {
-        font-size: 15px;
-        font-weight: 600;
+      h1,
+      h2,
+      h3,
+      p {
         margin: 0;
       }
 
-      /* Label styling */
-      label {
-        font-size: 13px;
-        font-weight: 500;
-        margin-bottom: 5px;
-        display: block;
-        color: var(--text);
-      }
-
-      /* Form group spacing */
-      .container > div {
+      .app-wrapper {
+        width: 100%;
         display: flex;
         flex-direction: column;
-        gap: 5px;
+        gap: 24px;
       }
 
-      /* Input field styling */
-      input {
-        padding: 8px 12px;
-        font-size: 13px;
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        outline: none;
-        width: 100%;
-        max-width: 100%;
-        box-sizing: border-box;
-        transition: border-color 0.2s, box-shadow 0.2s;
-        background-color: var(--bg);
+      .view {
+        display: none;
+        flex-direction: column;
+        gap: 24px;
       }
 
-      /* Input focus styling */
-      input:focus {
-        border-color: var(--primary);
-        box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+      .view.active {
+        display: flex;
       }
 
-      /* Select field styling */
-      select {
-        padding: 8px 12px;
-        font-size: 13px;
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        outline: none;
-        width: 100%;
-        max-width: 100%;
-        box-sizing: border-box;
-        transition: border-color 0.2s, box-shadow 0.2s;
-        background-color: var(--bg);
-        color: var(--text);
-      }
-
-      select:focus {
-        border-color: var(--muted);
-        box-shadow: 0 0 0 2px rgba(55, 65, 81, 0.2);
-      }
-
-      /* Button styling */
-      button {
-        background-color: var(--primary);
-        color: white;
-        font-size: 13px;
-        font-weight: 500;
-        padding: 10px 16px;
-        border: none;
-        border-radius: var(--radius);
-        cursor: pointer;
-        transition: background-color 0.2s;
-        width: 100%;
-        box-sizing: border-box;
-      }
-
-      /* Button hover effect */
-      button:hover:not(:disabled) {
-        background-color: var(--primary-hover);
-      }
-
-      /* Button disabled state */
-      button:disabled {
-        background-color: var(--muted);
-        color: #ffffff;
-        cursor: not-allowed;
-        opacity: 0.6;
-      }
-
-      /* Button disabled hover - no effect */
-      button:disabled:hover {
-        background-color: var(--muted);
-      }
-
-      /* Status message styling */
-      .status {
-        font-size: 12px;
-        color: var(--muted);
-        margin-top: 2px;
-        min-height: 16px;
-      }
-
-      /* Existing subtitles message styling */
-      .existing-subtitles {
-        font-size: 12px;
-        color: green;
-        margin-top: 4px;
-        min-height: 16px;
-      }
-
-      /* Toggle switch container styling */
-      .toggle-container {
+      .page-header {
         display: flex;
         align-items: center;
-        gap: 12px;
-        padding: 4px 0;
+        justify-content: space-between;
+        gap: 16px;
       }
 
-      .toggle-label {
+      .header-left {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+
+      .logo-badge {
+        width: 52px;
+        height: 52px;
+        border-radius: 18px;
+        background: linear-gradient(140deg, var(--primary), var(--primary-soft));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 14px 30px rgba(255, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.24);
+        position: relative;
+      }
+
+      .logo-play {
+        width: 0;
+        height: 0;
+        border-left: 16px solid #ffffff;
+        border-top: 10px solid transparent;
+        border-bottom: 10px solid transparent;
+        margin-left: 4px;
+      }
+
+      .logo-play.small {
+        border-left-width: 12px;
+        border-top-width: 8px;
+        border-bottom-width: 8px;
+      }
+
+      .header-text h1 {
+        font-size: 20px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+
+      .header-text p {
+        font-size: 13px;
+        color: var(--text-secondary);
+        margin-top: 4px;
+      }
+
+      .icon-button {
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+        border: 1px solid transparent;
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        backdrop-filter: blur(6px);
+      }
+
+      .icon-button:hover {
+        border-color: var(--border-strong);
+        background: rgba(255, 0, 0, 0.14);
+      }
+
+      .icon-button svg {
+        width: 20px;
+        height: 20px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+      }
+
+      .icon-button.back-button {
+        width: 42px;
+        height: 42px;
+        margin-right: 4px;
+      }
+
+      .card {
+        background: var(--surface-primary);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 24px;
+        box-shadow: var(--shadow-card);
+        backdrop-filter: blur(12px);
+      }
+
+      .card-label {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: rgba(255, 255, 255, 0.52);
+        margin-bottom: 14px;
+      }
+
+      .video-row {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+
+      .media-badge {
+        width: 44px;
+        height: 44px;
+        border-radius: 14px;
+        background: rgba(255, 0, 0, 0.16);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(255, 0, 0, 0.42);
+      }
+
+      .video-title {
+        font-size: 15px;
+        font-weight: 500;
+        color: var(--text-primary);
+        line-height: 1.4;
+      }
+
+      .primary-action {
+        width: 100%;
+        border: none;
+        border-radius: var(--radius-lg);
+        padding: 16px 20px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        color: #ffffff;
+        background: linear-gradient(125deg, var(--primary), var(--primary));
+        box-shadow: 0 0 0 rgba(255, 0, 0, 0.28), 0 16px 32px rgba(255, 0, 0, 0.18);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+      }
+
+      .primary-action .action-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.18);
+      }
+
+      .primary-action svg {
+        width: 18px;
+        height: 18px;
+        fill: none;
+        stroke: #ffffff;
+        stroke-width: 1.8;
+      }
+
+      .primary-action:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 22px 45px rgba(255, 0, 0, 0.22);
+      }
+
+      .primary-action:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        box-shadow: none;
+        background: linear-gradient(125deg, rgba(120, 120, 120, 0.24), rgba(120, 120, 120, 0.2));
+      }
+
+      .generate-btn {
+        position: relative;
+        overflow: hidden;
+      }
+
+      .generate-btn::after {
+        content: '';
+        position: absolute;
+        inset: -120% -40% auto;
+        height: 220%;
+        background: radial-gradient(circle, rgba(255, 255, 255, 0.35) 0%, transparent 60%);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+
+      .generate-btn:hover::after {
+        opacity: 0.35;
+      }
+
+      .status {
+        font-size: 13px;
+        text-align: center;
+        color: var(--text-secondary);
+        min-height: 18px;
+      }
+
+      .status:not(:empty) {
+        padding: 13px 16px;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.04);
+      }
+
+      .status.success {
+        color: var(--success);
+        border-color: rgba(58, 211, 105, 0.32);
+        background: rgba(58, 211, 105, 0.12);
+      }
+
+      .status.error {
+        color: var(--error);
+        border-color: rgba(255, 0, 0, 0.38);
+        background: rgba(255, 0, 0, 0.14);
+      }
+
+      .summary-card {
+        position: relative;
+        overflow: hidden;
+      }
+
+      .summary-card::before {
+        content: '';
+        position: absolute;
+        inset: -40% auto auto -40%;
+        width: 260px;
+        height: 260px;
+        background: radial-gradient(circle, rgba(255, 0, 0, 0.24) 0%, transparent 70%);
+        opacity: 0.6;
+        pointer-events: none;
+      }
+
+      .summary-card-header {
+        position: relative;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-bottom: 20px;
+      }
+
+      .summary-card h2 {
+        font-size: 18px;
+        font-weight: 600;
+      }
+
+      .summary-subtitle {
+        margin-top: 6px;
+        font-size: 13px;
+        color: var(--text-secondary);
+      }
+
+      .summary-content {
+        position: relative;
+        font-size: 14px;
+        line-height: 1.7;
+        color: var(--text-secondary);
+      }
+
+      .summary-content h3 {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 20px 0 12px;
+      }
+
+      .summary-content ul {
+        list-style: none;
+        padding: 0;
+        margin: 16px 0;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .summary-content li {
+        position: relative;
+        padding-left: 26px;
+      }
+
+      .summary-content li::before {
+        content: '';
+        position: absolute;
+        top: 8px;
+        left: 0;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary-soft), var(--primary));
+        box-shadow: 0 0 0 4px rgba(255, 0, 0, 0.18);
+      }
+
+      .summary-content strong {
+        color: var(--text-primary);
+      }
+
+      .summary-placeholder {
+        padding: 40px 24px;
+        text-align: center;
+        border-radius: var(--radius-md);
+        border: 1px dashed rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.02);
+        color: var(--text-secondary);
+        font-style: italic;
+      }
+
+      #settingsView .page-header {
+        align-items: flex-start;
+      }
+
+      .logo-badge.is-settings {
+        background: linear-gradient(140deg, rgba(255, 0, 0, 0.36), rgba(80, 0, 0, 0.65));
+        border: 1px solid rgba(255, 0, 0, 0.42);
+        box-shadow: 0 14px 32px rgba(255, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+      }
+
+      .logo-badge.is-settings svg {
+        width: 22px;
+        height: 22px;
+        stroke: #ffffff;
+        stroke-width: 1.6;
+        fill: none;
+      }
+
+      .settings-card {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      .form-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+
+      .section-heading {
+        font-size: 15px;
+        font-weight: 600;
+        padding-top: 4px;
+      }
+
+      .form-group label {
+        display: block;
         font-size: 13px;
         font-weight: 500;
-        cursor: pointer;
-        user-select: none;
-        margin: 0;
-        flex: 1;
+        margin-bottom: 6px;
+        color: var(--text-primary);
       }
 
-      /* Toggle switch styling */
+      .form-group input,
+      .form-group select {
+        width: 100%;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border);
+        background: var(--surface-secondary);
+        color: var(--text-primary);
+        padding: 12px 14px;
+        font-size: 14px;
+        transition: border 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .form-group input::placeholder {
+        color: rgba(255, 255, 255, 0.38);
+      }
+
+      .form-group input:focus,
+      .form-group select:focus {
+        outline: none;
+        border-color: rgba(255, 0, 0, 0.55);
+        box-shadow: 0 0 0 4px rgba(255, 0, 0, 0.2);
+      }
+
+      .form-hint {
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin-top: 6px;
+      }
+
+      .form-divider {
+        height: 1px;
+        background: rgba(255, 255, 255, 0.05);
+        margin: 4px 0;
+      }
+
+      .toggle-card {
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.02);
+        padding: 16px 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+      }
+
+      .toggle-info h3 {
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 6px;
+      }
+
+      .toggle-info p {
+        font-size: 12px;
+        color: var(--text-secondary);
+      }
+
       .toggle-switch {
         position: relative;
-        display: inline-block;
-        width: 44px;
-        height: 24px;
-        flex-shrink: 0;
+        width: 56px;
+        height: 30px;
       }
 
-      /* Hide default checkbox */
       .toggle-switch input {
         opacity: 0;
         width: 0;
@@ -192,198 +495,243 @@
         position: absolute;
       }
 
-      /* Toggle slider */
       .toggle-slider {
         position: absolute;
-        cursor: pointer;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: var(--muted);
-        transition: 0.3s;
-        border-radius: 24px;
+        inset: 0;
+        border-radius: 999px;
+        background: rgba(120, 120, 120, 0.25);
+        border: 1px solid rgba(120, 120, 120, 0.25);
+        transition: all 0.25s ease;
       }
 
-      /* Toggle slider circle */
-      .toggle-slider:before {
+      .toggle-slider::before {
+        content: '';
         position: absolute;
-        content: "";
-        height: 18px;
-        width: 18px;
-        left: 3px;
-        bottom: 3px;
-        background-color: white;
-        transition: 0.3s;
+        width: 24px;
+        height: 24px;
+        left: 4px;
+        top: 2px;
         border-radius: 50%;
+        background: #ffffff;
+        transition: transform 0.25s ease;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
       }
 
-      /* Toggle checked state */
       .toggle-switch input:checked + .toggle-slider {
-        background-color: var(--primary);
+        background: var(--primary);
+        border-color: rgba(255, 0, 0, 0.45);
       }
 
-      .toggle-switch input:checked + .toggle-slider:before {
-        transform: translateX(20px);
+      .toggle-switch input:checked + .toggle-slider::before {
+        transform: translateX(24px);
       }
 
-      /* Toggle focus state */
-      .toggle-switch input:focus + .toggle-slider {
-        box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+      .save-btn {
+        margin-top: 8px;
       }
 
-      /* Toggle disabled state */
-      .toggle-switch input:disabled + .toggle-slider {
-        opacity: 0.5;
-        cursor: not-allowed;
+      #settingsStatus {
+        margin-top: -4px;
       }
 
-      /* View container */
-      .view {
-        display: none;
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
       }
-
-      .view.active {
-        display: block;
-      }
-
-      /* Header with back button */
-      .header-with-back {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        margin-bottom: 4px;
-      }
-
-      .back-button {
-        background: none;
-        border: none;
-        color: var(--primary);
-        font-size: 18px;
-        cursor: pointer;
-        padding: 4px 8px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: var(--radius);
-        transition: background-color 0.2s;
-        width: auto;
-      }
-
-      .back-button:hover {
-        background-color: rgba(239, 68, 68, 0.1);
-      }
-
-      /* Settings button */
-      .settings-button {
-        background: none;
-        border: 1px solid var(--border);
-        color: var(--text);
-        font-size: 13px;
-        padding: 6px 10px;
-        border-radius: var(--radius);
-        cursor: pointer;
-        transition: background-color 0.2s, border-color 0.2s;
-        width: 100%;
-      }
-
-      .settings-button:hover {
-        background-color: var(--border);
-        border-color: var(--muted);
-      }\n</style>
+    </style>
   </head>
   <body>
-    <!-- Main view -->
-    <div class="container view active" id="mainView">
-      <!-- Header -->
-      <h2>Better YouTube Caption</h2>
+    <div class="app-wrapper">
+      <div class="view active" id="mainView">
+        <div class="page-header">
+          <div class="header-left">
+            <div class="logo-badge">
+              <span class="logo-play"></span>
+            </div>
+            <div class="header-text">
+              <h1>Better YouTube Caption</h1>
+              <p>Polished video summaries in markdown</p>
+            </div>
+          </div>
+          <button
+            class="icon-button"
+            id="settingsBtn"
+            type="button"
+            aria-label="Open settings"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93l.898.36a1.125 1.125 0 0 0 1.417-.516l.5-.867a1.125 1.125 0 0 1 1.45-.45l.968.484c.5.25.708.84.458 1.339l-.5.867c-.219.379-.172.848.116 1.338l.69.69c.39.39.39 1.023 0 1.414l-.69.69c-.288.29-.335.69-.116 1.339l.5.867c.25.499.042 1.089-.458 1.338l-.968.484a1.125 1.125 0 0 1-1.45-.45l-.5-.867a1.125 1.125 0 0 0-1.417-.516l-.898.36c-.396.165-.71.505-.78.929l-.149.894c-.09.543-.56.941-1.11.941h-1.094c-.55 0-1.02-.398-1.11-.94l-.149-.894a1.125 1.125 0 0 0-.78-.93l-.9-.36a1.125 1.125 0 0 0-1.417.516l-.5.867a1.125 1.125 0 0 1-1.45.45l-.968-.484c-.5-.25-.708-.84-.458-1.339l.5-.867c.219-.379.172-.848-.116-1.338l-.69-.69a1.125 1.125 0 0 1 0-1.414l.69-.69c.288-.29.335-.69.116-1.339l-.5-.867a1.125 1.125 0 0 1 .458-1.338l.968-.484a1.125 1.125 0 0 1 1.45.45l.5.867c.27.466.846.679 1.417.516l.9-.36c.396-.165.71-.505.78-.93l.149-.893z"
+              ></path>
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"
+              ></path>
+            </svg>
+          </button>
+        </div>
 
-      <!-- Show subtitles toggle -->
-      <div class="toggle-container">
-        <label class="toggle-switch">
-          <input type="checkbox" id="showSubtitlesToggle" />
-          <span class="toggle-slider"></span>
-        </label>
-        <label for="showSubtitlesToggle" class="toggle-label">
-          Show subtitles on video
-        </label>
+        <div class="card video-card">
+          <div class="card-label">Current video</div>
+          <div class="video-row">
+            <div class="media-badge">
+              <span class="logo-play small"></span>
+            </div>
+            <p class="video-title" id="videoTitle">No video loaded</p>
+          </div>
+        </div>
+
+        <button class="primary-action generate-btn" id="generateBtn" type="button">
+          <span class="action-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-3.227-1.591 1.591M5.25 12H3m3.227-4.773L4.636 5.636M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"
+              ></path>
+            </svg>
+          </span>
+          <span>Generate Summary</span>
+        </button>
+
+        <div class="status" id="status"></div>
+
+        <div class="card summary-card">
+          <div class="summary-card-header">
+            <div>
+              <h2>Video Summary</h2>
+              <p class="summary-subtitle">Key Points</p>
+            </div>
+          </div>
+          <div class="summary-content" id="summaryContent">
+            <div class="summary-placeholder">
+              Click "Generate Summary" to create a summary for this video
+            </div>
+          </div>
+        </div>
       </div>
 
-      <!-- Generate Subtitles Button -->
-      <button id="generateBtn">Generate Subtitles</button>
+      <div class="view" id="settingsView">
+        <div class="page-header">
+          <div class="header-left">
+            <button
+              class="icon-button back-button"
+              id="backBtn"
+              type="button"
+              aria-label="Back to main view"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M15.75 19.5 8.25 12l7.5-7.5"
+                ></path>
+              </svg>
+            </button>
+            <div class="logo-badge is-settings">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93l.898.36a1.125 1.125 0 0 0 1.417-.516l.5-.867a1.125 1.125 0 0 1 1.45-.45l.968.484c.5.25.708.84.458 1.339l-.5.867c-.219.379-.172.848.116 1.338l.69.69c.39.39.39 1.023 0 1.414l-.69.69c-.288.29-.335.69-.116 1.339l.5.867c.25.499.042 1.089-.458 1.338l-.968.484a1.125 1.125 0 0 1-1.45-.45l-.5-.867a1.125 1.125 0 0 0-1.417-.516l-.898.36c-.396.165-.71.505-.78.929l-.149.894c-.09.543-.56.941-1.11.941h-1.094c-.55 0-1.02-.398-1.11-.94l-.149-.894a1.125 1.125 0 0 0-.78-.93l-.9-.36a1.125 1.125 0 0 0-1.417.516l-.5.867a1.125 1.125 0 0 1-1.45.45l-.968-.484c-.5-.25-.708-.84-.458-1.339l.5-.867c.219-.379.172-.848-.116-1.338l-.69-.69a1.125 1.125 0 0 1 0-1.414l.69-.69c.288-.29.335-.69.116-1.339l-.5-.867a1.125 1.125 0 0 1 .458-1.338l.968-.484a1.125 1.125 0 0 1 1.45.45l.5.867c.27.466.846.679 1.417.516l.9-.36c.396-.165.71-.505.78-.93l.149-.893z"
+                ></path>
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"
+                ></path>
+              </svg>
+            </div>
+            <div class="header-text">
+              <h1>Settings</h1>
+              <p>Configure your YouTube caption experience</p>
+            </div>
+          </div>
+        </div>
 
-      <!-- Message for existing subtitles -->
-      <div class="existing-subtitles" id="existingSubtitles"></div>
+        <div class="card settings-card">
+          <div class="form-stack">
+            <div class="form-group">
+              <label for="scrapeApiKey">Scrape Creators API Key</label>
+              <input
+                type="password"
+                id="scrapeApiKey"
+                placeholder="Enter your Scrape Creators API key"
+              />
+            </div>
 
-      <!-- Status message -->
-      <div class="status" id="status"></div>
+            <div class="form-group">
+              <label for="openrouterApiKey">OpenRouter API Key</label>
+              <input
+                type="password"
+                id="openrouterApiKey"
+                placeholder="Enter your OpenRouter API key"
+              />
+            </div>
 
-      <!-- Settings button -->
-      <button class="settings-button" id="settingsButton">⚙️ Settings</button>
+            <div class="form-divider"></div>
+
+            <h2 class="section-heading">Model Configuration</h2>
+
+            <div class="form-group">
+              <label for="recommendedModel">Recommended Model</label>
+              <select id="recommendedModel">
+                <option value="" disabled selected hidden>Select a model</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="customModel">Custom Model</label>
+              <input
+                type="text"
+                id="customModel"
+                placeholder="Enter custom model identifier"
+              />
+              <div class="form-hint">Leave empty to use recommended model</div>
+            </div>
+
+            <div class="toggle-card">
+              <div class="toggle-info">
+                <h3>Auto Generation</h3>
+                <p>Automatically refine captions for better readability</p>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="autoGenerateToggle" />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <button class="primary-action save-btn" id="saveBtn" type="button">
+              <span class="action-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M3 16.5v2.25A1.5 1.5 0 0 0 4.5 20.25h15a1.5 1.5 0 0 0 1.5-1.5V16.5M7.5 11.25 12 15.75l4.5-4.5M12 4.5v11.25"
+                  ></path>
+                </svg>
+              </span>
+              <span>Save Settings</span>
+            </button>
+
+            <div class="status" id="settingsStatus"></div>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <!-- Settings view -->
-    <div class="container view" id="settingsView">
-      <!-- Header with back button -->
-      <div class="header-with-back">
-        <button class="back-button" id="backButton">←</button>
-        <h2 style="margin: 0;">Settings</h2>
-      </div>
-
-      <!-- Input for Scrape Creators API Key -->
-      <div>
-        <label for="scrapeCreatorsApiKey">Scrape Creators API Key</label>
-        <input
-          type="password"
-          id="scrapeCreatorsApiKey"
-          placeholder="Enter your Scrape Creators API Key"
-        />
-      </div>
-
-      <!-- Input for OpenRouter API Key -->
-      <div>
-        <label for="openRouterApiKey">OpenRouter API Key</label>
-        <input
-          type="password"
-          id="openRouterApiKey"
-          placeholder="Enter your OpenRouter API Key"
-        />
-      </div>
-
-      <!-- Recommended Model Selection -->
-      <div>
-        <label for="recommendedModel">Recommended Model</label>
-        <select id="recommendedModel">
-          <!-- Options will be populated by JavaScript -->
-        </select>
-      </div>
-
-      <!-- Custom Model Input -->
-      <div>
-        <label for="customModel">Custom Model (PROVIDER/MODEL)</label>
-        <input
-          type="text"
-          id="customModel"
-          placeholder="Leave empty to use recommended model"
-        />
-      </div>
-
-      <!-- Auto-generation toggle -->
-      <div class="toggle-container">
-        <label class="toggle-switch">
-          <input type="checkbox" id="autoGenerateToggle" />
-          <span class="toggle-slider"></span>
-        </label>
-        <label for="autoGenerateToggle" class="toggle-label">
-          Auto-generate subtitles for new videos
-        </label>
-      </div>
-    </div>
-
-    <!-- Load utility scripts first -->
     <script src="src/constants.js"></script>
     <script src="src/url.js"></script>
-    <!-- Link to the popup.js script -->
     <script src="popup.js"></script>
   </body>
 </html>

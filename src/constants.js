@@ -62,9 +62,12 @@ const YOUTUBE = {
 const MESSAGE_ACTIONS = {
   FETCH_SUBTITLES: "fetchSubtitles",
   GENERATE_SUBTITLES: "generateSubtitles",
+  GENERATE_SUMMARY: "generateSummary",
   SUBTITLES_GENERATED: "subtitlesGenerated",
+  SUMMARY_GENERATED: "summaryGenerated",
   UPDATE_POPUP_STATUS: "updatePopupStatus",
   TOGGLE_SUBTITLES: "toggleSubtitles",
+  GET_VIDEO_TITLE: "getVideoTitle",
 };
 
 // Element IDs

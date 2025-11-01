@@ -190,7 +190,58 @@ function initialize() {
 
   // Listen for messages from popup or background
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === MESSAGE_ACTIONS.GENERATE_SUBTITLES) {
+    if (message.action === MESSAGE_ACTIONS.GET_VIDEO_TITLE) {
+      // Get video title from the page
+      const titleElement = document.querySelector('h1.ytd-watch-metadata yt-formatted-string');
+      const title = titleElement ? titleElement.textContent : null;
+      sendResponse({ title: title });
+      return true;
+    } else if (message.action === MESSAGE_ACTIONS.GENERATE_SUMMARY) {
+      console.log("Content Script: Received generateSummary request");
+      
+      const videoId = message.videoId || extractVideoId(window.location.href);
+
+      if (!videoId) {
+        sendResponse({
+          status: "error",
+          message: "Could not extract video ID from URL.",
+        });
+        return true;
+      }
+
+      console.log("Content Script: Requesting summary from background for video:", videoId);
+
+      // Request summary from background script
+      chrome.runtime.sendMessage(
+        {
+          action: MESSAGE_ACTIONS.GENERATE_SUMMARY,
+          videoId: videoId,
+          scrapeCreatorsApiKey: message.scrapeCreatorsApiKey,
+          openRouterApiKey: message.openRouterApiKey,
+          modelSelection: message.modelSelection,
+        },
+        (response) => {
+          if (chrome.runtime.lastError) {
+            console.error(
+              "Error sending message to background:",
+              chrome.runtime.lastError
+            );
+            sendResponse({
+              status: "error",
+              message: "Could not communicate with background script.",
+            });
+          } else {
+            console.log(
+              "Content Script: Summary request sent to background, response:",
+              response
+            );
+          }
+        }
+      );
+
+      sendResponse({ status: "started" });
+      return true;
+    } else if (message.action === MESSAGE_ACTIONS.GENERATE_SUBTITLES) {
       console.log("Content Script: Received generateSubtitles request");
       
       // Use the video ID from the message if provided (captured at button click time),
