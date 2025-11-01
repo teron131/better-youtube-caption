@@ -2,7 +2,8 @@ document.addEventListener("DOMContentLoaded", function () {
   // DOM elements
   const scrapeCreatorsApiKeyInput = document.getElementById("scrapeCreatorsApiKey");
   const openRouterApiKeyInput = document.getElementById("openRouterApiKey");
-  const modelSelectionInput = document.getElementById("modelSelection");
+  const recommendedModelSelect = document.getElementById("recommendedModel");
+  const customModelInput = document.getElementById("customModel");
   const autoGenerateToggle = document.getElementById("autoGenerateToggle");
   const showSubtitlesToggle = document.getElementById("showSubtitlesToggle");
   const generateBtn = document.getElementById("generateBtn");
@@ -11,6 +12,14 @@ document.addEventListener("DOMContentLoaded", function () {
   const backButton = document.getElementById("backButton");
   const mainView = document.getElementById("mainView");
   const settingsView = document.getElementById("settingsView");
+
+  // Populate recommended models dropdown
+  RECOMMENDED_MODELS.forEach((model) => {
+    const option = document.createElement("option");
+    option.value = model.value;
+    option.textContent = model.label;
+    recommendedModelSelect.appendChild(option);
+  });
 
   // View management
   function showView(viewId) {
@@ -46,7 +55,8 @@ document.addEventListener("DOMContentLoaded", function () {
     [
       STORAGE_KEYS.SCRAPE_CREATORS_API_KEY,
       STORAGE_KEYS.OPENROUTER_API_KEY,
-      STORAGE_KEYS.MODEL_SELECTION,
+      STORAGE_KEYS.RECOMMENDED_MODEL,
+      STORAGE_KEYS.CUSTOM_MODEL,
       STORAGE_KEYS.AUTO_GENERATE,
       STORAGE_KEYS.SHOW_SUBTITLES,
     ],
@@ -57,11 +67,15 @@ document.addEventListener("DOMContentLoaded", function () {
       if (result[STORAGE_KEYS.OPENROUTER_API_KEY]) {
         openRouterApiKeyInput.value = result[STORAGE_KEYS.OPENROUTER_API_KEY];
       }
-      if (result[STORAGE_KEYS.MODEL_SELECTION]) {
-        modelSelectionInput.value = result[STORAGE_KEYS.MODEL_SELECTION];
+      // Load recommended model
+      if (result[STORAGE_KEYS.RECOMMENDED_MODEL]) {
+        recommendedModelSelect.value = result[STORAGE_KEYS.RECOMMENDED_MODEL];
       } else {
-        // Set default model if not set
-        modelSelectionInput.value = DEFAULTS.MODEL;
+        recommendedModelSelect.value = DEFAULTS.MODEL;
+      }
+      // Load custom model
+      if (result[STORAGE_KEYS.CUSTOM_MODEL]) {
+        customModelInput.value = result[STORAGE_KEYS.CUSTOM_MODEL];
       }
       // Load auto-generation setting (default to false)
       autoGenerateToggle.checked = result[STORAGE_KEYS.AUTO_GENERATE] === true;
@@ -133,8 +147,12 @@ document.addEventListener("DOMContentLoaded", function () {
     chrome.storage.local.set({ [STORAGE_KEYS.OPENROUTER_API_KEY]: openRouterApiKeyInput.value.trim() });
   });
 
-  modelSelectionInput.addEventListener("change", function () {
-    chrome.storage.local.set({ [STORAGE_KEYS.MODEL_SELECTION]: modelSelectionInput.value.trim() || DEFAULTS.MODEL });
+  recommendedModelSelect.addEventListener("change", function () {
+    chrome.storage.local.set({ [STORAGE_KEYS.RECOMMENDED_MODEL]: recommendedModelSelect.value });
+  });
+
+  customModelInput.addEventListener("change", function () {
+    chrome.storage.local.set({ [STORAGE_KEYS.CUSTOM_MODEL]: customModelInput.value.trim() });
   });
 
   // Handle the "Generate Subtitles" button click
@@ -150,11 +168,14 @@ document.addEventListener("DOMContentLoaded", function () {
     chrome.storage.local.get([
       STORAGE_KEYS.SCRAPE_CREATORS_API_KEY,
       STORAGE_KEYS.OPENROUTER_API_KEY,
-      STORAGE_KEYS.MODEL_SELECTION,
+      STORAGE_KEYS.RECOMMENDED_MODEL,
+      STORAGE_KEYS.CUSTOM_MODEL,
     ], (result) => {
       const scrapeCreatorsApiKey = result[STORAGE_KEYS.SCRAPE_CREATORS_API_KEY];
       const openRouterApiKey = result[STORAGE_KEYS.OPENROUTER_API_KEY];
-      const modelSelection = result[STORAGE_KEYS.MODEL_SELECTION] || DEFAULTS.MODEL;
+      // Use custom model if provided, otherwise use recommended model
+      const customModel = result[STORAGE_KEYS.CUSTOM_MODEL]?.trim();
+      const modelSelection = customModel || result[STORAGE_KEYS.RECOMMENDED_MODEL] || DEFAULTS.MODEL;
 
       if (!scrapeCreatorsApiKey) {
         statusDiv.textContent = "Please enter a Scrape Creators API key in Settings";

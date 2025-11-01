@@ -113,10 +113,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 (await getApiKeyWithFallback("openRouterApiKey"));
               
               // Get model selection - use message value if provided, otherwise fallback to storage
+              // Priority: custom model > recommended model > default
+              const customModel = await getApiKeyFromStorage(STORAGE_KEYS.CUSTOM_MODEL);
+              const recommendedModel = await getApiKeyFromStorage(STORAGE_KEYS.RECOMMENDED_MODEL);
               const modelSelection =
                 messageModelSelection ||
-                (await getApiKeyFromStorage(STORAGE_KEYS.MODEL_SELECTION)) ||
-                DEFAULTS.MODEL;
+                (customModel?.trim() || recommendedModel || DEFAULTS.MODEL);
               
               if (openRouterKey) {
                 if (tabId) {

@@ -20,45 +20,67 @@
 
       /* General body styling */
       body {
-        width: 300px;
-        padding: 16px;
+        width: 380px;
+        min-height: 450px;
+        padding: 18px;
         margin: 0;
         font-family: system-ui, sans-serif;
         background-color: var(--bg);
         color: var(--text);
+        overflow-y: auto;
+        overflow-x: hidden;
+        box-sizing: border-box;
+      }
+
+      html {
+        overflow-y: visible;
       }
 
       /* Container for layout */
       .container {
         display: flex;
         flex-direction: column;
-        gap: 16px;
+        gap: 12px;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
       }
 
       /* Header styling */
       h2 {
-        font-size: 16px;
+        font-size: 15px;
         font-weight: 600;
         margin: 0;
       }
 
       /* Label styling */
       label {
-        font-size: var(--font-size);
+        font-size: 13px;
         font-weight: 500;
-        margin-bottom: 4px;
+        margin-bottom: 5px;
+        display: block;
+        color: var(--text);
+      }
+
+      /* Form group spacing */
+      .container > div {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
       }
 
       /* Input field styling */
       input {
-        padding: var(--input-padding);
-        font-size: var(--font-size);
+        padding: 8px 12px;
+        font-size: 13px;
         border: 1px solid var(--border);
         border-radius: var(--radius);
         outline: none;
         width: 100%;
+        max-width: 100%;
         box-sizing: border-box;
         transition: border-color 0.2s, box-shadow 0.2s;
+        background-color: var(--bg);
       }
 
       /* Input focus styling */
@@ -67,17 +89,39 @@
         box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
       }
 
+      /* Select field styling */
+      select {
+        padding: 8px 12px;
+        font-size: 13px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        outline: none;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        transition: border-color 0.2s, box-shadow 0.2s;
+        background-color: var(--bg);
+        color: var(--text);
+      }
+
+      select:focus {
+        border-color: var(--muted);
+        box-shadow: 0 0 0 2px rgba(55, 65, 81, 0.2);
+      }
+
       /* Button styling */
       button {
         background-color: var(--primary);
         color: white;
-        font-size: var(--font-size);
+        font-size: 13px;
         font-weight: 500;
         padding: 10px 16px;
         border: none;
         border-radius: var(--radius);
         cursor: pointer;
         transition: background-color 0.2s;
+        width: 100%;
+        box-sizing: border-box;
       }
 
       /* Button hover effect */
@@ -100,31 +144,34 @@
 
       /* Status message styling */
       .status {
-        font-size: var(--font-size);
+        font-size: 12px;
         color: var(--muted);
-        margin-top: 4px;
+        margin-top: 2px;
+        min-height: 16px;
       }
 
       /* Existing subtitles message styling */
       .existing-subtitles {
-        font-size: var(--font-size);
+        font-size: 12px;
         color: green;
-        margin-top: 10px;
+        margin-top: 4px;
+        min-height: 16px;
       }
 
       /* Toggle switch container styling */
       .toggle-container {
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        padding: 8px 0;
+        gap: 12px;
+        padding: 4px 0;
       }
 
       .toggle-label {
-        font-size: var(--font-size);
+        font-size: 13px;
         font-weight: 500;
         cursor: pointer;
         user-select: none;
+        margin: 0;
         flex: 1;
       }
 
@@ -204,8 +251,8 @@
       .header-with-back {
         display: flex;
         align-items: center;
-        gap: 8px;
-        margin-bottom: 8px;
+        gap: 6px;
+        margin-bottom: 4px;
       }
 
       .back-button {
@@ -220,6 +267,7 @@
         justify-content: center;
         border-radius: var(--radius);
         transition: background-color 0.2s;
+        width: auto;
       }
 
       .back-button:hover {
@@ -231,8 +279,8 @@
         background: none;
         border: 1px solid var(--border);
         color: var(--text);
-        font-size: var(--font-size);
-        padding: 6px 12px;
+        font-size: 13px;
+        padding: 6px 10px;
         border-radius: var(--radius);
         cursor: pointer;
         transition: background-color 0.2s, border-color 0.2s;
@@ -242,8 +290,7 @@
       .settings-button:hover {
         background-color: var(--border);
         border-color: var(--muted);
-      }
-    </style>
+      }\n</style>
   </head>
   <body>
     <!-- Main view -->
@@ -253,12 +300,12 @@
 
       <!-- Show subtitles toggle -->
       <div class="toggle-container">
-        <label for="showSubtitlesToggle" class="toggle-label">
-          Show subtitles on video
-        </label>
         <label class="toggle-switch">
           <input type="checkbox" id="showSubtitlesToggle" />
           <span class="toggle-slider"></span>
+        </label>
+        <label for="showSubtitlesToggle" class="toggle-label">
+          Show subtitles on video
         </label>
       </div>
 
@@ -303,24 +350,32 @@
         />
       </div>
 
-      <!-- Input for Model Selection -->
+      <!-- Recommended Model Selection -->
       <div>
-        <label for="modelSelection">Model (PROVIDER/MODEL)</label>
+        <label for="recommendedModel">Recommended Model</label>
+        <select id="recommendedModel">
+          <!-- Options will be populated by JavaScript -->
+        </select>
+      </div>
+
+      <!-- Custom Model Input -->
+      <div>
+        <label for="customModel">Custom Model (PROVIDER/MODEL)</label>
         <input
           type="text"
-          id="modelSelection"
-          placeholder="google/gemini-2.5-flash-lite"
+          id="customModel"
+          placeholder="Leave empty to use recommended model"
         />
       </div>
 
       <!-- Auto-generation toggle -->
       <div class="toggle-container">
-        <label for="autoGenerateToggle" class="toggle-label">
-          Auto-generate subtitles for new videos
-        </label>
         <label class="toggle-switch">
           <input type="checkbox" id="autoGenerateToggle" />
           <span class="toggle-slider"></span>
+        </label>
+        <label for="autoGenerateToggle" class="toggle-label">
+          Auto-generate subtitles for new videos
         </label>
       </div>
     </div>
@@ -332,3 +387,5 @@
     <script src="popup.js"></script>
   </body>
 </html>
+
+

@@ -4,7 +4,8 @@
 const STORAGE_KEYS = {
   SCRAPE_CREATORS_API_KEY: "scrapeCreatorsApiKey",
   OPENROUTER_API_KEY: "openRouterApiKey",
-  MODEL_SELECTION: "modelSelection",
+  RECOMMENDED_MODEL: "recommendedModel",
+  CUSTOM_MODEL: "customModel",
   AUTO_GENERATE: "autoGenerate",
   SHOW_SUBTITLES: "showSubtitles",
 };
@@ -24,6 +25,15 @@ const STORAGE = {
   ESTIMATED_VIDEO_SIZE_BYTES: 30 * 1024, // Estimated ~30KB per video transcript
   CLEANUP_BATCH_SIZE: 10, // Number of videos to remove during cleanup
 };
+
+// Recommended models for dropdown
+const RECOMMENDED_MODELS = [
+  { value: "google/gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite" },
+  { value: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash" },
+  { value: "x-ai/grok-coder-fast-1", label: "Grok Coder Fast 1" },
+  { value: "x-ai/grok-4-fast", label: "Grok 4 Fast" },
+  { value: "openai/gpt-oss-120b", label: "gpt-oss-120b" },
+];
 
 // Default values
 const DEFAULTS = {

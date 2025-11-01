@@ -29,7 +29,8 @@ function loadStoredSubtitles() {
       STORAGE_KEYS.AUTO_GENERATE,
       STORAGE_KEYS.SCRAPE_CREATORS_API_KEY,
       STORAGE_KEYS.OPENROUTER_API_KEY,
-      STORAGE_KEYS.MODEL_SELECTION,
+      STORAGE_KEYS.RECOMMENDED_MODEL,
+      STORAGE_KEYS.CUSTOM_MODEL,
       STORAGE_KEYS.SHOW_SUBTITLES,
     ], (result) => {
       try {
@@ -65,11 +66,15 @@ function loadStoredSubtitles() {
               const currentVideoId = extractVideoId(window.location.href);
               if (currentVideoId === videoId) {
                 console.log("Content Script: Triggering auto-generation after delay...");
+                // Determine model selection: custom model > recommended model > default
+                const customModel = result[STORAGE_KEYS.CUSTOM_MODEL]?.trim();
+                const modelSelection = customModel || result[STORAGE_KEYS.RECOMMENDED_MODEL] || DEFAULTS.MODEL;
+                
                 triggerAutoGeneration(
                   videoId,
                   result[STORAGE_KEYS.SCRAPE_CREATORS_API_KEY],
                   result[STORAGE_KEYS.OPENROUTER_API_KEY],
-                  result[STORAGE_KEYS.MODEL_SELECTION]
+                  modelSelection
                 );
               } else {
                 console.log("Content Script: Video ID changed during delay, cancelling auto-generation");
