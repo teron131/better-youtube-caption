@@ -46,7 +46,7 @@ async function fetchYouTubeTranscript(videoUrl, apiKey) {
 
   // Convert transcript segments to our format
   // API returns: {text, startMs, endMs, startTimeText}
-  // We need: {startTime, endTime, text} where times are in milliseconds (numbers)
+  // We need: {startTime, endTime, text, startTimeText} where times are in milliseconds (numbers)
   const segments = data.transcript.map((segment) => {
     const startTime = parseInt(segment.startMs, 10);
     const endTime = parseInt(segment.endMs, 10);
@@ -60,6 +60,7 @@ async function fetchYouTubeTranscript(videoUrl, apiKey) {
       startTime: startTime,
       endTime: endTime,
       text: segment.text.trim(),
+      startTimeText: segment.startTimeText || null, // Preserve startTimeText for formatting
     };
   }).filter((segment) => segment !== null);
 

@@ -2,18 +2,15 @@
 // Note: In content scripts, we can't use importScripts, so we'll define utility functions inline
 // Alternatively, we could create a shared utility file and load it via script tag in manifest
 
-// URL utility function (duplicated from utils/urlUtils.js for content script)
-function cleanYouTubeUrl(originalUrl) {
+// Helper function to extract video ID from YouTube URL
+function extractVideoId(url) {
   try {
-    const url = new URL(originalUrl);
-    const videoId = url.searchParams.get("v");
-    if (videoId) {
-      return `${url.protocol}//${url.hostname}${url.pathname}?v=${videoId}`;
-    }
+    const urlObj = new URL(url);
+    return urlObj.searchParams.get("v");
   } catch (e) {
-    console.error("Error parsing URL for cleaning:", originalUrl, e);
+    console.error("Error extracting video ID:", url, e);
+    return null;
   }
-  return originalUrl;
 }
 
 // Global variables
@@ -29,17 +26,35 @@ let currentUrl = window.location.href;
 
 // Loads stored subtitles for the current video from local storage
 function loadStoredSubtitles() {
-  const cleanedUrl = cleanYouTubeUrl(window.location.href);
-
-  chrome.storage.local.get([cleanedUrl], (result) => {
-    if (result[cleanedUrl]) {
-      console.log("Content Script: Found stored subtitles for this video.");
-      currentSubtitles = result[cleanedUrl]; // Load stored subtitles
-      startSubtitleDisplay(); // Start displaying the subtitles
-    } else {
-      console.log("Content Script: No stored subtitles found for this video.");
+  try {
+    const videoId = extractVideoId(window.location.href);
+    
+    if (!videoId) {
+      console.log("Content Script: Could not extract video ID, skipping subtitle load.");
+      return;
     }
-  });
+
+    chrome.storage.local.get([videoId], (result) => {
+      try {
+        if (chrome.runtime.lastError) {
+          console.error("Content Script: Error loading subtitles:", chrome.runtime.lastError.message);
+          return;
+        }
+
+        if (result && result[videoId]) {
+          console.log("Content Script: Found stored subtitles for this video.");
+          currentSubtitles = result[videoId]; // Load stored subtitles
+          startSubtitleDisplay(); // Start displaying the subtitles
+        } else {
+          console.log("Content Script: No stored subtitles found for this video.");
+        }
+      } catch (error) {
+        console.error("Content Script: Error processing stored subtitles:", error);
+      }
+    });
+  } catch (error) {
+    console.error("Content Script: Error in loadStoredSubtitles:", error);
+  }
 }
 
 // Monitors URL changes on YouTube (SPA behavior)
@@ -108,9 +123,20 @@ function initialize() {
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === "generateSubtitles") {
       console.log("Content Script: Received generateSubtitles request");
-      const videoUrl = window.location.href;
+      
+      // Use the video ID from the message if provided (captured at button click time),
+      // otherwise extract from current URL
+      const videoId = message.videoId || extractVideoId(window.location.href);
 
-      console.log("Content Script: Sending URL to background:", videoUrl);
+      if (!videoId) {
+        sendResponse({
+          status: "error",
+          message: "Could not extract video ID from URL.",
+        });
+        return true;
+      }
+
+      console.log("Content Script: Sending video ID to background:", videoId);
 
       clearSubtitles(); // Clear previous subtitles
 
@@ -118,8 +144,10 @@ function initialize() {
       chrome.runtime.sendMessage(
         {
           action: "fetchSubtitles",
-          videoUrl: videoUrl,
-          apiKey: message.apiKey,
+          videoId: videoId, // Use only the video ID
+          scrapeCreatorsApiKey: message.scrapeCreatorsApiKey,
+          openRouterApiKey: message.openRouterApiKey,
+          modelSelection: message.modelSelection,
         },
         (response) => {
           if (chrome.runtime.lastError) {
@@ -151,10 +179,26 @@ function initialize() {
         startSubtitleDisplay(); // Start displaying subtitles
 
         // Store the subtitles locally for future use
-        const cleanedUrl = cleanYouTubeUrl(window.location.href);
-        chrome.storage.local.set({ [cleanedUrl]: currentSubtitles }, () => {
-          console.log("Content Script: Subtitles saved to local storage.");
-        });
+        // Use the videoId from message if provided (captured at button click),
+        // otherwise extract from current URL
+        const videoId = message.videoId || extractVideoId(window.location.href);
+        
+        if (videoId) {
+          chrome.storage.local.set({ [videoId]: currentSubtitles }, () => {
+            if (chrome.runtime.lastError) {
+              // Check if it's a quota exceeded error
+              if (chrome.runtime.lastError.message && chrome.runtime.lastError.message.includes("QUOTA")) {
+                console.warn("Storage quota exceeded. Transcript will not be saved, but subtitles will still display.");
+              } else {
+                console.error("Error saving subtitles:", chrome.runtime.lastError.message);
+              }
+            } else {
+              console.log("Content Script: Subtitles saved to local storage for video ID:", videoId);
+            }
+          });
+        } else {
+          console.warn("Content Script: Could not extract video ID, subtitles not saved.");
+        }
 
         sendResponse({ status: "success" }); // Confirm success to background
       } else {

@@ -6,7 +6,8 @@
   "permissions": ["activeTab", "storage", "scripting"],
   "host_permissions": [
     "https://*.youtube.com/*",
-    "https://api.scrapecreators.com/*"
+    "https://api.scrapecreators.com/v1/youtube/*",
+    "https://openrouter.ai/api/v1/*"
   ],
   "action": {
     "default_popup": "popup.html",

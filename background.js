@@ -3,6 +3,7 @@ importScripts("utils/srtParser.js");
 importScripts("utils/urlUtils.js");
 importScripts("utils/storageManager.js");
 importScripts("utils/transcriptFetcher.js");
+importScripts("utils/transcriptRefiner.js");
 importScripts("config.js");
 
 // Get API key with fallback to test config
@@ -22,19 +23,31 @@ async function getApiKeyWithFallback(keyName) {
 // Listener for messages from content or popup scripts
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "fetchSubtitles") {
-    const { videoUrl, apiKey } = message;
+    const {
+      videoId, // Video ID - URL will be constructed from this when needed
+      scrapeCreatorsApiKey: messageScrapeCreatorsKey,
+      openRouterApiKey: messageOpenRouterKey,
+      modelSelection: messageModelSelection,
+    } = message;
     const tabId = sender.tab?.id;
 
     console.log(
-      "Background Script: Received fetchSubtitles request for URL:",
-      videoUrl
+      "Background Script: Received fetchSubtitles request for Video ID:",
+      videoId
     );
 
-    const cleanedUrl = cleanYouTubeUrl(videoUrl);
-    console.log("Background Script: Using cleaned URL for API:", cleanedUrl);
+    if (!videoId) {
+      sendResponse({ status: "error", message: "Video ID is required." });
+      return true;
+    }
 
-    // Check if subtitles for this video are already stored locally
-    getStoredSubtitles(cleanedUrl)
+    // Construct URL from video ID for API calls
+    const urlForApi = `https://www.youtube.com/watch?v=${videoId}`;
+
+    console.log("Background Script: Using URL for API:", urlForApi);
+
+    // Check if subtitles for this video are already stored locally (using video ID)
+    getStoredSubtitles(videoId)
       .then((cachedSubtitles) => {
         if (cachedSubtitles) {
         console.log("Subtitles found in local storage for this video.");
@@ -42,6 +55,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           chrome.tabs.sendMessage(tabId, {
             action: "subtitlesGenerated",
               subtitles: cachedSubtitles,
+              videoId: videoId, // Pass the video ID to ensure subtitles are for the correct video
           });
         }
         sendResponse({ status: "completed", cached: true });
@@ -58,28 +72,96 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
           // First, fetch transcript from Scrape Creators API
           (async () => {
-            // Get Scrape Creators API key
-            const scrapeCreatorsKey = await getApiKeyWithFallback("scrapeCreatorsApiKey");
+            // Get Scrape Creators API key - use message value if provided, otherwise fallback to storage/config
+            const scrapeCreatorsKey =
+              messageScrapeCreatorsKey ||
+              (await getApiKeyWithFallback("scrapeCreatorsApiKey"));
             if (!scrapeCreatorsKey) {
               throw new Error("Scrape Creators API key not found. Please set it in config.js or popup.");
             }
             return scrapeCreatorsKey;
           })()
-            .then((key) => fetchYouTubeTranscript(cleanedUrl, key))
-            .then((transcriptData) => {
+            .then((key) => fetchYouTubeTranscript(urlForApi, key))
+            .then(async (transcriptData) => {
               console.log(`Fetched ${transcriptData.segments.length} transcript segments`);
               console.log(`Video title: ${transcriptData.title}`);
               
-              // For now, return transcript segments directly (refinement will be added later)
-              // The transcript segments are already in the correct format: {startTime, endTime, text}
-              // Metadata (title, description, transcriptText) is available for future refinement
-              return transcriptData.segments;
+              // Enhance segments with startTimeText for formatting
+              const enhancedSegments = transcriptData.segments.map((seg) => {
+                // Calculate startTimeText from startTime if not available
+                const startTimeText = seg.startTimeText || formatTimestamp(seg.startTime);
+                return {
+                  ...seg,
+                  startTimeText: startTimeText,
+                };
+              });
+              
+              // Refine transcript using AI if OpenRouter API key is available
+              // Get OpenRouter API key - use message value if provided, otherwise fallback to storage/config
+              const openRouterKey =
+                messageOpenRouterKey ||
+                (await getApiKeyWithFallback("openRouterApiKey"));
+              
+              // Get model selection - use message value if provided, otherwise fallback to storage
+              const modelSelection =
+                messageModelSelection ||
+                (await getApiKeyFromStorage("modelSelection")) ||
+                "google/gemini-2.5-flash";
+              
+              if (openRouterKey) {
+                if (tabId) {
+                  chrome.runtime.sendMessage({
+                    action: "updatePopupStatus",
+                    text: "Refining transcript with AI...",
+                    tabId: tabId,
+                  });
+                }
+                
+                try {
+                  const progressCallback = (message) => {
+                    if (tabId) {
+                      chrome.runtime.sendMessage({
+                        action: "updatePopupStatus",
+                        text: message,
+                        tabId: tabId,
+                      });
+                    }
+                  };
+                  
+                  const refinedSegments = await refineTranscriptSegments(
+                    enhancedSegments,
+                    transcriptData.title,
+                    transcriptData.description,
+                    openRouterKey,
+                    progressCallback,
+                    modelSelection
+                  );
+                  
+                  console.log(`Refined ${refinedSegments.length} transcript segments`);
+                  return refinedSegments;
+                } catch (refinementError) {
+                  console.warn("Transcript refinement failed, using original:", refinementError);
+                  if (tabId) {
+                    chrome.runtime.sendMessage({
+                      action: "updatePopupStatus",
+                      text: "Using original transcript (refinement failed)",
+                      tabId: tabId,
+                    });
+                  }
+                  // Fallback to original segments if refinement fails
+                  return enhancedSegments;
+                }
+              } else {
+                console.log("OpenRouter API key not found, skipping refinement");
+                return enhancedSegments;
+              }
             })
           .then((subtitles) => {
             if (tabId) {
               chrome.tabs.sendMessage(tabId, {
                 action: "subtitlesGenerated",
                 subtitles: subtitles,
+                videoId: videoId, // Pass the video ID to ensure subtitles are saved for the correct video
               });
               chrome.runtime.sendMessage({
                 action: "updatePopupStatus",
@@ -89,7 +171,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               });
             }
 
-              return saveSubtitles(cleanedUrl, subtitles);
+              // Check storage space before saving
+              return ensureStorageSpace()
+                .then(() => saveSubtitles(videoId, subtitles))
+                .catch((storageError) => {
+                  console.warn("Storage management failed:", storageError);
+                  // Still try to save - let saveSubtitles handle the error
+                  return saveSubtitles(videoId, subtitles);
+                });
             })
             .then(() => {
             sendResponse({ status: "completed" });
@@ -120,7 +209,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
-// Note: cleanYouTubeUrl is now imported from utils/urlUtils.js
+// Note: Video IDs are now used for storage instead of URLs for better robustness
 
 // Fetches subtitles from the Gemini API
 async function fetchSubtitlesFromGemini(videoUrl, apiKey, tabId) {

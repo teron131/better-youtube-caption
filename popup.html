@@ -81,8 +81,21 @@
       }
 
       /* Button hover effect */
-      button:hover {
+      button:hover:not(:disabled) {
         background-color: var(--primary-hover);
+      }
+
+      /* Button disabled state */
+      button:disabled {
+        background-color: var(--muted);
+        color: #ffffff;
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+
+      /* Button disabled hover - no effect */
+      button:disabled:hover {
+        background-color: var(--muted);
       }
 
       /* Status message styling */
@@ -106,18 +119,38 @@
       <!-- Header -->
       <h2>YouTube Subtitles Generator</h2>
 
-      <!-- Input for Gemini API Key -->
+      <!-- Input for Scrape Creators API Key -->
       <div>
-        <label for="apiKey">Gemini API Key</label>
+        <label for="scrapeCreatorsApiKey">Scrape Creators API Key</label>
         <input
           type="password"
-          id="apiKey"
-          placeholder="Enter your Gemini API Key"
+          id="scrapeCreatorsApiKey"
+          placeholder="Enter your Scrape Creators API Key"
+        />
+      </div>
+
+      <!-- Input for OpenRouter API Key -->
+      <div>
+        <label for="openRouterApiKey">OpenRouter API Key</label>
+        <input
+          type="password"
+          id="openRouterApiKey"
+          placeholder="Enter your OpenRouter API Key"
+        />
+      </div>
+
+      <!-- Input for Model Selection -->
+      <div>
+        <label for="modelSelection">Model (PROVIDER/MODEL)</label>
+        <input
+          type="text"
+          id="modelSelection"
+          placeholder="google/gemini-2.5-flash"
         />
       </div>
 
       <!-- Generate Subtitles Button -->
-      <button id="generateBtn">Generate Caption Closed</button>
+      <button id="generateBtn">Generate Subtitles</button>
 
       <!-- Message for existing subtitles -->
       <div class="existing-subtitles" id="existingSubtitles"></div>

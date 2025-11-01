@@ -1,6 +1,8 @@
 document.addEventListener("DOMContentLoaded", function () {
   // DOM elements
-  const apiKeyInput = document.getElementById("apiKey");
+  const scrapeCreatorsApiKeyInput = document.getElementById("scrapeCreatorsApiKey");
+  const openRouterApiKeyInput = document.getElementById("openRouterApiKey");
+  const modelSelectionInput = document.getElementById("modelSelection");
   const generateBtn = document.getElementById("generateBtn");
   const statusDiv = document.getElementById("status");
 
@@ -14,76 +16,87 @@ document.addEventListener("DOMContentLoaded", function () {
     generateBtn.nextSibling
   ); // Add it below the button
 
-  // Load saved API key from local storage
-  // Note: In popup context, we can't directly access config.js
-  // API keys are stored in browser storage and can be overridden via config.js in background script
-  chrome.storage.local.get(["geminiApiKey"], function (result) {
-    if (result.geminiApiKey) {
-      apiKeyInput.value = result.geminiApiKey;
+  // Load saved API keys and model from local storage
+  chrome.storage.local.get(
+    ["scrapeCreatorsApiKey", "openRouterApiKey", "modelSelection"],
+    function (result) {
+      if (result.scrapeCreatorsApiKey) {
+        scrapeCreatorsApiKeyInput.value = result.scrapeCreatorsApiKey;
+      }
+      if (result.openRouterApiKey) {
+        openRouterApiKeyInput.value = result.openRouterApiKey;
+      }
+      if (result.modelSelection) {
+        modelSelectionInput.value = result.modelSelection;
+      } else {
+        // Set default model if not set
+        modelSelectionInput.value = "google/gemini-2.5-flash";
+      }
     }
-  });
+  );
 
   // Check if subtitles already exist for the current video
   chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-    // Helper function to clean YouTube URLs
-    function cleanYouTubeUrl(originalUrl) {
+    // Helper function to extract video ID from YouTube URL
+    function extractVideoId(url) {
       try {
-        const url = new URL(originalUrl);
-        const videoId = url.searchParams.get("v");
-        if (videoId) {
-          // Reconstruct a minimal URL
-          return `${url.protocol}//${url.hostname}${url.pathname}?v=${videoId}`;
-        }
+        const urlObj = new URL(url);
+        return urlObj.searchParams.get("v");
       } catch (e) {
-        console.error("Error parsing URL for cleaning:", originalUrl, e);
+        console.error("Error extracting video ID:", url, e);
+        return null;
       }
-      // Fallback to original if cleaning fails or no 'v' param found
-      return originalUrl;
     }
 
     const currentTab = tabs[0];
-    console.log("URL to check:", cleanYouTubeUrl(currentTab.url));
 
     if (currentTab && currentTab.url && currentTab.url.includes("youtube")) {
-      const videoUrl = new URL(currentTab.url);
-      const videoId = videoUrl.searchParams.get("v"); // Extract the video ID
-      console.log("Video URL:", videoUrl);
+      const videoId = extractVideoId(currentTab.url);
       console.log("Video ID:", videoId);
 
       if (videoId) {
-        chrome.storage.local.get(
-          [cleanYouTubeUrl(currentTab.url)],
-          function (result) {
-            if (result[cleanYouTubeUrl(currentTab.url)]) {
-              existingSubtitlesDiv.textContent =
-                "Subtitles already exist for this video. 🚀";
-            } else {
-              existingSubtitlesDiv.textContent = ""; // Clear the message if no subtitles exist
-            }
+        chrome.storage.local.get([videoId], function (result) {
+          if (result[videoId]) {
+            existingSubtitlesDiv.textContent =
+              "Subtitles already exist for this video. 🚀";
+          } else {
+            existingSubtitlesDiv.textContent = ""; // Clear the message if no subtitles exist
           }
-        );
+        });
       }
     }
   });
 
   // Handle the "Generate Subtitles" button click
   generateBtn.addEventListener("click", function () {
-    const apiKey = apiKeyInput.value.trim();
-    statusDiv.textContent = ""; // Clear previous status
-
-    if (!apiKey) {
-      statusDiv.textContent = "Please enter a valid API key";
+    // Prevent multiple clicks while processing
+    if (generateBtn.disabled) {
       return;
     }
 
-    // Save the API key to local storage
-    chrome.storage.local.set({ geminiApiKey: apiKey });
+    const scrapeCreatorsApiKey = scrapeCreatorsApiKeyInput.value.trim();
+    const openRouterApiKey = openRouterApiKeyInput.value.trim();
+    const modelSelection = modelSelectionInput.value.trim() || "google/gemini-2.5-flash";
+    
+    statusDiv.textContent = ""; // Clear previous status
+
+    if (!scrapeCreatorsApiKey) {
+      statusDiv.textContent = "Please enter a Scrape Creators API key";
+      return;
+    }
+
+    // Save the API keys and model to local storage
+    chrome.storage.local.set({
+      scrapeCreatorsApiKey: scrapeCreatorsApiKey,
+      openRouterApiKey: openRouterApiKey,
+      modelSelection: modelSelection,
+    });
 
     // Show loading status
     statusDiv.textContent = "Requesting subtitles...";
     generateBtn.disabled = true; // Disable button during processing
 
-    // Query the active tab
+    // Query the active tab and capture video URL immediately
     chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
       const currentTab = tabs[0];
       console.log(
@@ -96,10 +109,36 @@ document.addEventListener("DOMContentLoaded", function () {
         currentTab.url &&
         currentTab.url.includes("youtube.com/watch")
       ) {
+        // Helper function to extract video ID from YouTube URL
+        function extractVideoId(url) {
+          try {
+            const urlObj = new URL(url);
+            return urlObj.searchParams.get("v");
+          } catch (e) {
+            console.error("Error extracting video ID:", url, e);
+            return null;
+          }
+        }
+
+        // Extract video ID at button click time to ensure it sticks to the clicked video
+        const videoId = extractVideoId(currentTab.url);
+        
+        if (!videoId) {
+          statusDiv.textContent = "Error: Could not extract video ID from URL.";
+          generateBtn.disabled = false;
+          return;
+        }
+        
         // Send a message to the content script to generate subtitles
         chrome.tabs.sendMessage(
           currentTab.id,
-          { action: "generateSubtitles", apiKey: apiKey },
+          {
+            action: "generateSubtitles",
+            videoId: videoId, // Pass only the video ID
+            scrapeCreatorsApiKey: scrapeCreatorsApiKey,
+            openRouterApiKey: openRouterApiKey,
+            modelSelection: modelSelection,
+          },
           function (response) {
             if (chrome.runtime.lastError) {
               console.error("Popup Error:", chrome.runtime.lastError.message);
