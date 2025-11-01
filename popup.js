@@ -7,6 +7,29 @@ document.addEventListener("DOMContentLoaded", function () {
   const showSubtitlesToggle = document.getElementById("showSubtitlesToggle");
   const generateBtn = document.getElementById("generateBtn");
   const statusDiv = document.getElementById("status");
+  const settingsButton = document.getElementById("settingsButton");
+  const backButton = document.getElementById("backButton");
+  const mainView = document.getElementById("mainView");
+  const settingsView = document.getElementById("settingsView");
+
+  // View management
+  function showView(viewId) {
+    mainView.classList.remove("active");
+    settingsView.classList.remove("active");
+    if (viewId === "main") {
+      mainView.classList.add("active");
+    } else if (viewId === "settings") {
+      settingsView.classList.add("active");
+    }
+  }
+
+  settingsButton.addEventListener("click", () => {
+    showView("settings");
+  });
+
+  backButton.addEventListener("click", () => {
+    showView("main");
+  });
 
   // Create a div for displaying existing subtitles message
   const existingSubtitlesDiv = document.createElement("div");
@@ -49,7 +72,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Check if subtitles already exist for the current video
   chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-
     const currentTab = tabs[0];
 
     if (currentTab && currentTab.url && currentTab.url.includes("youtube")) {
@@ -102,6 +124,19 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
 
+  // Handle settings changes - save to storage when changed
+  scrapeCreatorsApiKeyInput.addEventListener("change", function () {
+    chrome.storage.local.set({ [STORAGE_KEYS.SCRAPE_CREATORS_API_KEY]: scrapeCreatorsApiKeyInput.value.trim() });
+  });
+
+  openRouterApiKeyInput.addEventListener("change", function () {
+    chrome.storage.local.set({ [STORAGE_KEYS.OPENROUTER_API_KEY]: openRouterApiKeyInput.value.trim() });
+  });
+
+  modelSelectionInput.addEventListener("change", function () {
+    chrome.storage.local.set({ [STORAGE_KEYS.MODEL_SELECTION]: modelSelectionInput.value.trim() || DEFAULTS.MODEL });
+  });
+
   // Handle the "Generate Subtitles" button click
   generateBtn.addEventListener("click", function () {
     // Prevent multiple clicks while processing
@@ -109,97 +144,85 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-    const scrapeCreatorsApiKey = scrapeCreatorsApiKeyInput.value.trim();
-    const openRouterApiKey = openRouterApiKeyInput.value.trim();
-    const modelSelection = modelSelectionInput.value.trim() || DEFAULTS.MODEL;
-    
     statusDiv.textContent = ""; // Clear previous status
 
-    if (!scrapeCreatorsApiKey) {
-      statusDiv.textContent = "Please enter a Scrape Creators API key";
-      return;
-    }
+    // Get API keys from storage (they are saved in settings)
+    chrome.storage.local.get([
+      STORAGE_KEYS.SCRAPE_CREATORS_API_KEY,
+      STORAGE_KEYS.OPENROUTER_API_KEY,
+      STORAGE_KEYS.MODEL_SELECTION,
+    ], (result) => {
+      const scrapeCreatorsApiKey = result[STORAGE_KEYS.SCRAPE_CREATORS_API_KEY];
+      const openRouterApiKey = result[STORAGE_KEYS.OPENROUTER_API_KEY];
+      const modelSelection = result[STORAGE_KEYS.MODEL_SELECTION] || DEFAULTS.MODEL;
 
-    // Save the API keys, model, and settings to local storage
-    chrome.storage.local.set({
-      [STORAGE_KEYS.SCRAPE_CREATORS_API_KEY]: scrapeCreatorsApiKey,
-      [STORAGE_KEYS.OPENROUTER_API_KEY]: openRouterApiKey,
-      [STORAGE_KEYS.MODEL_SELECTION]: modelSelection,
-      [STORAGE_KEYS.AUTO_GENERATE]: autoGenerateToggle.checked,
-      [STORAGE_KEYS.SHOW_SUBTITLES]: showSubtitlesToggle.checked,
-    });
-
-    // Show loading status
-    statusDiv.textContent = "Requesting subtitles...";
-    generateBtn.disabled = true; // Disable button during processing
-
-    // Query the active tab and capture video URL immediately
-    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-      const currentTab = tabs[0];
-      console.log(
-        "Popup: Active tab URL:",
-        currentTab ? currentTab.url : "No tab found"
-      );
-
-      if (
-        currentTab &&
-        currentTab.url &&
-        currentTab.url.includes("youtube.com/watch")
-      ) {
-        // Helper function to extract video ID from YouTube URL
-        function extractVideoId(url) {
-          try {
-            const urlObj = new URL(url);
-            return urlObj.searchParams.get("v");
-          } catch (e) {
-            console.error("Error extracting video ID:", url, e);
-            return null;
-          }
-        }
-
-        // Extract video ID at button click time to ensure it sticks to the clicked video
-        const videoId = extractVideoId(currentTab.url);
-        
-        if (!videoId) {
-          statusDiv.textContent = "Error: Could not extract video ID from URL.";
-          generateBtn.disabled = false;
-          return;
-        }
-        
-        // Send a message to the content script to generate subtitles
-        chrome.tabs.sendMessage(
-          currentTab.id,
-          {
-            action: MESSAGE_ACTIONS.GENERATE_SUBTITLES,
-            videoId: videoId, // Pass only the video ID
-            scrapeCreatorsApiKey: scrapeCreatorsApiKey,
-            openRouterApiKey: openRouterApiKey,
-            modelSelection: modelSelection,
-          },
-          function (response) {
-            if (chrome.runtime.lastError) {
-              console.error("Popup Error:", chrome.runtime.lastError.message);
-              statusDiv.textContent = `Error: ${chrome.runtime.lastError.message}. Try reloading the YouTube page.`;
-              generateBtn.disabled = false;
-            } else if (response && response.status === "started") {
-              statusDiv.textContent =
-                "Processing video... (This may take a while)";
-            } else if (response && response.status === "error") {
-              statusDiv.textContent = `Error: ${
-                response.message || "Could not start process."
-              }`;
-              generateBtn.disabled = false;
-            } else {
-              statusDiv.textContent =
-                "Error: Unexpected response from content script.";
-              generateBtn.disabled = false;
-            }
-          }
-        );
-      } else {
-        statusDiv.textContent = "Not a YouTube video page.";
-        generateBtn.disabled = false;
+      if (!scrapeCreatorsApiKey) {
+        statusDiv.textContent = "Please enter a Scrape Creators API key in Settings";
+        showView("settings"); // Switch to settings if API key is missing
+        return;
       }
+
+      // Show loading status
+      statusDiv.textContent = "Requesting subtitles...";
+      generateBtn.disabled = true; // Disable button during processing
+
+      // Query the active tab and capture video URL immediately
+      chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+        const currentTab = tabs[0];
+        console.log(
+          "Popup: Active tab URL:",
+          currentTab ? currentTab.url : "No tab found"
+        );
+
+        if (
+          currentTab &&
+          currentTab.url &&
+          currentTab.url.includes("youtube.com/watch")
+        ) {
+          // Extract video ID at button click time to ensure it sticks to the clicked video
+          const videoId = extractVideoId(currentTab.url);
+          
+          if (!videoId) {
+            statusDiv.textContent = "Error: Could not extract video ID from URL.";
+            generateBtn.disabled = false;
+            return;
+          }
+          
+          // Send a message to the content script to generate subtitles
+          chrome.tabs.sendMessage(
+            currentTab.id,
+            {
+              action: MESSAGE_ACTIONS.GENERATE_SUBTITLES,
+              videoId: videoId, // Pass only the video ID
+              scrapeCreatorsApiKey: scrapeCreatorsApiKey,
+              openRouterApiKey: openRouterApiKey,
+              modelSelection: modelSelection,
+            },
+            function (response) {
+              if (chrome.runtime.lastError) {
+                console.error("Popup Error:", chrome.runtime.lastError.message);
+                statusDiv.textContent = `Error: ${chrome.runtime.lastError.message}. Try reloading the YouTube page.`;
+                generateBtn.disabled = false;
+              } else if (response && response.status === "started") {
+                statusDiv.textContent =
+                  "Processing video... (This may take a while)";
+              } else if (response && response.status === "error") {
+                statusDiv.textContent = `Error: ${
+                  response.message || "Could not start process."
+                }`;
+                generateBtn.disabled = false;
+              } else {
+                statusDiv.textContent =
+                  "Error: Unexpected response from content script.";
+                generateBtn.disabled = false;
+              }
+            }
+          );
+        } else {
+          statusDiv.textContent = "Not a YouTube video page.";
+          generateBtn.disabled = false;
+        }
+      });
     });
   });
 
