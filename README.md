@@ -2,8 +2,6 @@
 
 A Chrome extension that enhances YouTube video captions by automatically refining transcripts using AI. Captions are stored locally for instant access when revisiting videos.
 
-![preview](preview.png)
-
 ## Features
 
 - ✨ **AI-Powered Caption Refinement**: Automatically fixes typos and grammar errors in YouTube transcripts using OpenRouter (Gemini, GPT-4, etc.)
