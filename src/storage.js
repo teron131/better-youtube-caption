@@ -1,10 +1,6 @@
 // Storage management utilities
 // Note: Video IDs are used as storage keys instead of URLs for better robustness
 
-// Chrome storage quota: 10MB per extension
-const STORAGE_QUOTA_BYTES = 10 * 1024 * 1024; // 10MB in bytes
-const MAX_STORAGE_BYTES = 9 * 1024 * 1024; // 9MB - leave 1MB buffer
-
 // Get subtitles for a video from local storage (using video ID as key)
 function getStoredSubtitles(videoId) {
   return new Promise((resolve) => {
@@ -23,7 +19,7 @@ function saveSubtitles(videoId, subtitles) {
         if (chrome.runtime.lastError.message && chrome.runtime.lastError.message.includes("QUOTA")) {
           console.warn("Storage quota exceeded. Attempting cleanup...");
           // Try to free up space and retry
-          cleanupOldSubtitles(10) // Remove 10 oldest videos
+          cleanupOldSubtitles(STORAGE.CLEANUP_BATCH_SIZE)
             .then(() => {
               // Retry saving
               chrome.storage.local.set({ [videoId]: subtitles }, () => {
@@ -55,8 +51,8 @@ function getStorageUsage() {
     chrome.storage.local.getBytesInUse(null, (bytesInUse) => {
       resolve({
         bytesUsed: bytesInUse || 0,
-        bytesAvailable: STORAGE_QUOTA_BYTES - (bytesInUse || 0),
-        percentageUsed: ((bytesInUse || 0) / STORAGE_QUOTA_BYTES) * 100,
+        bytesAvailable: STORAGE.QUOTA_BYTES - (bytesInUse || 0),
+        percentageUsed: ((bytesInUse || 0) / STORAGE.QUOTA_BYTES) * 100,
       });
     });
   });
@@ -76,13 +72,15 @@ async function cleanupOldSubtitles(countToRemove = 10) {
       // Video IDs are typically 11 characters (YouTube video ID format)
       const videoKeys = Object.keys(allItems).filter((key) => {
         // YouTube video IDs are 11 characters, but also check if it's an array (subtitle segments)
-        return key.length === 11 && Array.isArray(allItems[key]);
+        return key.length === YOUTUBE.VIDEO_ID_LENGTH && Array.isArray(allItems[key]);
       });
 
       if (videoKeys.length <= countToRemove) {
         // If we have fewer videos than we want to remove, remove all except the most recent ones
-        console.log(`Only ${videoKeys.length} videos found, removing oldest ${Math.max(1, videoKeys.length - 5)}`);
-        const keysToRemove = videoKeys.slice(0, Math.max(1, videoKeys.length - 5));
+        const keepCount = 5; // Keep at least 5 most recent videos
+        const removeCount = Math.max(1, videoKeys.length - keepCount);
+        console.log(`Only ${videoKeys.length} videos found, removing oldest ${removeCount}`);
+        const keysToRemove = videoKeys.slice(0, removeCount);
         chrome.storage.local.remove(keysToRemove, () => {
           if (chrome.runtime.lastError) {
             reject(new Error(chrome.runtime.lastError.message));
@@ -111,9 +109,9 @@ async function cleanupOldSubtitles(countToRemove = 10) {
 async function ensureStorageSpace() {
   const usage = await getStorageUsage();
   
-  if (usage.bytesUsed > MAX_STORAGE_BYTES) {
+  if (usage.bytesUsed > STORAGE.MAX_STORAGE_BYTES) {
     console.log(`Storage usage at ${usage.percentageUsed.toFixed(1)}%, cleaning up...`);
-    const videosToRemove = Math.ceil((usage.bytesUsed - MAX_STORAGE_BYTES) / (30 * 1024)); // Assume ~30KB per video
+    const videosToRemove = Math.ceil((usage.bytesUsed - STORAGE.MAX_STORAGE_BYTES) / STORAGE.ESTIMATED_VIDEO_SIZE_BYTES);
     await cleanupOldSubtitles(videosToRemove);
   }
 }

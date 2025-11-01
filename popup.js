@@ -19,37 +19,32 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Load saved API keys, model, and auto-generation setting from local storage
   chrome.storage.local.get(
-    ["scrapeCreatorsApiKey", "openRouterApiKey", "modelSelection", "autoGenerate"],
+    [
+      STORAGE_KEYS.SCRAPE_CREATORS_API_KEY,
+      STORAGE_KEYS.OPENROUTER_API_KEY,
+      STORAGE_KEYS.MODEL_SELECTION,
+      STORAGE_KEYS.AUTO_GENERATE,
+    ],
     function (result) {
-      if (result.scrapeCreatorsApiKey) {
-        scrapeCreatorsApiKeyInput.value = result.scrapeCreatorsApiKey;
+      if (result[STORAGE_KEYS.SCRAPE_CREATORS_API_KEY]) {
+        scrapeCreatorsApiKeyInput.value = result[STORAGE_KEYS.SCRAPE_CREATORS_API_KEY];
       }
-      if (result.openRouterApiKey) {
-        openRouterApiKeyInput.value = result.openRouterApiKey;
+      if (result[STORAGE_KEYS.OPENROUTER_API_KEY]) {
+        openRouterApiKeyInput.value = result[STORAGE_KEYS.OPENROUTER_API_KEY];
       }
-      if (result.modelSelection) {
-        modelSelectionInput.value = result.modelSelection;
+      if (result[STORAGE_KEYS.MODEL_SELECTION]) {
+        modelSelectionInput.value = result[STORAGE_KEYS.MODEL_SELECTION];
       } else {
         // Set default model if not set
-        modelSelectionInput.value = "google/gemini-2.5-flash-lite";
+        modelSelectionInput.value = DEFAULTS.MODEL;
       }
       // Load auto-generation setting (default to false)
-      autoGenerateToggle.checked = result.autoGenerate === true;
+      autoGenerateToggle.checked = result[STORAGE_KEYS.AUTO_GENERATE] === true;
     }
   );
 
   // Check if subtitles already exist for the current video
   chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-    // Helper function to extract video ID from YouTube URL
-    function extractVideoId(url) {
-      try {
-        const urlObj = new URL(url);
-        return urlObj.searchParams.get("v");
-      } catch (e) {
-        console.error("Error extracting video ID:", url, e);
-        return null;
-      }
-    }
 
     const currentTab = tabs[0];
 
@@ -72,7 +67,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Handle auto-generation toggle change
   autoGenerateToggle.addEventListener("change", function () {
-    chrome.storage.local.set({ autoGenerate: autoGenerateToggle.checked }, () => {
+    chrome.storage.local.set({ [STORAGE_KEYS.AUTO_GENERATE]: autoGenerateToggle.checked }, () => {
       console.log("Auto-generation setting saved:", autoGenerateToggle.checked);
     });
   });
@@ -86,7 +81,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const scrapeCreatorsApiKey = scrapeCreatorsApiKeyInput.value.trim();
     const openRouterApiKey = openRouterApiKeyInput.value.trim();
-    const modelSelection = modelSelectionInput.value.trim() || "google/gemini-2.5-flash-lite";
+    const modelSelection = modelSelectionInput.value.trim() || DEFAULTS.MODEL;
     
     statusDiv.textContent = ""; // Clear previous status
 
@@ -97,10 +92,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Save the API keys, model, and auto-generation setting to local storage
     chrome.storage.local.set({
-      scrapeCreatorsApiKey: scrapeCreatorsApiKey,
-      openRouterApiKey: openRouterApiKey,
-      modelSelection: modelSelection,
-      autoGenerate: autoGenerateToggle.checked,
+      [STORAGE_KEYS.SCRAPE_CREATORS_API_KEY]: scrapeCreatorsApiKey,
+      [STORAGE_KEYS.OPENROUTER_API_KEY]: openRouterApiKey,
+      [STORAGE_KEYS.MODEL_SELECTION]: modelSelection,
+      [STORAGE_KEYS.AUTO_GENERATE]: autoGenerateToggle.checked,
     });
 
     // Show loading status
@@ -144,7 +139,7 @@ document.addEventListener("DOMContentLoaded", function () {
         chrome.tabs.sendMessage(
           currentTab.id,
           {
-            action: "generateSubtitles",
+            action: MESSAGE_ACTIONS.GENERATE_SUBTITLES,
             videoId: videoId, // Pass only the video ID
             scrapeCreatorsApiKey: scrapeCreatorsApiKey,
             openRouterApiKey: openRouterApiKey,
@@ -179,7 +174,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Listen for status updates from the background script
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === "updatePopupStatus") {
+    if (message.action === MESSAGE_ACTIONS.UPDATE_POPUP_STATUS) {
       statusDiv.textContent = message.text;
       if (message.error || message.success) {
         generateBtn.disabled = false; // Re-enable button on completion or error

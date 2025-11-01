@@ -1,5 +1,83 @@
-// Transcript refinement utility using Gemini via OpenRouter
-// Based on the approach from test.ipynb
+// YouTube transcript fetching and refinement
+// Combines transcript fetching (Scrape Creators API) and refinement (OpenRouter/Gemini)
+
+/**
+ * Fetches YouTube transcript and metadata using Scrape Creators API
+ * @param {string} videoUrl - YouTube video URL
+ * @param {string} apiKey - Scrape Creators API key
+ * @returns {Promise<Object>} Object with segments array and metadata: {segments: Array, title: string, description: string, transcriptText: string}
+ */
+async function fetchYouTubeTranscript(videoUrl, apiKey) {
+  if (!apiKey) {
+    throw new Error("Scrape Creators API key is required");
+  }
+
+  // Clean the YouTube URL
+  const cleanedUrl = cleanYouTubeUrl(videoUrl);
+  
+  // Call Scrape Creators API
+  const apiUrl = `${API_ENDPOINTS.SCRAPE_CREATORS}?url=${encodeURIComponent(cleanedUrl)}&get_transcript=true`;
+  
+  const response = await fetch(apiUrl, {
+    method: "GET",
+    headers: {
+      "x-api-key": apiKey,
+    },
+  });
+
+  if (!response.ok) {
+    let errorMessage = `API request failed with status ${response.status}`;
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData?.error?.message || errorMessage;
+    } catch (e) {
+      // If response is not JSON, use status text
+      errorMessage = await response.text() || errorMessage;
+    }
+    throw new Error(`Scrape Creators API error: ${errorMessage}`);
+  }
+
+  const data = await response.json();
+
+  // Extract transcript segments
+  if (!data.transcript || !Array.isArray(data.transcript) || data.transcript.length === 0) {
+    throw new Error("No transcript available for this video");
+  }
+
+  // Convert transcript segments to our format
+  // API returns: {text, startMs, endMs, startTimeText}
+  // We need: {startTime, endTime, text, startTimeText} where times are in milliseconds (numbers)
+  const segments = data.transcript.map((segment) => {
+    const startTime = parseInt(segment.startMs, 10);
+    const endTime = parseInt(segment.endMs, 10);
+
+    if (isNaN(startTime) || isNaN(endTime)) {
+      console.warn("Invalid timestamp in transcript segment:", segment);
+      return null;
+    }
+
+    return {
+      startTime: startTime,
+      endTime: endTime,
+      text: segment.text.trim(),
+      startTimeText: segment.startTimeText || null, // Preserve startTimeText for formatting
+    };
+  }).filter((segment) => segment !== null);
+
+  if (segments.length === 0) {
+    throw new Error("No valid transcript segments found");
+  }
+
+  console.log(`Fetched ${segments.length} transcript segments from Scrape Creators API`);
+  
+  // Return segments with metadata for refinement
+  return {
+    segments: segments,
+    title: data.title || "",
+    description: data.description || "",
+    transcriptText: data.transcript_only_text || "",
+  };
+}
 
 /**
  * Formats transcript segments as simple newline-separated text.
@@ -49,7 +127,7 @@ function formatTimestamp(ms) {
  * @param {string} model - Model to use (e.g., "google/gemini-2.5-flash-lite")
  * @returns {Promise<string>} Refined transcript text with same format
  */
-async function refineTranscript(formattedTranscript, title, description, openRouterApiKey, progressCallback, model = "google/gemini-2.5-flash-lite") {
+async function refineTranscript(formattedTranscript, title, description, openRouterApiKey, progressCallback, model = DEFAULTS.MODEL) {
   if (!openRouterApiKey) {
     throw new Error("OpenRouter API key is required");
   }
@@ -81,9 +159,7 @@ ${formattedTranscript}
 Return the refined transcript with the same number of lines and timestamps preserved.`;
 
   // Call OpenRouter API
-  const apiUrl = "https://openrouter.ai/api/v1/chat/completions";
-  
-  const response = await fetch(apiUrl, {
+  const response = await fetch(API_ENDPOINTS.OPENROUTER, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -201,7 +277,7 @@ function parseRefinedTranscript(refinedText, originalSegments) {
  * @param {string} model - Model to use (e.g., "google/gemini-2.5-flash-lite")
  * @returns {Promise<Array<Object>>} Refined transcript segments with preserved timestamps
  */
-async function refineTranscriptSegments(segments, title, description, openRouterApiKey, progressCallback, model = "google/gemini-2.5-flash-lite") {
+async function refineTranscriptSegments(segments, title, description, openRouterApiKey, progressCallback, model = DEFAULTS.MODEL) {
   if (!segments || segments.length === 0) {
     throw new Error("No transcript segments provided");
   }

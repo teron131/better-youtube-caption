@@ -1,19 +1,7 @@
-// Import utility functions
-// Note: In content scripts, we can't use importScripts, so we'll define utility functions inline
-// Alternatively, we could create a shared utility file and load it via script tag in manifest
+// Content script for YouTube Subtitles Generator
+// Handles subtitle display, auto-generation, and communication with background script
 
-// Helper function to extract video ID from YouTube URL
-function extractVideoId(url) {
-  try {
-    const urlObj = new URL(url);
-    return urlObj.searchParams.get("v");
-  } catch (e) {
-    console.error("Error extracting video ID:", url, e);
-    return null;
-  }
-}
-
-// Global variables
+// Global state
 let currentSubtitles = [];
 let subtitleContainer = null;
 let subtitleText = null;
@@ -21,7 +9,6 @@ let videoPlayer = null;
 let videoContainer = null;
 let checkInterval = null;
 let initAttempts = 0;
-const MAX_INIT_ATTEMPTS = 10;
 let currentUrl = window.location.href;
 let autoGenerationTriggered = new Set(); // Track which videos have had auto-generation triggered
 
@@ -36,7 +23,13 @@ function loadStoredSubtitles() {
       return;
     }
 
-    chrome.storage.local.get([videoId, "autoGenerate", "scrapeCreatorsApiKey", "openRouterApiKey", "modelSelection"], (result) => {
+    chrome.storage.local.get([
+      videoId,
+      STORAGE_KEYS.AUTO_GENERATE,
+      STORAGE_KEYS.SCRAPE_CREATORS_API_KEY,
+      STORAGE_KEYS.OPENROUTER_API_KEY,
+      STORAGE_KEYS.MODEL_SELECTION,
+    ], (result) => {
       try {
         if (chrome.runtime.lastError) {
           console.error("Content Script: Error loading subtitles:", chrome.runtime.lastError.message);
@@ -51,7 +44,11 @@ function loadStoredSubtitles() {
           console.log("Content Script: No stored subtitles found for this video.");
           
           // Check if auto-generation is enabled and hasn't been triggered for this video
-          if (result.autoGenerate === true && result.scrapeCreatorsApiKey && !autoGenerationTriggered.has(videoId)) {
+          if (
+            result[STORAGE_KEYS.AUTO_GENERATE] === true &&
+            result[STORAGE_KEYS.SCRAPE_CREATORS_API_KEY] &&
+            !autoGenerationTriggered.has(videoId)
+          ) {
             console.log("Content Script: Auto-generation enabled, waiting for page to load...");
             autoGenerationTriggered.add(videoId); // Mark as triggered to prevent duplicate triggers
             
@@ -61,12 +58,17 @@ function loadStoredSubtitles() {
               const currentVideoId = extractVideoId(window.location.href);
               if (currentVideoId === videoId) {
                 console.log("Content Script: Triggering auto-generation after delay...");
-                triggerAutoGeneration(videoId, result.scrapeCreatorsApiKey, result.openRouterApiKey, result.modelSelection);
+                triggerAutoGeneration(
+                  videoId,
+                  result[STORAGE_KEYS.SCRAPE_CREATORS_API_KEY],
+                  result[STORAGE_KEYS.OPENROUTER_API_KEY],
+                  result[STORAGE_KEYS.MODEL_SELECTION]
+                );
               } else {
                 console.log("Content Script: Video ID changed during delay, cancelling auto-generation");
                 autoGenerationTriggered.delete(videoId); // Remove from set if video changed
               }
-            }, 2500); // 2.5 second delay
+            }, TIMING.AUTO_GENERATION_DELAY_MS);
           }
         }
       } catch (error) {
@@ -134,16 +136,16 @@ function onUrlChange() {
 
 // Finds video elements on the YouTube page
 function findVideoElements() {
-  videoPlayer = document.querySelector("video.html5-main-video");
+  videoPlayer = document.querySelector(YOUTUBE.SELECTORS.VIDEO_PLAYER);
   if (!videoPlayer) return false;
 
   // Try finding a standard container, fallback to player's parent
   videoContainer =
-    document.querySelector("#movie_player") || // Primary target
-    document.querySelector(".html5-video-container") || // Fallback 1
-    videoPlayer.parentElement; // Fallback 2
+    document.querySelector(YOUTUBE.SELECTORS.MOVIE_PLAYER) ||
+    document.querySelector(YOUTUBE.SELECTORS.VIDEO_CONTAINER) ||
+    videoPlayer.parentElement;
 
-  return !!videoContainer; // Return true if both found
+  return !!videoContainer;
 }
 
 // Initializes the content script
@@ -152,11 +154,11 @@ function initialize() {
 
   if (!findVideoElements()) {
     initAttempts++;
-    if (initAttempts < MAX_INIT_ATTEMPTS) {
+    if (initAttempts < TIMING.MAX_INIT_ATTEMPTS) {
       console.log(
-        `Video player not found, retrying (${initAttempts}/${MAX_INIT_ATTEMPTS})...`
+        `Video player not found, retrying (${initAttempts}/${TIMING.MAX_INIT_ATTEMPTS})...`
       );
-      setTimeout(initialize, 500); // Retry after 500ms
+      setTimeout(initialize, TIMING.INIT_RETRY_DELAY_MS);
     } else {
       console.error(
         "YouTube Subtitles Generator: Video player or container not found after multiple attempts."
@@ -176,7 +178,7 @@ function initialize() {
 
   // Listen for messages from popup or background
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === "generateSubtitles") {
+    if (message.action === MESSAGE_ACTIONS.GENERATE_SUBTITLES) {
       console.log("Content Script: Received generateSubtitles request");
       
       // Use the video ID from the message if provided (captured at button click time),
@@ -198,8 +200,8 @@ function initialize() {
       // Request subtitles from background script
       chrome.runtime.sendMessage(
         {
-          action: "fetchSubtitles",
-          videoId: videoId, // Use only the video ID
+          action: MESSAGE_ACTIONS.FETCH_SUBTITLES,
+          videoId: videoId,
           scrapeCreatorsApiKey: message.scrapeCreatorsApiKey,
           openRouterApiKey: message.openRouterApiKey,
           modelSelection: message.modelSelection,
@@ -225,7 +227,7 @@ function initialize() {
 
       sendResponse({ status: "started" });
       return true; // Indicate async response possible
-    } else if (message.action === "subtitlesGenerated") {
+    } else if (message.action === MESSAGE_ACTIONS.SUBTITLES_GENERATED) {
       console.log("Content Script: Received subtitlesGenerated request");
       currentSubtitles = message.subtitles || []; // Ensure it's an array
       console.log(`Received ${currentSubtitles.length} subtitle entries.`);
@@ -272,17 +274,17 @@ function initialize() {
 
 // Creates subtitle elements and appends them to the video container
 function createSubtitleElements() {
-  if (document.getElementById("youtube-gemini-subtitles-container")) return;
+  if (document.getElementById(ELEMENT_IDS.SUBTITLE_CONTAINER)) return;
 
   subtitleContainer = document.createElement("div");
-  subtitleContainer.id = "youtube-gemini-subtitles-container";
+  subtitleContainer.id = ELEMENT_IDS.SUBTITLE_CONTAINER;
   subtitleContainer.style.position = "absolute";
   subtitleContainer.style.zIndex = "9999";
   subtitleContainer.style.pointerEvents = "none";
   subtitleContainer.style.display = "none";
 
   subtitleText = document.createElement("div");
-  subtitleText.id = "youtube-gemini-subtitles-text";
+  subtitleText.id = ELEMENT_IDS.SUBTITLE_TEXT;
   subtitleContainer.appendChild(subtitleText);
 
   if (videoContainer) {
@@ -306,7 +308,7 @@ function startSubtitleDisplay() {
   stopSubtitleDisplay(); // Clear any existing interval
 
   console.log("Starting subtitle display interval.");
-  checkInterval = setInterval(updateSubtitles, 100); // 100ms interval
+  checkInterval = setInterval(updateSubtitles, TIMING.SUBTITLE_UPDATE_INTERVAL_MS);
 
   videoPlayer.addEventListener("play", updateSubtitles);
   videoPlayer.addEventListener("seeked", updateSubtitles);

@@ -1,9 +1,9 @@
 // Import utility modules
-importScripts("utils/srtParser.js");
-importScripts("utils/urlUtils.js");
-importScripts("utils/storageManager.js");
-importScripts("utils/transcriptFetcher.js");
-importScripts("utils/transcriptRefiner.js");
+importScripts("src/constants.js");
+importScripts("src/parser.js");
+importScripts("src/url.js");
+importScripts("src/storage.js");
+importScripts("src/transcript.js");
 importScripts("config.js");
 
 // Get API key with fallback to test config
@@ -22,7 +22,7 @@ async function getApiKeyWithFallback(keyName) {
 
 // Listener for messages from content or popup scripts
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === "fetchSubtitles") {
+  if (message.action === MESSAGE_ACTIONS.FETCH_SUBTITLES) {
     const {
       videoId, // Video ID - URL will be constructed from this when needed
       scrapeCreatorsApiKey: messageScrapeCreatorsKey,
@@ -53,7 +53,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         console.log("Subtitles found in local storage for this video.");
         if (tabId) {
           chrome.tabs.sendMessage(tabId, {
-            action: "subtitlesGenerated",
+            action: MESSAGE_ACTIONS.SUBTITLES_GENERATED,
               subtitles: cachedSubtitles,
               videoId: videoId, // Pass the video ID to ensure subtitles are for the correct video
           }, () => {
@@ -69,7 +69,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
         if (tabId) {
           chrome.runtime.sendMessage({
-            action: "updatePopupStatus",
+            action: MESSAGE_ACTIONS.UPDATE_POPUP_STATUS,
               text: "Fetching YouTube transcript...",
             tabId: tabId,
           }, () => {
@@ -115,13 +115,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               // Get model selection - use message value if provided, otherwise fallback to storage
               const modelSelection =
                 messageModelSelection ||
-                (await getApiKeyFromStorage("modelSelection")) ||
-                "google/gemini-2.5-flash-lite";
+                (await getApiKeyFromStorage(STORAGE_KEYS.MODEL_SELECTION)) ||
+                DEFAULTS.MODEL;
               
               if (openRouterKey) {
                 if (tabId) {
                   chrome.runtime.sendMessage({
-                    action: "updatePopupStatus",
+                    action: MESSAGE_ACTIONS.UPDATE_POPUP_STATUS,
                     text: "Refining transcript with AI...",
                     tabId: tabId,
                   }, () => {
@@ -135,7 +135,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                   const progressCallback = (message) => {
                     if (tabId) {
                       chrome.runtime.sendMessage({
-                        action: "updatePopupStatus",
+                        action: MESSAGE_ACTIONS.UPDATE_POPUP_STATUS,
                         text: message,
                         tabId: tabId,
                       }, () => {
@@ -161,7 +161,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                   console.warn("Transcript refinement failed, using original:", refinementError);
                   if (tabId) {
                     chrome.runtime.sendMessage({
-                      action: "updatePopupStatus",
+                      action: MESSAGE_ACTIONS.UPDATE_POPUP_STATUS,
                       text: "Using original transcript (refinement failed)",
                       tabId: tabId,
                     }, () => {
@@ -181,7 +181,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           .then((subtitles) => {
             if (tabId) {
               chrome.tabs.sendMessage(tabId, {
-                action: "subtitlesGenerated",
+                action: MESSAGE_ACTIONS.SUBTITLES_GENERATED,
                 subtitles: subtitles,
                 videoId: videoId, // Pass the video ID to ensure subtitles are saved for the correct video
               }, () => {
@@ -191,7 +191,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 }
               });
               chrome.runtime.sendMessage({
-                action: "updatePopupStatus",
+                action: MESSAGE_ACTIONS.UPDATE_POPUP_STATUS,
                   text: "Transcript fetched and ready!",
                 success: true,
                 tabId: tabId,
@@ -222,7 +222,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             }`;
             if (tabId) {
               chrome.runtime.sendMessage({
-                action: "updatePopupStatus",
+                action: MESSAGE_ACTIONS.UPDATE_POPUP_STATUS,
                 text: errorMessage,
                 error: true,
                 tabId: tabId,
@@ -246,8 +246,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 // Note: Video IDs are now used for storage instead of URLs for better robustness
+// The fetchSubtitlesFromGemini function below is kept for reference but is not currently used
+// The extension now uses Scrape Creators API + OpenRouter for transcript refinement
 
-// Fetches subtitles from the Gemini API
+// Fetches subtitles from the Gemini API (DEPRECATED - not used)
 async function fetchSubtitlesFromGemini(videoUrl, apiKey, tabId) {
   const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro-exp-03-25:generateContent?key=${apiKey}`;
 
