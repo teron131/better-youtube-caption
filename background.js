@@ -56,6 +56,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             action: "subtitlesGenerated",
               subtitles: cachedSubtitles,
               videoId: videoId, // Pass the video ID to ensure subtitles are for the correct video
+          }, () => {
+            // Ignore errors - tab might be closed or content script not loaded
+            if (chrome.runtime.lastError) {
+              console.log("Could not send message to tab (tab may be closed):", chrome.runtime.lastError.message);
+            }
           });
         }
         sendResponse({ status: "completed", cached: true });
@@ -67,6 +72,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             action: "updatePopupStatus",
               text: "Fetching YouTube transcript...",
             tabId: tabId,
+          }, () => {
+            // Ignore errors - popup might be closed
+            if (chrome.runtime.lastError) {
+              // Popup might be closed, ignore
+            }
           });
         }
 
@@ -114,6 +124,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     action: "updatePopupStatus",
                     text: "Refining transcript with AI...",
                     tabId: tabId,
+                  }, () => {
+                    if (chrome.runtime.lastError) {
+                      // Popup might be closed, ignore
+                    }
                   });
                 }
                 
@@ -124,6 +138,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                         action: "updatePopupStatus",
                         text: message,
                         tabId: tabId,
+                      }, () => {
+                        if (chrome.runtime.lastError) {
+                          // Popup might be closed, ignore
+                        }
                       });
                     }
                   };
@@ -146,6 +164,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                       action: "updatePopupStatus",
                       text: "Using original transcript (refinement failed)",
                       tabId: tabId,
+                    }, () => {
+                      if (chrome.runtime.lastError) {
+                        // Popup might be closed, ignore
+                      }
                     });
                   }
                   // Fallback to original segments if refinement fails
@@ -162,12 +184,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 action: "subtitlesGenerated",
                 subtitles: subtitles,
                 videoId: videoId, // Pass the video ID to ensure subtitles are saved for the correct video
+              }, () => {
+                // Ignore errors - tab might be closed or content script not loaded
+                if (chrome.runtime.lastError) {
+                  console.log("Could not send message to tab (tab may be closed):", chrome.runtime.lastError.message);
+                }
               });
               chrome.runtime.sendMessage({
                 action: "updatePopupStatus",
                   text: "Transcript fetched and ready!",
                 success: true,
                 tabId: tabId,
+              }, () => {
+                // Ignore errors - popup might be closed
+                if (chrome.runtime.lastError) {
+                  // Popup might be closed, ignore
+                }
               });
             }
 
@@ -194,6 +226,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 text: errorMessage,
                 error: true,
                 tabId: tabId,
+              }, () => {
+                if (chrome.runtime.lastError) {
+                  // Popup might be closed, ignore
+                }
               });
             }
             sendResponse({ status: "error", message: error.message });
