@@ -46,10 +46,10 @@ function formatTimestamp(ms) {
  * @param {string} description - Video description for context
  * @param {string} openRouterApiKey - OpenRouter API key
  * @param {Function} progressCallback - Optional callback for progress updates
- * @param {string} model - Model to use (e.g., "google/gemini-2.5-flash")
+ * @param {string} model - Model to use (e.g., "google/gemini-2.5-flash-lite")
  * @returns {Promise<string>} Refined transcript text with same format
  */
-async function refineTranscript(formattedTranscript, title, description, openRouterApiKey, progressCallback, model = "google/gemini-2.5-flash") {
+async function refineTranscript(formattedTranscript, title, description, openRouterApiKey, progressCallback, model = "google/gemini-2.5-flash-lite") {
   if (!openRouterApiKey) {
     throw new Error("OpenRouter API key is required");
   }
@@ -198,10 +198,10 @@ function parseRefinedTranscript(refinedText, originalSegments) {
  * @param {string} description - Video description for context
  * @param {string} openRouterApiKey - OpenRouter API key
  * @param {Function} progressCallback - Optional callback for progress updates
- * @param {string} model - Model to use (e.g., "google/gemini-2.5-flash")
+ * @param {string} model - Model to use (e.g., "google/gemini-2.5-flash-lite")
  * @returns {Promise<Array<Object>>} Refined transcript segments with preserved timestamps
  */
-async function refineTranscriptSegments(segments, title, description, openRouterApiKey, progressCallback, model = "google/gemini-2.5-flash") {
+async function refineTranscriptSegments(segments, title, description, openRouterApiKey, progressCallback, model = "google/gemini-2.5-flash-lite") {
   if (!segments || segments.length === 0) {
     throw new Error("No transcript segments provided");
   }

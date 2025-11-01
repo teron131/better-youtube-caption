@@ -23,8 +23,10 @@ let checkInterval = null;
 let initAttempts = 0;
 const MAX_INIT_ATTEMPTS = 10;
 let currentUrl = window.location.href;
+let autoGenerationTriggered = new Set(); // Track which videos have had auto-generation triggered
 
 // Loads stored subtitles for the current video from local storage
+// Also checks for auto-generation setting and triggers generation if enabled
 function loadStoredSubtitles() {
   try {
     const videoId = extractVideoId(window.location.href);
@@ -34,7 +36,7 @@ function loadStoredSubtitles() {
       return;
     }
 
-    chrome.storage.local.get([videoId], (result) => {
+    chrome.storage.local.get([videoId, "autoGenerate", "scrapeCreatorsApiKey", "openRouterApiKey", "modelSelection"], (result) => {
       try {
         if (chrome.runtime.lastError) {
           console.error("Content Script: Error loading subtitles:", chrome.runtime.lastError.message);
@@ -47,6 +49,25 @@ function loadStoredSubtitles() {
           startSubtitleDisplay(); // Start displaying the subtitles
         } else {
           console.log("Content Script: No stored subtitles found for this video.");
+          
+          // Check if auto-generation is enabled and hasn't been triggered for this video
+          if (result.autoGenerate === true && result.scrapeCreatorsApiKey && !autoGenerationTriggered.has(videoId)) {
+            console.log("Content Script: Auto-generation enabled, waiting for page to load...");
+            autoGenerationTriggered.add(videoId); // Mark as triggered to prevent duplicate triggers
+            
+            // Wait 2-3 seconds for page to fully load before auto-generating
+            setTimeout(() => {
+              // Double-check video ID hasn't changed (user might have navigated away)
+              const currentVideoId = extractVideoId(window.location.href);
+              if (currentVideoId === videoId) {
+                console.log("Content Script: Triggering auto-generation after delay...");
+                triggerAutoGeneration(videoId, result.scrapeCreatorsApiKey, result.openRouterApiKey, result.modelSelection);
+              } else {
+                console.log("Content Script: Video ID changed during delay, cancelling auto-generation");
+                autoGenerationTriggered.delete(videoId); // Remove from set if video changed
+              }
+            }, 2500); // 2.5 second delay
+          }
         }
       } catch (error) {
         console.error("Content Script: Error processing stored subtitles:", error);
@@ -57,12 +78,44 @@ function loadStoredSubtitles() {
   }
 }
 
+// Triggers automatic subtitle generation
+function triggerAutoGeneration(videoId, scrapeCreatorsApiKey, openRouterApiKey, modelSelection) {
+  // Clear any existing subtitles first
+  clearSubtitles();
+  
+  // Send message to background script to fetch subtitles
+  chrome.runtime.sendMessage(
+    {
+      action: "fetchSubtitles",
+      videoId: videoId,
+      scrapeCreatorsApiKey: scrapeCreatorsApiKey,
+      openRouterApiKey: openRouterApiKey,
+      modelSelection: modelSelection,
+    },
+    (response) => {
+      if (chrome.runtime.lastError) {
+        console.error("Content Script: Error triggering auto-generation:", chrome.runtime.lastError.message);
+      } else {
+        console.log("Content Script: Auto-generation triggered successfully");
+      }
+    }
+  );
+}
+
 // Monitors URL changes on YouTube (SPA behavior)
 function monitorUrlChanges() {
   const observer = new MutationObserver(() => {
     if (currentUrl !== window.location.href) {
       console.log("YouTube Subtitles Generator: URL changed.");
+      const oldVideoId = extractVideoId(currentUrl);
       currentUrl = window.location.href;
+      const newVideoId = extractVideoId(currentUrl);
+      
+      // If video ID changed, clear the auto-generation tracking for the old video
+      if (oldVideoId !== newVideoId) {
+        autoGenerationTriggered.delete(oldVideoId);
+      }
+      
       onUrlChange();
     }
   });
@@ -74,6 +127,8 @@ function monitorUrlChanges() {
 function onUrlChange() {
   console.log("YouTube Subtitles Generator: Reinitializing for new video...");
   clearSubtitles(); // Clear current subtitles
+  // Note: We don't clear autoGenerationTriggered here because we want to prevent
+  // re-triggering for the same video if user navigates back
   initialize(); // Reinitialize for the new video
 }
 

@@ -116,7 +116,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               const modelSelection =
                 messageModelSelection ||
                 (await getApiKeyFromStorage("modelSelection")) ||
-                "google/gemini-2.5-flash";
+                "google/gemini-2.5-flash-lite";
               
               if (openRouterKey) {
                 if (tabId) {

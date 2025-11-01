@@ -3,6 +3,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const scrapeCreatorsApiKeyInput = document.getElementById("scrapeCreatorsApiKey");
   const openRouterApiKeyInput = document.getElementById("openRouterApiKey");
   const modelSelectionInput = document.getElementById("modelSelection");
+  const autoGenerateToggle = document.getElementById("autoGenerateToggle");
   const generateBtn = document.getElementById("generateBtn");
   const statusDiv = document.getElementById("status");
 
@@ -16,9 +17,9 @@ document.addEventListener("DOMContentLoaded", function () {
     generateBtn.nextSibling
   ); // Add it below the button
 
-  // Load saved API keys and model from local storage
+  // Load saved API keys, model, and auto-generation setting from local storage
   chrome.storage.local.get(
-    ["scrapeCreatorsApiKey", "openRouterApiKey", "modelSelection"],
+    ["scrapeCreatorsApiKey", "openRouterApiKey", "modelSelection", "autoGenerate"],
     function (result) {
       if (result.scrapeCreatorsApiKey) {
         scrapeCreatorsApiKeyInput.value = result.scrapeCreatorsApiKey;
@@ -30,8 +31,10 @@ document.addEventListener("DOMContentLoaded", function () {
         modelSelectionInput.value = result.modelSelection;
       } else {
         // Set default model if not set
-        modelSelectionInput.value = "google/gemini-2.5-flash";
+        modelSelectionInput.value = "google/gemini-2.5-flash-lite";
       }
+      // Load auto-generation setting (default to false)
+      autoGenerateToggle.checked = result.autoGenerate === true;
     }
   );
 
@@ -67,6 +70,13 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
+  // Handle auto-generation toggle change
+  autoGenerateToggle.addEventListener("change", function () {
+    chrome.storage.local.set({ autoGenerate: autoGenerateToggle.checked }, () => {
+      console.log("Auto-generation setting saved:", autoGenerateToggle.checked);
+    });
+  });
+
   // Handle the "Generate Subtitles" button click
   generateBtn.addEventListener("click", function () {
     // Prevent multiple clicks while processing
@@ -76,7 +86,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const scrapeCreatorsApiKey = scrapeCreatorsApiKeyInput.value.trim();
     const openRouterApiKey = openRouterApiKeyInput.value.trim();
-    const modelSelection = modelSelectionInput.value.trim() || "google/gemini-2.5-flash";
+    const modelSelection = modelSelectionInput.value.trim() || "google/gemini-2.5-flash-lite";
     
     statusDiv.textContent = ""; // Clear previous status
 
@@ -85,11 +95,12 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-    // Save the API keys and model to local storage
+    // Save the API keys, model, and auto-generation setting to local storage
     chrome.storage.local.set({
       scrapeCreatorsApiKey: scrapeCreatorsApiKey,
       openRouterApiKey: openRouterApiKey,
       modelSelection: modelSelection,
+      autoGenerate: autoGenerateToggle.checked,
     });
 
     // Show loading status
