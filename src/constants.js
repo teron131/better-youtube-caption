@@ -32,6 +32,7 @@ const RECOMMENDED_MODELS = [
   { value: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash" },
   { value: "x-ai/grok-code-fast-1", label: "Grok Code Fast 1" },
   { value: "x-ai/grok-4-fast", label: "Grok 4 Fast" },
+  { value: "openai/gpt-4.1-nano", label: "GPT-4.1 Nano" },
   { value: "openai/gpt-oss-120b", label: "gpt-oss-120b" },
 ];
 
