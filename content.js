@@ -13,18 +13,32 @@ let currentUrl = window.location.href;
 let autoGenerationTriggered = new Set(); // Track which videos have had auto-generation triggered
 let showSubtitlesEnabled = true; // Whether subtitles should be displayed
 
+function isExtensionContextValid() {
+  return (
+    typeof chrome !== "undefined" &&
+    !!chrome.runtime &&
+    typeof chrome.runtime.id === "string" &&
+    !!chrome.storage &&
+    !!chrome.storage.local
+  );
+}
+
 // Loads stored subtitles for the current video from local storage
 // Also checks for auto-generation setting and triggers generation if enabled
 function loadStoredSubtitles() {
   try {
-    const videoId = extractVideoId(window.location.href);
-    
-    if (!videoId) {
-      console.log("Content Script: Could not extract video ID, skipping subtitle load.");
+    if (!isExtensionContextValid()) {
+      console.debug("Content Script: Extension context invalidated, skipping subtitle load.");
       return;
     }
 
-    chrome.storage.local.get([
+    const videoId = extractVideoId(window.location.href);
+    if (!videoId) {
+      console.warn("Content Script: Could not extract video ID, skipping subtitle load.");
+      return;
+    }
+
+    const keysToFetch = [
       videoId,
       STORAGE_KEYS.AUTO_GENERATE,
       STORAGE_KEYS.SCRAPE_CREATORS_API_KEY,
@@ -32,10 +46,22 @@ function loadStoredSubtitles() {
       STORAGE_KEYS.RECOMMENDED_MODEL,
       STORAGE_KEYS.CUSTOM_MODEL,
       STORAGE_KEYS.SHOW_SUBTITLES,
-    ], (result) => {
+    ];
+
+    chrome.storage.local.get(keysToFetch, (result) => {
       try {
         if (chrome.runtime.lastError) {
-          console.error("Content Script: Error loading subtitles:", chrome.runtime.lastError.message);
+          if (
+            chrome.runtime.lastError.message &&
+            chrome.runtime.lastError.message.includes("Extension context invalidated")
+          ) {
+            console.debug("Content Script: Subtitle load aborted - extension context invalidated.");
+            return;
+          }
+          console.error(
+            "Content Script: Error loading subtitles from storage:",
+            chrome.runtime.lastError.message
+          );
           return;
         }
 
@@ -50,7 +76,7 @@ function loadStoredSubtitles() {
           }
         } else {
           console.log("Content Script: No stored subtitles found for this video.");
-          
+
           // Check if auto-generation is enabled and hasn't been triggered for this video
           if (
             result[STORAGE_KEYS.AUTO_GENERATE] === true &&
@@ -59,16 +85,35 @@ function loadStoredSubtitles() {
           ) {
             console.log("Content Script: Auto-generation enabled, waiting for page to load...");
             autoGenerationTriggered.add(videoId); // Mark as triggered to prevent duplicate triggers
-            
+
             // Wait 2-3 seconds for page to fully load before auto-generating
             setTimeout(() => {
+              if (!isExtensionContextValid()) {
+                console.debug("Content Script: Context invalidated before auto-generation.");
+                autoGenerationTriggered.delete(videoId);
+                return;
+              }
+
               // Double-check video ID hasn't changed (user might have navigated away)
               const currentVideoId = extractVideoId(window.location.href);
               if (currentVideoId === videoId) {
                 console.log("Content Script: Triggering auto-generation after delay...");
                 // Determine model selection: custom model > recommended model > default
                 const customModel = result[STORAGE_KEYS.CUSTOM_MODEL]?.trim();
-                const modelSelection = customModel || result[STORAGE_KEYS.RECOMMENDED_MODEL] || DEFAULTS.MODEL;
+                const recommendedModel = result[STORAGE_KEYS.RECOMMENDED_MODEL]?.trim();
+                const modelSelection =
+                  (customModel && customModel.length > 0 ? customModel : null) ||
+                  (recommendedModel && recommendedModel.length > 0 ? recommendedModel : null) ||
+                  DEFAULTS.MODEL;
+
+                console.log("Content Script: Auto-generation params:", {
+                  videoId: videoId,
+                  hasScrapeKey: !!result[STORAGE_KEYS.SCRAPE_CREATORS_API_KEY],
+                  hasOpenRouterKey: !!result[STORAGE_KEYS.OPENROUTER_API_KEY],
+                  modelSelection: modelSelection,
+                  scrapeKeyLength: result[STORAGE_KEYS.SCRAPE_CREATORS_API_KEY] ? result[STORAGE_KEYS.SCRAPE_CREATORS_API_KEY].length : 0,
+                  openRouterKeyLength: result[STORAGE_KEYS.OPENROUTER_API_KEY] ? result[STORAGE_KEYS.OPENROUTER_API_KEY].length : 0,
+                });
                 
                 triggerAutoGeneration(
                   videoId,
@@ -77,7 +122,9 @@ function loadStoredSubtitles() {
                   modelSelection
                 );
               } else {
-                console.log("Content Script: Video ID changed during delay, cancelling auto-generation");
+                console.log(
+                  "Content Script: Video ID changed during delay, cancelling auto-generation"
+                );
                 autoGenerationTriggered.delete(videoId); // Remove from set if video changed
               }
             }, TIMING.AUTO_GENERATION_DELAY_MS);
@@ -88,6 +135,10 @@ function loadStoredSubtitles() {
       }
     });
   } catch (error) {
+    if (error && error.message && error.message.includes("Extension context invalidated")) {
+      console.debug("Content Script: Subtitle load aborted - extension context invalidated (outer).");
+      return;
+    }
     console.error("Content Script: Error in loadStoredSubtitles:", error);
   }
 }
@@ -97,10 +148,20 @@ function triggerAutoGeneration(videoId, scrapeCreatorsApiKey, openRouterApiKey, 
   // Clear any existing subtitles first
   clearSubtitles();
   
+  console.log("Content Script: Sending fetchSubtitles message to background...", {
+    action: MESSAGE_ACTIONS.FETCH_SUBTITLES,
+    videoId: videoId,
+    hasScrapeKey: !!scrapeCreatorsApiKey,
+    hasOpenRouterKey: !!openRouterApiKey,
+    scrapeKeyLength: scrapeCreatorsApiKey ? scrapeCreatorsApiKey.length : 0,
+    openRouterKeyLength: openRouterApiKey ? openRouterApiKey.length : 0,
+    modelSelection: modelSelection,
+  });
+  
   // Send message to background script to fetch subtitles
   chrome.runtime.sendMessage(
     {
-      action: "fetchSubtitles",
+      action: MESSAGE_ACTIONS.FETCH_SUBTITLES,
       videoId: videoId,
       scrapeCreatorsApiKey: scrapeCreatorsApiKey,
       openRouterApiKey: openRouterApiKey,
@@ -110,7 +171,7 @@ function triggerAutoGeneration(videoId, scrapeCreatorsApiKey, openRouterApiKey, 
       if (chrome.runtime.lastError) {
         console.error("Content Script: Error triggering auto-generation:", chrome.runtime.lastError.message);
       } else {
-        console.log("Content Script: Auto-generation triggered successfully");
+        console.log("Content Script: Auto-generation triggered successfully, response:", response);
       }
     }
   );
@@ -332,15 +393,23 @@ function initialize() {
       return true; // Indicate response sent
     } else if (message.action === MESSAGE_ACTIONS.TOGGLE_SUBTITLES) {
       console.log("Content Script: Received toggleSubtitles request");
-      showSubtitlesEnabled = message.showSubtitles !== false;
-      
+      const hasShowSubtitles = Object.prototype.hasOwnProperty.call(message, "showSubtitles");
+      const hasEnabled = Object.prototype.hasOwnProperty.call(message, "enabled");
+      const nextState = hasShowSubtitles
+        ? message.showSubtitles !== false
+        : hasEnabled
+        ? message.enabled !== false
+        : true;
+      showSubtitlesEnabled = nextState;
+      chrome.storage.local.set({ [STORAGE_KEYS.SHOW_SUBTITLES]: showSubtitlesEnabled });
+
       if (showSubtitlesEnabled && currentSubtitles.length > 0) {
         startSubtitleDisplay();
       } else {
         stopSubtitleDisplay();
         hideCurrentSubtitle();
       }
-      
+
       sendResponse({ status: "success" });
       return true;
     }

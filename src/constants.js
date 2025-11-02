@@ -12,10 +12,10 @@ const STORAGE_KEYS = {
 
 // Timing constants
 const TIMING = {
-  AUTO_GENERATION_DELAY_MS: 2500, // 2.5 seconds delay before auto-generation
+  AUTO_GENERATION_DELAY_MS: 4000, // 4 seconds delay before auto-generation
   INIT_RETRY_DELAY_MS: 500, // Delay between initialization retries
   SUBTITLE_UPDATE_INTERVAL_MS: 100, // How often to update subtitle display
-  MAX_INIT_ATTEMPTS: 10, // Maximum retry attempts for finding video elements
+  MAX_INIT_ATTEMPTS: 3, // Maximum retry attempts for finding video elements
 };
 
 // Storage constants
@@ -30,7 +30,7 @@ const STORAGE = {
 const RECOMMENDED_MODELS = [
   { value: "google/gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite" },
   { value: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash" },
-  { value: "x-ai/grok-coder-fast-1", label: "Grok Coder Fast 1" },
+  { value: "x-ai/grok-code-fast-1", label: "Grok Code Fast 1" },
   { value: "x-ai/grok-4-fast", label: "Grok 4 Fast" },
   { value: "openai/gpt-oss-120b", label: "gpt-oss-120b" },
 ];
@@ -68,6 +68,7 @@ const MESSAGE_ACTIONS = {
   UPDATE_POPUP_STATUS: "updatePopupStatus",
   TOGGLE_SUBTITLES: "toggleSubtitles",
   GET_VIDEO_TITLE: "getVideoTitle",
+  SHOW_ERROR: "showError",
 };
 
 // Element IDs

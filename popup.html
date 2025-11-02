@@ -471,6 +471,20 @@
         gap: 16px;
       }
 
+      .toggle-card.compact {
+        margin-top: -4px;
+        padding: 14px 18px;
+        background: rgba(255, 255, 255, 0.03);
+      }
+
+      .toggle-card.compact .toggle-info h3 {
+        font-size: 14px;
+      }
+
+      .toggle-card.compact .toggle-info p {
+        font-size: 12px;
+      }
+
       .toggle-info h3 {
         font-size: 14px;
         font-weight: 600;
@@ -589,6 +603,17 @@
             </div>
             <p class="video-title" id="videoTitle">No video loaded</p>
           </div>
+        </div>
+
+        <div class="toggle-card compact">
+          <div class="toggle-info">
+            <h3>Show Transcript Overlay</h3>
+            <p>Display generated captions on top of the video player</p>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="showSubtitlesToggle" />
+            <span class="toggle-slider"></span>
+          </label>
         </div>
 
         <button class="primary-action generate-btn" id="generateBtn" type="button">

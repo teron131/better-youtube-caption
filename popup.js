@@ -17,6 +17,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const recommendedModel = document.getElementById("recommendedModel");
   const customModel = document.getElementById("customModel");
   const autoGenerateToggle = document.getElementById("autoGenerateToggle");
+  const showSubtitlesToggle = document.getElementById("showSubtitlesToggle");
 
   function addModelOption(value, label) {
     if (!recommendedModel || !value) return;
@@ -95,6 +96,7 @@ document.addEventListener("DOMContentLoaded", function () {
         STORAGE_KEYS.RECOMMENDED_MODEL,
         STORAGE_KEYS.CUSTOM_MODEL,
         STORAGE_KEYS.AUTO_GENERATE,
+        STORAGE_KEYS.SHOW_SUBTITLES,
       ],
       function (result) {
         if (result[STORAGE_KEYS.SCRAPE_CREATORS_API_KEY]) {
@@ -105,31 +107,96 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         const storedModel = result[STORAGE_KEYS.RECOMMENDED_MODEL];
-        const activeModel = storedModel || DEFAULTS.MODEL;
-        addModelOption(activeModel, getModelLabel(activeModel));
-        recommendedModel.value = activeModel;
+        const defaultModel = DEFAULTS ? DEFAULTS.MODEL : "";
+        
+        // Validate stored model - check if it exists in RECOMMENDED_MODELS
+        const isValidModel = storedModel && Array.isArray(RECOMMENDED_MODELS) && 
+          RECOMMENDED_MODELS.some((model) => model.value === storedModel);
+        
+        // If stored model is invalid, clear it and use default
+        let activeModel = storedModel;
+        if (storedModel && !isValidModel) {
+          console.log(`Popup: Clearing invalid stored model: ${storedModel}`);
+          activeModel = defaultModel;
+          // Clear the invalid value from storage
+          chrome.storage.local.set({ [STORAGE_KEYS.RECOMMENDED_MODEL]: defaultModel });
+        } else if (!storedModel) {
+          activeModel = defaultModel;
+        }
+
+        if (recommendedModel) {
+          recommendedModel.value = activeModel;
+
+          if (!recommendedModel.value && defaultModel) {
+            recommendedModel.value = defaultModel;
+          }
+        }
 
         if (result[STORAGE_KEYS.CUSTOM_MODEL]) {
           customModel.value = result[STORAGE_KEYS.CUSTOM_MODEL];
         }
         autoGenerateToggle.checked = result[STORAGE_KEYS.AUTO_GENERATE] === true;
+        const showSubtitlesValue =
+          result[STORAGE_KEYS.SHOW_SUBTITLES] !== undefined
+            ? result[STORAGE_KEYS.SHOW_SUBTITLES]
+            : DEFAULTS.SHOW_SUBTITLES;
+        if (showSubtitlesToggle) {
+          showSubtitlesToggle.checked = showSubtitlesValue === true;
+        }
       }
     );
   }
 
   // Save Settings
   saveBtn.addEventListener("click", function () {
+    const selectedModelRaw = recommendedModel && recommendedModel.value ? recommendedModel.value : DEFAULTS.MODEL;
+    const selectedModel = typeof selectedModelRaw === "string" && selectedModelRaw.trim()
+      ? selectedModelRaw.trim()
+      : DEFAULTS.MODEL;
+    const customModelRaw = customModel.value.trim();
+    const showSubtitlesValue = showSubtitlesToggle ? showSubtitlesToggle.checked : DEFAULTS.SHOW_SUBTITLES;
+
     const settings = {
       [STORAGE_KEYS.SCRAPE_CREATORS_API_KEY]: scrapeApiKey.value.trim(),
       [STORAGE_KEYS.OPENROUTER_API_KEY]: openrouterApiKey.value.trim(),
-      [STORAGE_KEYS.RECOMMENDED_MODEL]: recommendedModel.value,
-      [STORAGE_KEYS.CUSTOM_MODEL]: customModel.value.trim(),
+      [STORAGE_KEYS.RECOMMENDED_MODEL]: selectedModel,
+      [STORAGE_KEYS.CUSTOM_MODEL]: customModelRaw,
       [STORAGE_KEYS.AUTO_GENERATE]: autoGenerateToggle.checked,
+      [STORAGE_KEYS.SHOW_SUBTITLES]: showSubtitlesValue,
     };
 
     chrome.storage.local.set(settings, function () {
       settingsStatus.textContent = "Settings saved successfully!";
       settingsStatus.className = "status success";
+
+      chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+        const currentTab = tabs[0];
+        if (
+          currentTab &&
+          typeof settings[STORAGE_KEYS.SHOW_SUBTITLES] === "boolean" &&
+          currentTab.url &&
+          currentTab.url.includes("youtube.com")
+        ) {
+          const enabled = settings[STORAGE_KEYS.SHOW_SUBTITLES];
+          chrome.tabs.sendMessage(
+            currentTab.id,
+            {
+              action: MESSAGE_ACTIONS.TOGGLE_SUBTITLES,
+              showSubtitles: enabled,
+              enabled: enabled,
+            },
+            () => {
+              if (chrome.runtime.lastError) {
+                console.debug(
+                  "Popup: Unable to forward toggle to content script:",
+                  chrome.runtime.lastError.message
+                );
+              }
+            }
+          );
+        }
+      });
+
       setTimeout(() => {
         settingsStatus.textContent = "";
         settingsStatus.className = "status";
@@ -262,7 +329,15 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         const customModelValue = result[STORAGE_KEYS.CUSTOM_MODEL]?.trim();
-        const modelSelection = customModelValue || result[STORAGE_KEYS.RECOMMENDED_MODEL] || DEFAULTS.MODEL;
+        const storedRecommendedValue = result[STORAGE_KEYS.RECOMMENDED_MODEL]?.trim();
+        const uiRecommendedValue = recommendedModel && recommendedModel.value ? recommendedModel.value.trim() : "";
+        const modelSelection =
+          customModelValue ||
+          storedRecommendedValue ||
+          uiRecommendedValue ||
+          DEFAULTS.MODEL;
+
+        console.log("Popup: Generate Summary using model:", modelSelection);
 
         // Show loading state
         status.textContent = "Generating summary...";
@@ -322,7 +397,16 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Listen for messages from background/content script
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === MESSAGE_ACTIONS.UPDATE_POPUP_STATUS) {
+    if (message.action === MESSAGE_ACTIONS.SHOW_ERROR) {
+      // Display error message
+      status.textContent = `Error: ${message.error}`;
+      status.className = "status error";
+      
+      // Show error notification
+      if (message.error.includes("is not a valid model ID")) {
+        alert(`Model Error: ${message.error}\n\nPlease check your model selection in Settings and ensure it's a valid OpenRouter model ID.`);
+      }
+    } else if (message.action === MESSAGE_ACTIONS.UPDATE_POPUP_STATUS) {
       status.textContent = message.text;
       
       if (message.error) {

@@ -158,55 +158,79 @@ ${formattedTranscript}
 
 Return the refined transcript with the same number of lines and timestamps preserved.`;
 
-  // Call OpenRouter API
-  const response = await fetch(API_ENDPOINTS.OPENROUTER, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${openRouterApiKey}`,
-      "HTTP-Referer": chrome.runtime.getURL(""), // Optional: for OpenRouter analytics
-      "X-Title": "Better YouTube Caption", // Optional: for OpenRouter analytics
-    },
-    body: JSON.stringify({
-      model: model,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0,
-      provider: {
-        sort: "throughput",
-      },
-    }),
-  });
-
-  if (!response.ok) {
-    let errorMessage = `API request failed with status ${response.status}`;
-    try {
-      const errorData = await response.json();
-      errorMessage = errorData?.error?.message || errorMessage;
-    } catch (e) {
-      const errorText = await response.text();
-      errorMessage = errorText || errorMessage;
-    }
-    throw new Error(`OpenRouter API error: ${errorMessage}`);
-  }
-
-  const data = await response.json();
+  // Log transcript size for debugging
+  const transcriptLength = formattedTranscript.length;
+  console.log(`Transcript: Sending ${transcriptLength} characters to OpenRouter with model ${model}`);
   
-  // Extract refined text from response
-  let refinedText = "";
-  if (data.choices && data.choices.length > 0 && data.choices[0].message?.content) {
-    refinedText = data.choices[0].message.content.trim();
-  } else {
-    throw new Error("Invalid response format from OpenRouter API");
-  }
-
   if (progressCallback) {
-    progressCallback("Transcript refined successfully");
+    progressCallback(`Sending ${transcriptLength} chars to AI...`);
   }
 
-  return refinedText;
+  // Call OpenRouter API with timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
+  
+  try {
+    const response = await fetch(API_ENDPOINTS.OPENROUTER, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${openRouterApiKey}`,
+        "HTTP-Referer": chrome.runtime.getURL(""), // Optional: for OpenRouter analytics
+        "X-Title": "Better YouTube Caption", // Optional: for OpenRouter analytics
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        temperature: 0,
+        provider: {
+          sort: "throughput",
+        },
+      }),
+      signal: controller.signal,
+    });
+    
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      let errorMessage = `API request failed with status ${response.status}`;
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData?.error?.message || errorMessage;
+      } catch (e) {
+        const errorText = await response.text();
+        errorMessage = errorText || errorMessage;
+      }
+      throw new Error(`OpenRouter API error: ${errorMessage}`);
+    }
+
+    console.log("Transcript: Received response from OpenRouter, parsing...");
+    const data = await response.json();
+    
+    // Extract refined text from response
+    let refinedText = "";
+    if (data.choices && data.choices.length > 0 && data.choices[0].message?.content) {
+      refinedText = data.choices[0].message.content.trim();
+      console.log(`Transcript: Received ${refinedText.length} characters in response`);
+    } else {
+      throw new Error("Invalid response format from OpenRouter API");
+    }
+
+    if (progressCallback) {
+      progressCallback("Transcript refined successfully");
+    }
+
+    return refinedText;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      throw new Error('OpenRouter API request timed out after 2 minutes. The transcript may be too long.');
+    }
+    throw error;
+  }
 }
 
 /**
@@ -295,10 +319,12 @@ async function refineTranscriptSegments(segments, title, description, openRouter
     model
   );
 
+  console.log(`Transcript: Refine complete, parsing ${refinedText.length} chars back into segments...`);
+  
   // Parse refined text back into segments
   const refinedSegments = parseRefinedTranscript(refinedText, segments);
 
-  console.log(`Refined ${refinedSegments.length} transcript segments`);
+  console.log(`Transcript: Parsed into ${refinedSegments.length} segments (original: ${segments.length})`);
   
   return refinedSegments;
 }

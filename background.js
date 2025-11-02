@@ -22,6 +22,8 @@ async function getApiKeyWithFallback(keyName) {
 
 // Listener for messages from content or popup scripts
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  console.log("Background: Received message:", message.action, "from:", sender.tab ? "tab" : "popup");
+  
   if (message.action === MESSAGE_ACTIONS.GENERATE_SUMMARY) {
     const {
       videoId,
@@ -79,7 +81,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // Get model selection
         const customModel = await getApiKeyFromStorage(STORAGE_KEYS.CUSTOM_MODEL);
         const recommendedModel = await getApiKeyFromStorage(STORAGE_KEYS.RECOMMENDED_MODEL);
-        const modelSelection = messageModelSelection || (customModel?.trim() || recommendedModel || DEFAULTS.MODEL);
+        const candidateModel =
+          messageModelSelection ||
+          (customModel?.trim() ? customModel.trim() : "") ||
+          (recommendedModel ? recommendedModel.trim() : "");
+        const modelSelection = candidateModel || DEFAULTS.MODEL;
+        console.log("Background (summary): using model", modelSelection);
 
         // Fetch transcript
         const transcriptData = await fetchYouTubeTranscript(urlForApi, scrapeCreatorsKey);
@@ -157,16 +164,35 @@ Format your response in markdown with clear sections.`;
         sendResponse({ status: "completed" });
       } catch (error) {
         console.error("Error generating summary:", error);
-        const errorMessage = `Error: ${error.message || "Unknown error"}`;
+        
+        // Extract error message
+        let errorMessage = error.message || "Unknown error";
+        if (error.message && error.message.includes("is not a valid model ID")) {
+          const match = error.message.match(/OpenRouter API error: (.+)/);
+          errorMessage = match ? match[1] : error.message;
+        }
+        
         if (tabId) {
+          // Send error to popup
+          chrome.runtime.sendMessage({
+            action: MESSAGE_ACTIONS.SHOW_ERROR,
+            error: errorMessage,
+            tabId: tabId,
+          }, () => {
+            if (chrome.runtime.lastError) {
+              // Popup might be closed, ignore
+            }
+          });
+          
+          // Also update status
           chrome.runtime.sendMessage({
             action: MESSAGE_ACTIONS.UPDATE_POPUP_STATUS,
-            text: errorMessage,
+            text: `Error: ${errorMessage}`,
             error: true,
             tabId: tabId,
           });
         }
-        sendResponse({ status: "error", message: error.message });
+        sendResponse({ status: "error", message: errorMessage });
       }
     });
 
@@ -195,6 +221,9 @@ Format your response in markdown with clear sections.`;
 
     console.log("Background Script: Using URL for API:", urlForApi);
 
+    // Send immediate acknowledgment to prevent timeout
+    sendResponse({ status: "processing", message: "Request received, processing..." });
+
     // Check if subtitles for this video are already stored locally (using video ID)
     getStoredSubtitles(videoId)
       .then((cachedSubtitles) => {
@@ -212,7 +241,7 @@ Format your response in markdown with clear sections.`;
             }
           });
         }
-        sendResponse({ status: "completed", cached: true });
+        // Response already sent above
       } else {
           console.log("No cached subtitles found. Fetching transcript...");
 
@@ -259,17 +288,25 @@ Format your response in markdown with clear sections.`;
               // Get OpenRouter API key - use message value if provided, otherwise fallback to storage/config
               const openRouterKey =
                 messageOpenRouterKey ||
+                (await getApiKeyFromStorage(STORAGE_KEYS.OPENROUTER_API_KEY)) ||
                 (await getApiKeyWithFallback("openRouterApiKey"));
+              
+              console.log("Background (transcript): messageOpenRouterKey present?", !!messageOpenRouterKey);
+              console.log("Background (transcript): Retrieved OpenRouter key length:", openRouterKey ? openRouterKey.length : 0);
               
               // Get model selection - use message value if provided, otherwise fallback to storage
               // Priority: custom model > recommended model > default
               const customModel = await getApiKeyFromStorage(STORAGE_KEYS.CUSTOM_MODEL);
               const recommendedModel = await getApiKeyFromStorage(STORAGE_KEYS.RECOMMENDED_MODEL);
-              const modelSelection =
+              const candidateModel =
                 messageModelSelection ||
-                (customModel?.trim() || recommendedModel || DEFAULTS.MODEL);
+                (customModel?.trim() ? customModel.trim() : "") ||
+                (recommendedModel ? recommendedModel.trim() : "");
+              const modelSelection = candidateModel || DEFAULTS.MODEL;
+              console.log("Background (transcript): using model", modelSelection);
+              console.log("Background (transcript): OpenRouter key present?", !!openRouterKey);
               
-              if (openRouterKey) {
+              if (openRouterKey && openRouterKey.trim().length > 0) {
                 if (tabId) {
                   chrome.runtime.sendMessage({
                     action: MESSAGE_ACTIONS.UPDATE_POPUP_STATUS,
@@ -284,6 +321,7 @@ Format your response in markdown with clear sections.`;
                 
                 try {
                   const progressCallback = (message) => {
+                    console.log("Background (transcript): Progress -", message);
                     if (tabId) {
                       chrome.runtime.sendMessage({
                         action: MESSAGE_ACTIONS.UPDATE_POPUP_STATUS,
@@ -297,6 +335,7 @@ Format your response in markdown with clear sections.`;
                     }
                   };
                   
+                  console.log("Background (transcript): Starting refinement with", enhancedSegments.length, "segments");
                   const refinedSegments = await refineTranscriptSegments(
                     enhancedSegments,
                     transcriptData.title,
@@ -306,11 +345,36 @@ Format your response in markdown with clear sections.`;
                     modelSelection
                   );
                   
-                  console.log(`Refined ${refinedSegments.length} transcript segments`);
+                  console.log(`Background (transcript): Refinement complete - ${refinedSegments.length} segments`);
                   return refinedSegments;
                 } catch (refinementError) {
                   console.warn("Transcript refinement failed, using original:", refinementError);
+                  
+                  // Extract error message
+                  let errorMessage = "Refinement failed";
+                  if (refinementError && refinementError.message) {
+                    // Check for model ID errors
+                    if (refinementError.message.includes("is not a valid model ID")) {
+                      const match = refinementError.message.match(/OpenRouter API error: (.+)/);
+                      errorMessage = match ? match[1] : refinementError.message;
+                    } else {
+                      errorMessage = refinementError.message;
+                    }
+                  }
+                  
                   if (tabId) {
+                    // Send error to popup
+                    chrome.runtime.sendMessage({
+                      action: MESSAGE_ACTIONS.SHOW_ERROR,
+                      error: errorMessage,
+                      tabId: tabId,
+                    }, () => {
+                      if (chrome.runtime.lastError) {
+                        // Popup might be closed, ignore
+                      }
+                    });
+                    
+                    // Also update status
                     chrome.runtime.sendMessage({
                       action: MESSAGE_ACTIONS.UPDATE_POPUP_STATUS,
                       text: "Using original transcript (refinement failed)",
@@ -364,7 +428,8 @@ Format your response in markdown with clear sections.`;
                 });
             })
             .then(() => {
-            sendResponse({ status: "completed" });
+            // Response already sent above
+            console.log("Background: Subtitle fetch completed successfully");
           })
           .catch((error) => {
             console.error("Error fetching/parsing subtitles:", error);
@@ -383,14 +448,14 @@ Format your response in markdown with clear sections.`;
                 }
               });
             }
-            sendResponse({ status: "error", message: error.message });
+            // Response already sent above
           });
       }
       })
       .catch((error) => {
         console.error("Error checking storage:", error);
-        sendResponse({ status: "error", message: error.message });
-    });
+        // Response already sent above
+      });
 
     return true; // Keep the message channel open for async response
   }
