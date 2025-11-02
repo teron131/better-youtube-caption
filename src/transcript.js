@@ -319,12 +319,10 @@ async function refineTranscriptSegments(segments, title, description, openRouter
     model
   );
 
-  console.log(`Transcript: Refine complete, parsing ${refinedText.length} chars back into segments...`);
-  
   // Parse refined text back into segments
   const refinedSegments = parseRefinedTranscript(refinedText, segments);
 
-  console.log(`Transcript: Parsed into ${refinedSegments.length} segments (original: ${segments.length})`);
+  console.log(`Refined ${refinedSegments.length} transcript segments`);
   
   return refinedSegments;
 }
