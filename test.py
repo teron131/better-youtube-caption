@@ -95,7 +95,7 @@ def parse_refined_transcript(
     # Algorithm constants (private to this function)
     _GAP_PENALTY = -0.30
     _TAIL_GUARD_SIZE = 5
-    _LENGTH_TOLERANCE = 0.20
+    _LENGTH_TOLERANCE = 0.10
 
     def normalize_line_to_text(line: str) -> str:
         """Extract text from a line, removing timestamp if present."""
@@ -388,7 +388,7 @@ had been had, you missed out big time. I"""
     batch_messages = []
     chunk_info = []  # Store info about each chunk for logging
 
-    for chunk_idx, (start_idx, end_idx) in enumerate[Tuple[int, int]](ranges, 1):
+    for chunk_idx, (start_idx, end_idx) in enumerate(ranges, 1):
         chunk_segments = video.transcript[start_idx:end_idx]
         expected_line_count = len(chunk_segments)
         chunk_text_only = "\n".join(" ".join((seg.text or "").split()) for seg in chunk_segments)
@@ -414,7 +414,7 @@ had been had, you missed out big time. I"""
 
     # Process responses
     all_refined_lines: List[str] = []
-    for response, info in zip[tuple[AIMessage, Any]](responses, chunk_info):
+    for response, info in zip(responses, chunk_info):
         chunk_idx = info["chunk_idx"]
         expected_line_count = info["expected_line_count"]
 
@@ -509,7 +509,7 @@ def main():
         sys.stdout = log_file
 
         # Get video data
-        video_url = "https://www.youtube.com/watch?v=mV_EIjxpdKI"
+        video_url = "https://youtu.be/j6_VfR-CyuM"
         video = get_video_data(video_url)
 
         print(f"Title: {video.title}\n")
