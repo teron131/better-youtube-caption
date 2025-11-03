@@ -29,9 +29,8 @@ class Video(BaseModel):
 
 def get_video_data(youtube_url: str) -> Video:
     """Get video data including transcript segments, title, and description."""
-    api_key = os.getenv("SCRAPECREATORS_API_KEY")
     api_url = f"https://api.scrapecreators.com/v1/youtube/video?url={youtube_url}&get_transcript=true"
-    headers = {"x-api-key": api_key}
+    headers = {"x-api-key": os.getenv("SCRAPECREATORS_API_KEY")}
 
     response = requests.get(api_url, headers=headers)
     response.raise_for_status()
@@ -81,27 +80,58 @@ def parse_refined_transcript(
 
     The refined text should have format: [timestamp] text (one segment per line).
     Each line represents one segment.
+
+    First normalizes newlines within each segment, then maps strictly by index.
     """
-    lines = refined_text.strip().split("\n") if refined_text is not None else []
+    if not refined_text:
+        return []
+
+    # Split by newline to get potential lines
+    raw_lines = refined_text.strip().split("\n")
+
+    # Normalize each line: remove internal newlines and normalize whitespace
+    # This handles cases where a single segment might have been split across multiple lines
+    # Preserve all lines (including empty ones) to maintain strict index mapping
+    normalized_lines = []
+    for raw_line in raw_lines:
+        # Remove any internal newlines and normalize whitespace
+        # This collapses any newlines within what should be a single segment
+        normalized = " ".join(raw_line.split())
+        normalized_lines.append(normalized)  # Keep empty lines to preserve index mapping
+
+    # Log parsing details for debugging
+    if len(normalized_lines) != len(original_segments):
+        print(f"  ⚠️  Parser warning: Expected {len(original_segments)} lines, got {len(normalized_lines)} lines")
+        print(f"     First few original segments: {[s.text[:30] for s in original_segments[:3]]}")
+        print(f"     First few normalized lines: {[l[:30] for l in normalized_lines[:3]]}")
+
     refined_segments: List[TranscriptSegment] = []
 
     # Ensure we always return one refined segment per original segment.
+    # Map strictly by index, regardless of timestamps in the text.
     for i in range(len(original_segments)):
-        line = lines[i] if i < len(lines) else ""
+        # Get the corresponding line by index
+        line = normalized_lines[i] if i < len(normalized_lines) else ""
 
-        # Extract timestamp and text from line (if timestamps are present). Otherwise, use index mapping.
+        # Extract text from line (remove timestamp if present, but don't rely on it for mapping)
         timestamp_match = re.match(r"\[([^\]]+)\]\s*(.*)", line)
 
         orig_seg = original_segments[i]
         if timestamp_match:
+            # Extract text after timestamp
             refined_text_only = timestamp_match.group(2).strip()
         else:
+            # No timestamp, use the whole line (after normalization)
             refined_text_only = line.strip() if line.strip() else orig_seg.text
+
+        # Ensure we have text - fallback to original if empty
+        if not refined_text_only:
+            refined_text_only = orig_seg.text
 
         refined_segments.append(
             TranscriptSegment(
                 text=refined_text_only,
-                startMs=orig_seg.startMs,  # Preserve original timestamps
+                startMs=orig_seg.startMs,  # Preserve original timestamps strictly
                 endMs=orig_seg.endMs,
                 startTimeText=orig_seg.startTimeText,
             )
@@ -179,26 +209,36 @@ def refine_transcript_with_llm(video: Video) -> str:
         return ""
 
     # Setup LLM
-    api_key = os.getenv("OPENROUTER_API_KEY")
     llm = ChatOpenAI(
-        model="x-ai/grok-code-fast-1",
+        model="google/gemini-2.5-flash-lite",
         temperature=0,
-        api_key=api_key,
+        api_key=os.getenv("OPENROUTER_API_KEY"),
         base_url="https://openrouter.ai/api/v1",
         use_responses_api=True,
-        reasoning={"effort": "low"},
+        reasoning={"effort": "minimal"},
+        extra_body={
+            "include_reasoning": False,
+            "provider": {"sort": "throughput"},
+        },  # OpenRouter params
     )
 
     # Prompts: system + preamble
-    system_prompt = "You are correcting a YouTube video transcript. Use the video title and description for context.\n" "CRITICAL CONSTRAINTS:\n" "1. Only fix typos and grammar. Do NOT change meaning or structure.\n" "2. PRESERVE ALL NEWLINES: each line is a distinct transcript segment.\n" "3. Do NOT add, remove, or merge lines. Keep the same number of lines.\n" "4. Do NOT include timestamps in your output. Output ONLY refined text lines.\n" "5. Keep text length similar; do not over-extend or truncate content.\n" "6. If a sentence is broken across lines, keep it broken the same way."
+    system_prompt = (
+        "You are correcting segments of a YouTube video transcript. These segments could be from anywhere in the video (beginning, middle, or end). Use the video title and description for context.\n"
+        "CRITICAL CONSTRAINTS:\n"
+        "- Only fix typos and grammar. Do NOT change meaning or structure.\n"
+        "- PRESERVE ALL NEWLINES: each line is a distinct transcript segment.\n"
+        "- Do NOT add, remove, or merge lines. Keep the same number of lines.\n"
+        "- MAINTAIN SIMILAR LINE LENGTHS: Each output line should be approximately the same character count as its corresponding input line (±10% tolerance). Do NOT expand short lines into long paragraphs. Do NOT condense long lines significantly. Keep each line concise.\n"
+        "- If a sentence is broken across lines, keep it broken the same way.\n"
+        "- PRESERVE THE ORIGINAL LANGUAGE: output must be in the same language as the input transcript.\n"
+        "- Focus on minimal corrections: fix typos, correct grammar errors, but keep expansions/additions to an absolute minimum."
+    )
 
     def user_preamble(title: Optional[str], description: Optional[str]) -> str:
         parts = [
             f"Video Title: {title or ''}",
             f"Video Description: {description or ''}",
-            "",
-            "Refine the following transcript chunk. Return ONLY the corrected lines in the same order.",
-            "Do NOT include timestamps. Output must have exactly the same number of lines.",
             "",
             "Transcript Chunk:",
         ]
@@ -210,10 +250,25 @@ def refine_transcript_with_llm(video: Video) -> str:
     TOKEN_LIMIT = 4096
     ranges = chunk_segments_by_token_limit(video.transcript, TOKEN_LIMIT, system_prompt, preamble_text)
 
-    all_refined_lines: List[str] = []
+    # Log chunk arrangement
+    print(f"\n{'='*80}")
+    print("CHUNK ARRANGEMENT")
+    print(f"{'='*80}")
+    print(f"Total segments: {len(video.transcript)}")
+    print(f"Total chunks: {len(ranges)}")
+    print(f"\nChunk details:")
+    for chunk_idx, (start_idx, end_idx) in enumerate(ranges, 1):
+        num_segments = end_idx - start_idx
+        print(f"  Chunk {chunk_idx}: segments {start_idx}-{end_idx-1} (indices {start_idx}-{end_idx}, {num_segments} segments)")
+    print(f"{'='*80}\n")
 
-    for start_idx, end_idx in ranges:
+    # Prepare all messages for batch processing
+    batch_messages = []
+    chunk_info = []  # Store info about each chunk for logging
+
+    for chunk_idx, (start_idx, end_idx) in enumerate(ranges, 1):
         chunk_segments = video.transcript[start_idx:end_idx]
+        expected_line_count = len(chunk_segments)
         chunk_text_only = "\n".join(" ".join((seg.text or "").split()) for seg in chunk_segments)
 
         messages = [
@@ -221,9 +276,32 @@ def refine_transcript_with_llm(video: Video) -> str:
             HumanMessage(content=f"{preamble_text}\n{chunk_text_only}"),
         ]
 
-        response = llm.invoke(messages)
+        batch_messages.append(messages)
+        chunk_info.append(
+            {
+                "chunk_idx": chunk_idx,
+                "start_idx": start_idx,
+                "end_idx": end_idx,
+                "expected_line_count": expected_line_count,
+            }
+        )
+
+    # Process all chunks in parallel using batch
+    print(f"Processing {len(batch_messages)} chunks in parallel...")
+    responses = llm.batch(batch_messages)
+
+    # Process responses
+    all_refined_lines: List[str] = []
+    for response, info in zip(responses, chunk_info):
+        chunk_idx = info["chunk_idx"]
+        expected_line_count = info["expected_line_count"]
+
         refined_text = response.content_blocks[-1]["text"]
         refined_lines = refined_text.strip().split("\n")
+        actual_line_count = len(refined_lines)
+        print(f"  Chunk {chunk_idx} completed: received {actual_line_count} lines (expected {expected_line_count})")
+        if actual_line_count != expected_line_count:
+            print(f"  ⚠️  WARNING: Line count mismatch in chunk {chunk_idx}!")
         all_refined_lines.extend(refined_lines)
 
     return "\n".join(all_refined_lines)
@@ -307,7 +385,7 @@ def main():
         sys.stdout = log_file
 
         # Get video data
-        video_url = "https://www.youtube.com/watch?v=MaBasS6vJ18"
+        video_url = "https://www.youtube.com/watch?v=mV_EIjxpdKI"
         video = get_video_data(video_url)
 
         print(f"Title: {video.title}\n")
