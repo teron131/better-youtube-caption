@@ -460,7 +460,6 @@ function startSubtitleDisplay() {
 
   videoPlayer.addEventListener("play", updateSubtitles);
   videoPlayer.addEventListener("seeked", updateSubtitles);
-  videoPlayer.addEventListener("pause", hideCurrentSubtitle);
 }
 
 // Stops displaying subtitles
@@ -473,7 +472,6 @@ function stopSubtitleDisplay() {
   if (videoPlayer) {
     videoPlayer.removeEventListener("play", updateSubtitles);
     videoPlayer.removeEventListener("seeked", updateSubtitles);
-    videoPlayer.removeEventListener("pause", hideCurrentSubtitle);
   }
 }
 
@@ -497,12 +495,7 @@ function hideCurrentSubtitle() {
 
 // Updates subtitles based on the current video time
 function updateSubtitles() {
-  if (
-    !videoPlayer ||
-    !subtitleText ||
-    !subtitleContainer ||
-    videoPlayer.paused
-  ) {
+  if (!videoPlayer || !subtitleText || !subtitleContainer) {
     return;
   }
 

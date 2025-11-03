@@ -87,6 +87,37 @@ document.addEventListener("DOMContentLoaded", function () {
   settingsBtn.addEventListener("click", showSettingsView);
   backBtn.addEventListener("click", showMainView);
 
+  // Handle main view toggle for Show Subtitles
+  if (showSubtitlesToggle) {
+    showSubtitlesToggle.addEventListener("change", function () {
+      const enabled = showSubtitlesToggle.checked;
+      chrome.storage.local.set({ [STORAGE_KEYS.SHOW_SUBTITLES]: enabled }, function () {
+        // Send message to content script to toggle subtitles
+        chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+          const currentTab = tabs[0];
+          if (currentTab && currentTab.url && currentTab.url.includes("youtube.com")) {
+            chrome.tabs.sendMessage(
+              currentTab.id,
+              {
+                action: MESSAGE_ACTIONS.TOGGLE_SUBTITLES,
+                showSubtitles: enabled,
+                enabled: enabled,
+              },
+              () => {
+                if (chrome.runtime.lastError) {
+                  console.debug(
+                    "Popup: Unable to toggle subtitles:",
+                    chrome.runtime.lastError.message
+                  );
+                }
+              }
+            );
+          }
+        });
+      });
+    });
+  }
+
   // Load Settings
   function loadSettings() {
     chrome.storage.local.get(
