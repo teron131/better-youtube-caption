@@ -1,6 +1,7 @@
 import math
 import os
 import re
+import sys
 from typing import List, Optional, Tuple
 
 import requests
@@ -72,7 +73,10 @@ def format_transcript_segments(segments: List[TranscriptSegment]) -> str:
     return "\n".join(formatted_segments)
 
 
-def parse_refined_transcript(refined_text: str, original_segments: List[TranscriptSegment]) -> List[TranscriptSegment]:
+def parse_refined_transcript(
+    refined_text: str,
+    original_segments: List[TranscriptSegment],
+) -> List[TranscriptSegment]:
     """Parse refined transcript back into segments, preserving original timestamps.
 
     The refined text should have format: [timestamp] text (one segment per line).
@@ -107,31 +111,6 @@ def parse_refined_transcript(refined_text: str, original_segments: List[Transcri
 
 
 # --- Token estimation and chunking utilities ---
-def estimate_tokens(text: str) -> int:
-    """Estimate token count using 1 token ≈ 4 characters (ceil)."""
-    if not text:
-        return 0
-    return int(math.ceil(len(text) / 4))
-
-
-def normalize_segment_text(text: str) -> str:
-    """Normalize a segment's text by collapsing whitespace and removing newlines."""
-    return " ".join((text or "").split())
-
-
-def format_segments_text_only(segments: List[TranscriptSegment]) -> str:
-    """Format transcript segments as newline-separated text without timestamps."""
-    lines: List[str] = []
-    for seg in segments:
-        lines.append(normalize_segment_text(seg.text))
-    return "\n".join(lines)
-
-
-def compute_overhead_text(system_prompt: str, preamble_text: str) -> int:
-    """Compute token overhead from prompts sent alongside the chunk."""
-    return estimate_tokens(system_prompt) + estimate_tokens(preamble_text)
-
-
 def chunk_segments_by_token_limit(
     segments: List[TranscriptSegment],
     token_limit: int,
@@ -143,22 +122,27 @@ def chunk_segments_by_token_limit(
     Returns list of (start_idx, end_idx) ranges where end_idx is exclusive.
     Rounds down to segment boundaries; a segment that doesn't fit starts the next chunk.
     """
-    ranges: List[Tuple[int, int]] = []
-    overhead_tokens = compute_overhead_text(system_prompt, preamble_text)
+    # Compute overhead tokens (inline estimate_tokens and compute_overhead_text)
+    overhead_tokens = (int(math.ceil(len(system_prompt) / 4)) if system_prompt else 0) + (int(math.ceil(len(preamble_text) / 4)) if preamble_text else 0)
+
     if overhead_tokens >= token_limit:
         # Degenerate case: overhead exceeds limit; still try to send one segment per chunk
         available_tokens = 0
     else:
         available_tokens = token_limit - overhead_tokens
 
+    ranges: List[Tuple[int, int]] = []
     start = 0
     n = len(segments)
     while start < n:
         current_tokens = 0
         end = start
         while end < n:
-            seg_text = normalize_segment_text(segments[end].text) + "\n"
-            seg_tokens = estimate_tokens(seg_text)
+            # Normalize segment text (inline normalize_segment_text)
+            seg_text = " ".join((segments[end].text or "").split()) + "\n"
+            # Estimate tokens (inline estimate_tokens)
+            seg_tokens = int(math.ceil(len(seg_text) / 4)) if seg_text else 0
+
             if current_tokens == 0 and seg_tokens > available_tokens:
                 # Force at least one segment even if it individually exceeds budget
                 end += 1
@@ -176,6 +160,73 @@ def chunk_segments_by_token_limit(
         start = end
 
     return ranges
+
+
+def refine_transcript_with_llm(video: Video) -> str:
+    """Refine video transcript using LLM inference.
+
+    Takes a Video object and returns a multiline string ready to be parsed
+    into List[TranscriptSegment]. The string format is one segment per line,
+    optionally with timestamps: [timestamp] text
+
+    Args:
+        video: Video object containing transcript segments, title, and description
+
+    Returns:
+        Multiline string with refined transcript, ready for parsing into segments
+    """
+    if not video.transcript:
+        return ""
+
+    # Setup LLM
+    api_key = os.getenv("OPENROUTER_API_KEY")
+    llm = ChatOpenAI(
+        model="x-ai/grok-code-fast-1",
+        temperature=0,
+        api_key=api_key,
+        base_url="https://openrouter.ai/api/v1",
+        use_responses_api=True,
+        reasoning={"effort": "low"},
+    )
+
+    # Prompts: system + preamble
+    system_prompt = "You are correcting a YouTube video transcript. Use the video title and description for context.\n" "CRITICAL CONSTRAINTS:\n" "1. Only fix typos and grammar. Do NOT change meaning or structure.\n" "2. PRESERVE ALL NEWLINES: each line is a distinct transcript segment.\n" "3. Do NOT add, remove, or merge lines. Keep the same number of lines.\n" "4. Do NOT include timestamps in your output. Output ONLY refined text lines.\n" "5. Keep text length similar; do not over-extend or truncate content.\n" "6. If a sentence is broken across lines, keep it broken the same way."
+
+    def user_preamble(title: Optional[str], description: Optional[str]) -> str:
+        parts = [
+            f"Video Title: {title or ''}",
+            f"Video Description: {description or ''}",
+            "",
+            "Refine the following transcript chunk. Return ONLY the corrected lines in the same order.",
+            "Do NOT include timestamps. Output must have exactly the same number of lines.",
+            "",
+            "Transcript Chunk:",
+        ]
+        return "\n".join(parts)
+
+    preamble_text = user_preamble(video.title, video.description)
+
+    # Chunking by token limit (approx 1 token ≈ 4 chars) with a 4k-token budget including overhead
+    TOKEN_LIMIT = 4096
+    ranges = chunk_segments_by_token_limit(video.transcript, TOKEN_LIMIT, system_prompt, preamble_text)
+
+    all_refined_lines: List[str] = []
+
+    for start_idx, end_idx in ranges:
+        chunk_segments = video.transcript[start_idx:end_idx]
+        chunk_text_only = "\n".join(" ".join((seg.text or "").split()) for seg in chunk_segments)
+
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=f"{preamble_text}\n{chunk_text_only}"),
+        ]
+
+        response = llm.invoke(messages)
+        refined_text = response.content_blocks[-1]["text"]
+        refined_lines = refined_text.strip().split("\n")
+        all_refined_lines.extend(refined_lines)
+
+    return "\n".join(all_refined_lines)
 
 
 def compare_segments(test_segments: List[TranscriptSegment], refined_segments: List[TranscriptSegment], transcript_text: str, refined_text: str) -> None:
@@ -246,83 +297,43 @@ def compare_segments(test_segments: List[TranscriptSegment], refined_segments: L
 
 def main():
     """Main execution function."""
-    # Get video data
-    video_url = "https://www.youtube.com/watch?v=MaBasS6vJ18"
-    video = get_video_data(video_url)
+    # Clear and redirect output to output.log
+    output_file = "output.log"
+    original_stdout = sys.stdout
 
-    print(f"Title: {video.title}\n")
-    print(f"Description: {video.description}\n")
-    total_segments = len(video.transcript) if video.transcript else 0
-    print(f"Number of transcript segments: {total_segments}\n")
+    try:
+        # Open file in write mode to clear it, then redirect stdout
+        log_file = open(output_file, "w", encoding="utf-8")
+        sys.stdout = log_file
 
-    if not video.transcript:
-        print("No transcript available.")
-        return
+        # Get video data
+        video_url = "https://www.youtube.com/watch?v=MaBasS6vJ18"
+        video = get_video_data(video_url)
 
-    # Setup LLM
-    api_key = os.getenv("OPENROUTER_API_KEY")
-    llm = ChatOpenAI(
-        model="x-ai/grok-code-fast-1",
-        temperature=0,
-        api_key=api_key,
-        base_url="https://openrouter.ai/api/v1",
-    )
+        print(f"Title: {video.title}\n")
+        print(f"Description: {video.description}\n")
+        total_segments = len(video.transcript) if video.transcript else 0
+        print(f"Number of transcript segments: {total_segments}\n")
 
-    # Prompts: system + preamble. We'll send only title, description, and the chunk text (no timestamps).
-    system_prompt = "You are correcting a YouTube video transcript. Use the video title and description for context.\n" "CRITICAL CONSTRAINTS:\n" "1. Only fix typos and grammar. Do NOT change meaning or structure.\n" "2. PRESERVE ALL NEWLINES: each line is a distinct transcript segment.\n" "3. Do NOT add, remove, or merge lines. Keep the same number of lines.\n" "4. Do NOT include timestamps in your output. Output ONLY refined text lines.\n" "5. Keep text length similar; do not over-extend or truncate content.\n" "6. If a sentence is broken across lines, keep it broken the same way."
+        if not video.transcript:
+            print("No transcript available.")
+            return
 
-    def user_preamble(title: Optional[str], description: Optional[str]) -> str:
-        parts = [
-            f"Video Title: {title or ''}",
-            f"Video Description: {description or ''}",
-            "",
-            "Refine the following transcript chunk. Return ONLY the corrected lines in the same order.",
-            "Do NOT include timestamps. Output must have exactly the same number of lines.",
-            "",
-            "Transcript Chunk:",
-        ]
-        return "\n".join(parts)
+        # Refine transcript using LLM
+        refined_text = refine_transcript_with_llm(video)
 
-    preamble_text = user_preamble(video.title, video.description)
+        # Parse refined text back into segments
+        all_refined_segments = parse_refined_transcript(refined_text, video.transcript)
 
-    # Chunking by token limit (approx 1 token ≈ 4 chars) with a 4k-token budget including overhead
-    TOKEN_LIMIT = 4096
-    ranges = chunk_segments_by_token_limit(video.transcript, TOKEN_LIMIT, system_prompt, preamble_text)
-    print(f"Computed {len(ranges)} chunk(s) under ~{TOKEN_LIMIT} token limit (incl. overhead).\n")
-
-    all_refined_segments: List[TranscriptSegment] = []
-
-    for idx, (start_idx, end_idx) in enumerate(ranges, 1):
-        chunk_segments = video.transcript[start_idx:end_idx]
-        chunk_text_only = format_segments_text_only(chunk_segments)
-
-        # For display/debugging
-        print("=" * 80)
-        print(f"CHUNK {idx}/{len(ranges)} (segments {start_idx + 1}-{end_idx}) - sending:")
-        print("=" * 80)
-        print(chunk_text_only)
-        print("\n" + "=" * 80)
-
-        messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=f"{preamble_text}\n{chunk_text_only}"),
-        ]
-
-        refined_text = llm.invoke(messages).content
-
-        print("=" * 80)
-        print(f"CHUNK {idx}/{len(ranges)} - refined output:")
-        print("=" * 80)
-        print(refined_text)
-        print("\n" + "=" * 80)
-
-        refined_chunk_segments = parse_refined_transcript(refined_text, chunk_segments)
-        all_refined_segments.extend(refined_chunk_segments)
-
-    # Compare original vs refined across all processed segments
-    original_text_for_all = format_transcript_segments(video.transcript)
-    refined_text_for_all = format_transcript_segments(all_refined_segments)
-    compare_segments(video.transcript, all_refined_segments, original_text_for_all, refined_text_for_all)
+        # Compare original vs refined across all processed segments
+        original_text_for_all = format_transcript_segments(video.transcript)
+        refined_text_for_all = format_transcript_segments(all_refined_segments)
+        compare_segments(video.transcript, all_refined_segments, original_text_for_all, refined_text_for_all)
+    finally:
+        # Restore stdout and close file
+        sys.stdout = original_stdout
+        log_file.close()
+        print(f"Output written to {output_file}")
 
 
 if __name__ == "__main__":
