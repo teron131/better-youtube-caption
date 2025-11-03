@@ -1,8 +1,10 @@
 // Import utility modules
 importScripts("src/constants.js");
-importScripts("src/parser.js");
+importScripts("src/timestampParser.js");  // Renamed from parser.js
 importScripts("src/url.js");
 importScripts("src/storage.js");
+importScripts("src/segmentParser.js");    // New: DP alignment algorithm
+importScripts("src/refiner.js");          // New: LLM refinement logic
 importScripts("src/transcript.js");
 importScripts("config.js");
 

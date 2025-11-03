@@ -115,189 +115,18 @@ function formatTimestamp(ms) {
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
-/**
- * Refines transcript using Gemini via OpenRouter API.
- * Fixes typos and grammar errors while preserving structure and timestamps.
- * 
- * @param {string} formattedTranscript - Formatted transcript text (one segment per line)
- * @param {string} title - Video title for context
- * @param {string} description - Video description for context
- * @param {string} openRouterApiKey - OpenRouter API key
- * @param {Function} progressCallback - Optional callback for progress updates
- * @param {string} model - Model to use (e.g., "google/gemini-2.5-flash-lite")
- * @returns {Promise<string>} Refined transcript text with same format
- */
-async function refineTranscript(formattedTranscript, title, description, openRouterApiKey, progressCallback, model = DEFAULTS.MODEL) {
-  if (!openRouterApiKey) {
-    throw new Error("OpenRouter API key is required");
-  }
-
-  if (progressCallback) {
-    progressCallback("Sending transcript to AI for refinement...");
-  }
-
-  // System prompt with title and description context
-  const systemPrompt = `You are correcting a YouTube video transcript. Use the full contextual understanding to ground your corrections, especially for special terms.
-
-Video Title: ${title || "Unknown"}
-Video Description: ${description || "No description available"}
-
-CRITICAL CONSTRAINTS:
-1. Only fix typos and grammar errors. Do NOT change the meaning or structure.
-2. PRESERVE ALL NEWLINES - each line represents a separate transcript segment.
-3. PRESERVE TIMESTAMPS - keep the [timestamp] format exactly as shown.
-4. Do NOT merge lines together - keep the same number of lines.
-5. Keep text length similar to original - don't make sentences too long or short.
-6. If a sentence is broken across lines, keep it broken - only fix typos/grammar within each line.`;
-
-  // User message with transcript
-  const userPrompt = `Refine the following transcript by fixing typos and grammar errors. Preserve all newlines and timestamps exactly as shown.
-
-Transcript:
-${formattedTranscript}
-
-Return the refined transcript with the same number of lines and timestamps preserved.`;
-
-  // Log transcript size for debugging
-  const transcriptLength = formattedTranscript.length;
-  console.log(`Transcript: Sending ${transcriptLength} characters to OpenRouter with model ${model}`);
-  
-  if (progressCallback) {
-    progressCallback(`Sending ${transcriptLength} chars to AI...`);
-  }
-
-  // Call OpenRouter API with timeout
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
-  
-  try {
-    const response = await fetch(API_ENDPOINTS.OPENROUTER, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${openRouterApiKey}`,
-        "HTTP-Referer": chrome.runtime.getURL(""), // Optional: for OpenRouter analytics
-        "X-Title": "Better YouTube Caption", // Optional: for OpenRouter analytics
-      },
-      body: JSON.stringify({
-        model: model,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0,
-        provider: {
-          sort: "throughput",
-        },
-      }),
-      signal: controller.signal,
-    });
-    
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      let errorMessage = `API request failed with status ${response.status}`;
-      try {
-        const errorData = await response.json();
-        errorMessage = errorData?.error?.message || errorMessage;
-      } catch (e) {
-        const errorText = await response.text();
-        errorMessage = errorText || errorMessage;
-      }
-      throw new Error(`OpenRouter API error: ${errorMessage}`);
-    }
-
-    console.log("Transcript: Received response from OpenRouter, parsing...");
-    const data = await response.json();
-    
-    // Extract refined text from response
-    let refinedText = "";
-    if (data.choices && data.choices.length > 0 && data.choices[0].message?.content) {
-      refinedText = data.choices[0].message.content.trim();
-      console.log(`Transcript: Received ${refinedText.length} characters in response`);
-    } else {
-      throw new Error("Invalid response format from OpenRouter API");
-    }
-
-    if (progressCallback) {
-      progressCallback("Transcript refined successfully");
-    }
-
-    return refinedText;
-  } catch (error) {
-    clearTimeout(timeoutId);
-    if (error.name === 'AbortError') {
-      throw new Error('OpenRouter API request timed out after 2 minutes. The transcript may be too long.');
-    }
-    throw error;
-  }
-}
+// Import the robust refiner module
+// (Note: The refiner module is loaded separately via manifest.json)
 
 /**
- * Parses refined transcript back into segments, preserving original timestamps.
- * The refined text should have format: [timestamp] text (one segment per line).
- * 
- * @param {string} refinedText - Refined transcript text (one segment per line)
- * @param {Array<Object>} originalSegments - Original transcript segments with timestamps
- * @returns {Array<Object>} Refined segments with preserved timestamps
- */
-function parseRefinedTranscript(refinedText, originalSegments) {
-  const lines = refinedText.trim().split("\n");
-  const refinedSegments = [];
-
-  for (let i = 0; i < lines.length && i < originalSegments.length; i++) {
-    const line = lines[i].trim();
-    if (!line) continue;
-
-    // Extract timestamp and text from line
-    // Format: [timestamp] text
-    const timestampMatch = line.match(/^\[([^\]]+)\]\s*(.*)$/);
-
-    if (timestampMatch) {
-      const origSeg = originalSegments[i];
-      const refinedTextOnly = timestampMatch[2].trim();
-
-      refinedSegments.push({
-        startTime: origSeg.startTime, // Preserve original timestamps
-        endTime: origSeg.endTime,
-        text: refinedTextOnly,
-        startTimeText: origSeg.startTimeText || formatTimestamp(origSeg.startTime),
-      });
-    } else {
-      // Fallback: use original segment if parsing fails
-      const origSeg = originalSegments[i];
-      refinedSegments.push({
-        startTime: origSeg.startTime,
-        endTime: origSeg.endTime,
-        text: line.trim(),
-        startTimeText: origSeg.startTimeText || formatTimestamp(origSeg.startTime),
-      });
-    }
-  }
-
-  // If we got fewer lines than segments, pad with originals
-  while (refinedSegments.length < originalSegments.length) {
-    const origSeg = originalSegments[refinedSegments.length];
-    refinedSegments.push({
-      startTime: origSeg.startTime,
-      endTime: origSeg.endTime,
-      text: origSeg.text,
-      startTimeText: origSeg.startTimeText || formatTimestamp(origSeg.startTime),
-    });
-  }
-
-  return refinedSegments;
-}
-
-/**
- * Refines transcript segments using AI.
- * This is the main function that orchestrates the refinement process.
+ * Refines transcript segments using AI with robust alignment algorithm.
+ * Uses the new refiner module with dynamic programming alignment.
  * 
  * @param {Array<Object>} segments - Original transcript segments
  * @param {string} title - Video title for context
  * @param {string} description - Video description for context
  * @param {string} openRouterApiKey - OpenRouter API key
- * @param {Function} progressCallback - Optional callback for progress updates
+ * @param {Function} progressCallback - Optional callback for progress updates (message string)
  * @param {string} model - Model to use (e.g., "google/gemini-2.5-flash-lite")
  * @returns {Promise<Array<Object>>} Refined transcript segments with preserved timestamps
  */
@@ -306,24 +135,39 @@ async function refineTranscriptSegments(segments, title, description, openRouter
     throw new Error("No transcript segments provided");
   }
 
-  // Format segments for LLM input
-  const formattedTranscript = formatTranscriptSegments(segments);
+  // Convert segments to format expected by refiner
+  // Refiner expects: {text, startMs, endMs, startTimeText}
+  const refinerSegments = segments.map(seg => ({
+    text: seg.text,
+    startMs: seg.startTime, // Already in milliseconds
+    endMs: seg.endTime,
+    startTimeText: seg.startTimeText || formatTimestamp(seg.startTime),
+  }));
 
-  // Refine using AI
-  const refinedText = await refineTranscript(
-    formattedTranscript,
+  // Progress callback adapter: converts (chunkIdx, totalChunks) to message string
+  const progressAdapter = progressCallback ? (chunkIdx, totalChunks) => {
+    progressCallback(`Refining chunk ${chunkIdx}/${totalChunks}...`);
+  } : null;
+
+  // Use the robust refiner
+  const refinedSegments = await refineTranscriptWithLLM(
+    refinerSegments,
     title,
     description,
     openRouterApiKey,
-    progressCallback,
-    model
+    progressAdapter
   );
 
-  // Parse refined text back into segments
-  const refinedSegments = parseRefinedTranscript(refinedText, segments);
+  // Convert back to our format: {startTime, endTime, text, startTimeText}
+  const result = refinedSegments.map(seg => ({
+    startTime: seg.startMs,
+    endTime: seg.endMs,
+    text: seg.text,
+    startTimeText: seg.startTimeText,
+  }));
 
-  console.log(`Refined ${refinedSegments.length} transcript segments`);
+  console.log(`Refined ${result.length} transcript segments`);
   
-  return refinedSegments;
+  return result;
 }
 

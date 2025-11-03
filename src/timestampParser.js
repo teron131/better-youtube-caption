@@ -1,6 +1,15 @@
-// SRT parsing utilities
+/**
+ * Timestamp Parser Module
+ * Utilities for parsing SRT timestamps and converting time formats
+ */
 
-// Converts a time string (e.g., "00:01:23,456") to milliseconds
+/**
+ * Converts a time string (e.g., "00:01:23,456") to milliseconds
+ * Supports both HH:MM:SS,ms and MM:SS,ms formats
+ * 
+ * @param {string} timeStr - Time string to parse
+ * @returns {number} Time in milliseconds
+ */
 function timeStringToMs(timeStr) {
   if (!timeStr) return 0;
 
@@ -31,7 +40,12 @@ function timeStringToMs(timeStr) {
   return 0;
 }
 
-// Parses SRT text into an array of subtitle objects
+/**
+ * Parses SRT text into an array of subtitle objects
+ * 
+ * @param {string} srtText - SRT formatted text
+ * @returns {Array<Object>} Array of subtitle objects with {startTime, endTime, text}
+ */
 function parseSrt(srtText) {
   if (!srtText || typeof srtText !== "string") {
     console.error("Invalid SRT text input:", srtText);
@@ -70,5 +84,13 @@ function parseSrt(srtText) {
 
   console.log("Parsed subtitles count:", subtitles.length);
   return subtitles;
+}
+
+// Export functions
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    timeStringToMs,
+    parseSrt,
+  };
 }
 
