@@ -3,6 +3,7 @@ import re
 import sys
 from typing import List, Optional, Tuple
 
+import difflib
 import requests
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -10,6 +11,11 @@ from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 
 load_dotenv()
+
+
+# Shared chunking configuration and boundaries
+MAX_SEGMENTS_PER_CHUNK = 100
+CHUNK_SENTINEL = "<<<__CHUNK_END__>>>"
 
 
 class TranscriptSegment(BaseModel):
@@ -77,60 +83,247 @@ def parse_refined_transcript(
 ) -> List[TranscriptSegment]:
     """Parse refined transcript back into segments, preserving original timestamps.
 
-    The refined text should have format: [timestamp] text (one segment per line).
-    Each line represents one segment.
-
-    First normalizes newlines within each segment, then maps strictly by index.
+    Uses length-based matching with 20% tolerance to be more resilient to misalignments.
+    Falls back to index-based mapping if length matching fails.
     """
     if not refined_text:
         return []
 
+    # If we have explicit chunk sentinels, align per chunk to prevent cross-chunk drift
+    if CHUNK_SENTINEL in refined_text:
+        # Split refined text into chunk blocks by sentinel lines
+        raw_blocks = refined_text.split(CHUNK_SENTINEL)
+        # Compute original chunk ranges identically to generation
+        ranges = chunk_segments_by_count(original_segments, MAX_SEGMENTS_PER_CHUNK)
+        if len(raw_blocks) < len(ranges):
+            # Pad missing blocks as empty to trigger original fallbacks in those chunks
+            raw_blocks += [""] * (len(ranges) - len(raw_blocks))
+
+        def normalize_to_texts(block_text: str) -> List[str]:
+            lines = [" ".join(x.split()) for x in block_text.strip().split("\n") if x is not None]
+            texts: List[str] = []
+            for ln in lines:
+                m = re.match(r"\[([^\]]+)\]\s*(.*)", ln)
+                texts.append(m.group(2).strip() if m else ln.strip())
+            # Remove trailing empties
+            return [t for t in texts if t != ""]
+
+        def dp_align(orig_chunk: List[TranscriptSegment], refined_texts_chunk: List[str]) -> List[TranscriptSegment]:
+            # Local DP identical to the global method, but bounded to this chunk
+            n_o = len(orig_chunk)
+            n_r = len(refined_texts_chunk)
+            if n_o == 0:
+                return []
+
+            def line_similarity(a: str, b: str) -> float:
+                if not a or not b:
+                    return 0.0
+                char_ratio = difflib.SequenceMatcher(None, a, b).ratio()
+                a_tokens = set(re.findall(r"[A-Za-z0-9']+", a.lower()))
+                b_tokens = set(re.findall(r"[A-Za-z0-9']+", b.lower()))
+                jacc = (len(a_tokens & b_tokens) / len(a_tokens | b_tokens)) if (a_tokens and b_tokens) else 0.0
+                return 0.7 * char_ratio + 0.3 * jacc
+
+            GAP_O = -0.30
+            GAP_R = -0.30
+            dp = [[float("-inf")] * (n_r + 1) for _ in range(n_o + 1)]
+            back = [[None] * (n_r + 1) for _ in range(n_o + 1)]
+            dp[0][0] = 0.0
+            for i in range(1, n_o + 1):
+                dp[i][0] = dp[i - 1][0] + GAP_O
+                back[i][0] = "O"
+            for j in range(1, n_r + 1):
+                dp[0][j] = dp[0][j - 1] + GAP_R
+                back[0][j] = "R"
+            for i in range(1, n_o + 1):
+                a = orig_chunk[i - 1].text
+                for j in range(1, n_r + 1):
+                    b = refined_texts_chunk[j - 1]
+                    best_score = dp[i - 1][j - 1] + line_similarity(a, b)
+                    best_ptr = "M"
+                    o_score = dp[i - 1][j] + GAP_O
+                    if o_score > best_score:
+                        best_score = o_score
+                        best_ptr = "O"
+                    r_score = dp[i][j - 1] + GAP_R
+                    if r_score > best_score:
+                        best_score = r_score
+                        best_ptr = "R"
+                    dp[i][j] = best_score
+                    back[i][j] = best_ptr
+            # Backtrack
+            mapping: List[Optional[int]] = [None] * n_o
+            i, j = n_o, n_r
+            while i > 0 or j > 0:
+                ptr = back[i][j] if i >= 0 and j >= 0 else None
+                if ptr == "M" and i > 0 and j > 0:
+                    mapping[i - 1] = j - 1
+                    i -= 1
+                    j -= 1
+                elif ptr == "O" and i > 0:
+                    mapping[i - 1] = None
+                    i -= 1
+                elif ptr == "R" and j > 0:
+                    j -= 1
+                else:
+                    if i > 0:
+                        mapping[i - 1] = None
+                        i -= 1
+                    elif j > 0:
+                        j -= 1
+                    else:
+                        break
+
+            # Build refined chunk with a tail guard (last 5 lines must be within 20%)
+            refined_chunk: List[TranscriptSegment] = []
+            tail_guard = 5
+            for idx, oseg in enumerate(orig_chunk):
+                ref_idx = mapping[idx]
+                if ref_idx is not None and 0 <= ref_idx < n_r:
+                    text_candidate = refined_texts_chunk[ref_idx]
+                else:
+                    text_candidate = oseg.text
+                # Tail guard
+                if idx >= len(orig_chunk) - tail_guard:
+                    o_len = len(oseg.text) or 1
+                    if abs(len(text_candidate) - o_len) / o_len > 0.20:
+                        text_candidate = oseg.text
+                if not text_candidate:
+                    text_candidate = oseg.text
+                refined_chunk.append(
+                    TranscriptSegment(
+                        text=text_candidate,
+                        startMs=oseg.startMs,
+                        endMs=oseg.endMs,
+                        startTimeText=oseg.startTimeText,
+                    )
+                )
+            return refined_chunk
+
+        # Build per-chunk alignment
+        final_segments: List[TranscriptSegment] = []
+        for (start_idx, end_idx), block_text in zip(ranges, raw_blocks):
+            orig_chunk = original_segments[start_idx:end_idx]
+            refined_texts_chunk = normalize_to_texts(block_text)
+            # Debug if mismatch
+            if len(refined_texts_chunk) != len(orig_chunk):
+                print(f"  ⚠️  Parser chunk warning: expected {len(orig_chunk)} lines, got {len(refined_texts_chunk)}")
+            final_segments.extend(dp_align(orig_chunk, refined_texts_chunk))
+        return final_segments
+
+    # No sentinels -> fall back to global alignment
     # Split by newline to get potential lines
     raw_lines = refined_text.strip().split("\n")
 
     # Normalize each line: remove internal newlines and normalize whitespace
-    # This handles cases where a single segment might have been split across multiple lines
-    # Preserve all lines (including empty ones) to maintain strict index mapping
     normalized_lines = []
     for raw_line in raw_lines:
-        # Remove any internal newlines and normalize whitespace
-        # This collapses any newlines within what should be a single segment
         normalized = " ".join(raw_line.split())
-        normalized_lines.append(normalized)  # Keep empty lines to preserve index mapping
+        normalized_lines.append(normalized)
+
+    # Extract text-only from each normalized line (remove timestamps)
+    refined_texts = []
+    for line in normalized_lines:
+        timestamp_match = re.match(r"\[([^\]]+)\]\s*(.*)", line)
+        if timestamp_match:
+            refined_texts.append(timestamp_match.group(2).strip())
+        else:
+            refined_texts.append(line.strip())
 
     # Log parsing details for debugging
-    if len(normalized_lines) != len(original_segments):
-        print(f"  ⚠️  Parser warning: Expected {len(original_segments)} lines, got {len(normalized_lines)} lines")
-        print(f"     First few original segments: {[s.text[:30] for s in original_segments[:3]]}")
-        print(f"     First few normalized lines: {[l[:30] for l in normalized_lines[:3]]}")
+    if len(refined_texts) != len(original_segments):
+        print(f"  ⚠️  Parser warning: Expected {len(original_segments)} lines, got {len(refined_texts)} lines")
 
-    refined_segments: List[TranscriptSegment] = []
+    # Global DP alignment (monotonic) to robustly map originals to refined lines
+    n_orig = len(original_segments)
+    n_ref = len(refined_texts)
+    if n_orig == 0:
+        return []
 
-    # Ensure we always return one refined segment per original segment.
-    # Map strictly by index, regardless of timestamps in the text.
-    for i in range(len(original_segments)):
-        # Get the corresponding line by index
-        line = normalized_lines[i] if i < len(normalized_lines) else ""
+    def line_similarity(a: str, b: str) -> float:
+        if not a or not b:
+            return 0.0
+        char_ratio = difflib.SequenceMatcher(None, a, b).ratio()
+        a_tokens = set(re.findall(r"[A-Za-z0-9']+", a.lower()))
+        b_tokens = set(re.findall(r"[A-Za-z0-9']+", b.lower()))
+        jacc = (len(a_tokens & b_tokens) / len(a_tokens | b_tokens)) if (a_tokens and b_tokens) else 0.0
+        return 0.7 * char_ratio + 0.3 * jacc
 
-        # Extract text from line (remove timestamp if present, but don't rely on it for mapping)
-        timestamp_match = re.match(r"\[([^\]]+)\]\s*(.*)", line)
+    GAP_ORIG = -0.30  # fallback to original text for an unmatched original
+    GAP_REF = -0.30  # skip an extra refined line
 
-        orig_seg = original_segments[i]
-        if timestamp_match:
-            # Extract text after timestamp
-            refined_text_only = timestamp_match.group(2).strip()
+    # DP matrices
+    dp = [[float("-inf")] * (n_ref + 1) for _ in range(n_orig + 1)]
+    back = [[None] * (n_ref + 1) for _ in range(n_orig + 1)]
+
+    dp[0][0] = 0.0
+    for i in range(1, n_orig + 1):
+        dp[i][0] = dp[i - 1][0] + GAP_ORIG
+        back[i][0] = "O"  # original gap (use original text)
+    for j in range(1, n_ref + 1):
+        dp[0][j] = dp[0][j - 1] + GAP_REF
+        back[0][j] = "R"  # refined gap (skip refined line)
+
+    for i in range(1, n_orig + 1):
+        a = original_segments[i - 1].text
+        for j in range(1, n_ref + 1):
+            b = refined_texts[j - 1]
+            # Match
+            match_score = dp[i - 1][j - 1] + line_similarity(a, b)
+            best_score = match_score
+            best_ptr = "M"
+            # Gap in original (use original text for this segment)
+            o_score = dp[i - 1][j] + GAP_ORIG
+            if o_score > best_score:
+                best_score = o_score
+                best_ptr = "O"
+            # Gap in refined (skip this refined line)
+            r_score = dp[i][j - 1] + GAP_REF
+            if r_score > best_score:
+                best_score = r_score
+                best_ptr = "R"
+
+            dp[i][j] = best_score
+            back[i][j] = best_ptr
+
+    # Backtrack to produce mapping of each original index to a refined index (or None)
+    mapping: List[Optional[int]] = [None] * n_orig
+    i, j = n_orig, n_ref
+    while i > 0 or j > 0:
+        ptr = back[i][j] if i >= 0 and j >= 0 else None
+        if ptr == "M" and i > 0 and j > 0:
+            mapping[i - 1] = j - 1
+            i -= 1
+            j -= 1
+        elif ptr == "O" and i > 0:
+            mapping[i - 1] = None
+            i -= 1
+        elif ptr == "R" and j > 0:
+            j -= 1
         else:
-            # No timestamp, use the whole line (after normalization)
-            refined_text_only = line.strip() if line.strip() else orig_seg.text
+            # Fallback safety
+            if i > 0:
+                mapping[i - 1] = None
+                i -= 1
+            elif j > 0:
+                j -= 1
+            else:
+                break
 
-        # Ensure we have text - fallback to original if empty
+    # Build refined segments preserving timestamps
+    refined_segments: List[TranscriptSegment] = []
+    for idx, orig_seg in enumerate(original_segments):
+        ref_idx = mapping[idx]
+        if ref_idx is not None and 0 <= ref_idx < n_ref:
+            refined_text_only = refined_texts[ref_idx]
+        else:
+            refined_text_only = orig_seg.text
         if not refined_text_only:
             refined_text_only = orig_seg.text
-
         refined_segments.append(
             TranscriptSegment(
                 text=refined_text_only,
-                startMs=orig_seg.startMs,  # Preserve original timestamps strictly
+                startMs=orig_seg.startMs,
                 endMs=orig_seg.endMs,
                 startTimeText=orig_seg.startTimeText,
             )
@@ -228,8 +421,7 @@ had been had, you missed out big time. I"""
 
     preamble_text = user_preamble(video.title, video.description)
 
-    # Chunking by segment count: max 100 segments per chunk
-    MAX_SEGMENTS_PER_CHUNK = 100
+    # Chunking by segment count
     ranges = chunk_segments_by_count(video.transcript, MAX_SEGMENTS_PER_CHUNK)
 
     # Log chunk arrangement
@@ -285,6 +477,8 @@ had been had, you missed out big time. I"""
         if actual_line_count != expected_line_count:
             print(f"  ⚠️  WARNING: Line count mismatch in chunk {chunk_idx}!")
         all_refined_lines.extend(refined_lines)
+        # Insert a sentinel line to preserve chunk boundaries for the parser
+        all_refined_lines.append(CHUNK_SENTINEL)
 
     return "\n".join(all_refined_lines)
 
