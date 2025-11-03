@@ -1,34 +1,31 @@
 /**
  * Transcript Refinement Module
- * Refines YouTube transcripts using LLM
- * Uses segmentParser.js for robust alignment
+ * Refines YouTube transcripts using LLM with parallel batch processing
  */
 
-// Configuration constants
 const REFINER_CONFIG = {
   MODEL: "google/gemini-2.5-flash-lite",
-  MAX_SEGMENTS_PER_CHUNK: 100,
+  MAX_SEGMENTS_PER_CHUNK: 50,
   CHUNK_SENTINEL: "<<<__CHUNK_END__>>>",
 };
 
 /**
- * Refine transcript using OpenRouter API
+ * Refine transcript using OpenRouter API with parallel batch processing
  * 
  * @param {Array<Object>} transcript - Original transcript segments
  * @param {string} title - Video title
  * @param {string} description - Video description
  * @param {string} apiKey - OpenRouter API key
  * @param {Function} onProgress - Progress callback (chunkIdx, totalChunks)
- * @returns {Promise<Array<Object>>} Refined segments
+ * @returns {Promise<Array<Object>>} Refined segments with preserved timestamps
  */
 async function refineTranscriptWithLLM(transcript, title, description, apiKey, onProgress = null) {
-  if (!transcript || transcript.length === 0) {
+  if (!transcript?.length) {
     throw new Error("No transcript segments provided");
   }
 
   const { MODEL, MAX_SEGMENTS_PER_CHUNK, CHUNK_SENTINEL } = REFINER_CONFIG;
 
-  // System prompt
   const systemPrompt = `You are correcting segments of a YouTube video transcript. These segments could be from anywhere in the video (beginning, middle, or end). Use the video title and description for context.
 
 CRITICAL CONSTRAINTS:
@@ -54,83 +51,77 @@ If you sold at the reasonable
 valuations, when the gains that already
 had been had, you missed out big time. I`;
 
-  // User preamble function
   const userPreamble = `Video Title: ${title || ''}
 Video Description: ${description || ''}
 
 Transcript Chunk:`;
 
-  // Chunk segments using the shared function from segmentParser.js
   const ranges = chunkSegmentsByCount(transcript, MAX_SEGMENTS_PER_CHUNK);
+  const startTime = Date.now();
+  console.log(`Processing ${ranges.length} chunks in parallel...`);
 
-  console.log(`Processing ${ranges.length} chunks...`);
+  // Build and execute all API requests in parallel (like Python llm.batch())
+  const responses = await Promise.all(
+    ranges.map(([startIdx, endIdx], chunkIdx) => {
+      const chunkStartTime = Date.now();
+      const chunkSegments = transcript.slice(startIdx, endIdx);
+      const chunkText = chunkSegments
+        .map(seg => (seg.text || '').split(/\s+/).join(' '))
+        .join('\n');
 
-  // Process chunks sequentially (browser can't handle parallel well)
-  const allRefinedLines = [];
+      return fetch(API_ENDPOINTS.OPENROUTER, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+          'HTTP-Referer': chrome.runtime.getURL(''),
+          'X-Title': 'Better YouTube Caption',
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: `${userPreamble}\n${chunkText}` },
+          ],
+          temperature: 0,
+          reasoning: { effort: 'minimal' },
+          include_reasoning: false,
+          provider: { sort: 'throughput' },
+        }),
+      }).then(async (response) => {
+        if (!response.ok) {
+          throw new Error(
+            `OpenRouter API error for chunk ${chunkIdx + 1}: ${response.status} ${response.statusText}`
+          );
+        }
 
-  for (let chunkIdx = 0; chunkIdx < ranges.length; chunkIdx++) {
-    const [startIdx, endIdx] = ranges[chunkIdx];
-    const chunkSegments = transcript.slice(startIdx, endIdx);
-    const expectedLineCount = chunkSegments.length;
+        const data = await response.json();
+        const refinedLines = data.choices[0].message.content.trim().split('\n');
+        const duration = ((Date.now() - chunkStartTime) / 1000).toFixed(2);
 
-    // Format chunk text
-    const chunkTextOnly = chunkSegments
-      .map(seg => (seg.text || '').split(/\s+/).join(' '))
-      .join('\n');
+        console.log(
+          `Chunk ${chunkIdx + 1}/${ranges.length}: ${refinedLines.length}/${chunkSegments.length} lines [${duration}s]`
+        );
 
-    // Progress callback
-    if (onProgress) {
-      onProgress(chunkIdx + 1, ranges.length);
-    }
+        if (refinedLines.length !== chunkSegments.length) {
+          console.warn(`⚠️ Line count mismatch in chunk ${chunkIdx + 1}!`);
+        }
 
-    // Call OpenRouter API with reasoning parameters matching Python implementation
-    const response = await fetch(API_ENDPOINTS.OPENROUTER, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-        'HTTP-Referer': chrome.runtime.getURL(''),
-        'X-Title': 'Better YouTube Caption',
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: `${userPreamble}\n${chunkTextOnly}` },
-        ],
-        temperature: 0,
-        reasoning: { effort: 'low' },
-        include_reasoning: false,
-        provider: { sort: 'throughput' },
-      }),
-    });
+        if (onProgress) onProgress(chunkIdx + 1, ranges.length);
 
-    if (!response.ok) {
-      throw new Error(`OpenRouter API error: ${response.status} ${response.statusText}`);
-    }
+        return refinedLines;
+      });
+    })
+  );
 
-    const data = await response.json();
-    const refinedText = data.choices[0].message.content;
-    const refinedLines = refinedText.trim().split('\n');
-    const actualLineCount = refinedLines.length;
+  console.log(`All chunks completed in ${((Date.now() - startTime) / 1000).toFixed(2)}s`);
 
-    console.log(
-      `Chunk ${chunkIdx + 1}/${ranges.length}: ` +
-      `received ${actualLineCount} lines (expected ${expectedLineCount})`
-    );
+  // Combine responses with sentinels
+  const refinedText = responses
+    .flatMap(lines => [...lines, CHUNK_SENTINEL])
+    .join('\n');
 
-    if (actualLineCount !== expectedLineCount) {
-      console.warn(`⚠️ Line count mismatch in chunk ${chunkIdx + 1}!`);
-    }
-
-    allRefinedLines.push(...refinedLines);
-    allRefinedLines.push(CHUNK_SENTINEL);
-  }
-
-  // Join all refined lines
-  const refinedText = allRefinedLines.join('\n');
-
-  // Parse back into segments using segmentParser.js
+  // Parse back into segments with preserved timestamps
   const refinedSegments = parseRefinedSegments(
     refinedText,
     transcript,
@@ -139,14 +130,10 @@ Transcript Chunk:`;
   );
 
   console.log(`Refinement complete: ${refinedSegments.length} segments`);
-
   return refinedSegments;
 }
 
-// Export functions
+// Export
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = {
-    refineTranscriptWithLLM,
-    REFINER_CONFIG,
-  };
+  module.exports = { refineTranscriptWithLLM, REFINER_CONFIG };
 }

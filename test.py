@@ -18,7 +18,7 @@ load_dotenv()
 MODEL = "google/gemini-2.5-flash-lite"
 
 # Chunking configuration
-MAX_SEGMENTS_PER_CHUNK = 100
+MAX_SEGMENTS_PER_CHUNK = 50
 CHUNK_SENTINEL = "<<<__CHUNK_END__>>>"
 
 
@@ -509,7 +509,7 @@ def main():
         sys.stdout = log_file
 
         # Get video data
-        video_url = "https://youtu.be/j6_VfR-CyuM"
+        video_url = "https://www.youtube.com/watch?v=6N-vVluLGb4"
         video = get_video_data(video_url)
 
         print(f"Title: {video.title}\n")
