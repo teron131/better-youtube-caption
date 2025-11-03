@@ -1,4 +1,3 @@
-import math
 import os
 import re
 import sys
@@ -140,52 +139,22 @@ def parse_refined_transcript(
     return refined_segments
 
 
-# --- Token estimation and chunking utilities ---
-def chunk_segments_by_token_limit(
+# --- Segment count-based chunking utilities ---
+def chunk_segments_by_count(
     segments: List[TranscriptSegment],
-    token_limit: int,
-    system_prompt: str,
-    preamble_text: str,
+    max_segments_per_chunk: int,
 ) -> List[Tuple[int, int]]:
-    """Chunk segments ensuring (overhead + chunk_text_tokens) <= token_limit.
+    """Chunk segments into groups of at most max_segments_per_chunk segments.
 
     Returns list of (start_idx, end_idx) ranges where end_idx is exclusive.
-    Rounds down to segment boundaries; a segment that doesn't fit starts the next chunk.
+    Each chunk will have at most max_segments_per_chunk segments.
     """
-    # Compute overhead tokens (inline estimate_tokens and compute_overhead_text)
-    overhead_tokens = (int(math.ceil(len(system_prompt) / 4)) if system_prompt else 0) + (int(math.ceil(len(preamble_text) / 4)) if preamble_text else 0)
-
-    if overhead_tokens >= token_limit:
-        # Degenerate case: overhead exceeds limit; still try to send one segment per chunk
-        available_tokens = 0
-    else:
-        available_tokens = token_limit - overhead_tokens
-
     ranges: List[Tuple[int, int]] = []
-    start = 0
     n = len(segments)
+    start = 0
+
     while start < n:
-        current_tokens = 0
-        end = start
-        while end < n:
-            # Normalize segment text (inline normalize_segment_text)
-            seg_text = " ".join((segments[end].text or "").split()) + "\n"
-            # Estimate tokens (inline estimate_tokens)
-            seg_tokens = int(math.ceil(len(seg_text) / 4)) if seg_text else 0
-
-            if current_tokens == 0 and seg_tokens > available_tokens:
-                # Force at least one segment even if it individually exceeds budget
-                end += 1
-                break
-            if current_tokens + seg_tokens > available_tokens:
-                break
-            current_tokens += seg_tokens
-            end += 1
-
-        # Add range [start, end)
-        if end == start:
-            # Safety: ensure progress
-            end = min(start + 1, n)
+        end = min(start + max_segments_per_chunk, n)
         ranges.append((start, end))
         start = end
 
@@ -223,17 +192,30 @@ def refine_transcript_with_llm(video: Video) -> str:
     )
 
     # Prompts: system + preamble
-    system_prompt = (
-        "You are correcting segments of a YouTube video transcript. These segments could be from anywhere in the video (beginning, middle, or end). Use the video title and description for context.\n"
-        "CRITICAL CONSTRAINTS:\n"
-        "- Only fix typos and grammar. Do NOT change meaning or structure.\n"
-        "- PRESERVE ALL NEWLINES: each line is a distinct transcript segment.\n"
-        "- Do NOT add, remove, or merge lines. Keep the same number of lines.\n"
-        "- MAINTAIN SIMILAR LINE LENGTHS: Each output line should be approximately the same character count as its corresponding input line (±10% tolerance). Do NOT expand short lines into long paragraphs. Do NOT condense long lines significantly. Keep each line concise.\n"
-        "- If a sentence is broken across lines, keep it broken the same way.\n"
-        "- PRESERVE THE ORIGINAL LANGUAGE: output must be in the same language as the input transcript.\n"
-        "- Focus on minimal corrections: fix typos, correct grammar errors, but keep expansions/additions to an absolute minimum."
-    )
+    system_prompt = """You are correcting segments of a YouTube video transcript. These segments could be from anywhere in the video (beginning, middle, or end). Use the video title and description for context.
+
+CRITICAL CONSTRAINTS:
+- Only fix typos and grammar. Do NOT change meaning or structure.
+- PRESERVE ALL NEWLINES: each line is a distinct transcript segment.
+- Do NOT add, remove, or merge lines. Keep the same number of lines.
+- MAINTAIN SIMILAR LINE LENGTHS: Each output line should be approximately the same character count as its corresponding input line (±10% tolerance). Do NOT expand short lines into long paragraphs. Do NOT condense long lines significantly. Keep each line concise.
+- If a sentence is broken across lines, keep it broken the same way.
+- PRESERVE THE ORIGINAL LANGUAGE: output must be in the same language as the input transcript.
+- Focus on minimal corrections: fix typos, correct grammar errors, but keep expansions/additions to an absolute minimum.
+
+EXAMPLES OF CORRECT BEHAVIOR:
+
+Input:
+up to 900. From 900 up to 1,100.
+If you sold at the reasonable
+valuations, when the gains that already
+been had, you missed out big time. I
+
+Output:
+up to $900. From $900 up to $1,100.
+If you sold at the reasonable
+valuations, when the gains that already
+had been had, you missed out big time. I"""
 
     def user_preamble(title: Optional[str], description: Optional[str]) -> str:
         parts = [
@@ -246,9 +228,9 @@ def refine_transcript_with_llm(video: Video) -> str:
 
     preamble_text = user_preamble(video.title, video.description)
 
-    # Chunking by token limit (approx 1 token ≈ 4 chars) with a 4k-token budget including overhead
-    TOKEN_LIMIT = 4096
-    ranges = chunk_segments_by_token_limit(video.transcript, TOKEN_LIMIT, system_prompt, preamble_text)
+    # Chunking by segment count: max 100 segments per chunk
+    MAX_SEGMENTS_PER_CHUNK = 100
+    ranges = chunk_segments_by_count(video.transcript, MAX_SEGMENTS_PER_CHUNK)
 
     # Log chunk arrangement
     print(f"\n{'='*80}")
