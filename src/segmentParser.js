@@ -16,22 +16,15 @@ const SEGMENT_PARSER_CONFIG = {
 
 /**
  * Compute similarity between two text strings
- * Uses character-level and token-level similarity
- * 
- * @param {string} a - First text
- * @param {string} b - Second text
- * @returns {number} Similarity score (0-1)
+ * Uses character-level (70%) and token-level (30%) similarity
  */
 function computeLineSimilarity(a, b) {
   if (!a || !b) return 0.0;
 
-  // Character-level similarity using simple approach
-  const longer = a.length > b.length ? a : b;
-  const shorter = a.length > b.length ? b : a;
-  
-  if (longer.length === 0) return 1.0;
-  
-  // Simple character matching
+  const [longer, shorter] = a.length > b.length ? [a, b] : [b, a];
+  if (!longer.length) return 1.0;
+
+  // Character-level similarity
   let matches = 0;
   for (let i = 0; i < shorter.length; i++) {
     if (longer.includes(shorter[i])) matches++;
@@ -39,26 +32,21 @@ function computeLineSimilarity(a, b) {
   const charRatio = matches / longer.length;
 
   // Token-level Jaccard similarity
-  const aTokens = new Set((a.toLowerCase().match(/[a-z0-9']+/gi) || []));
-  const bTokens = new Set((b.toLowerCase().match(/[a-z0-9']+/gi) || []));
-  
-  const intersection = new Set([...aTokens].filter(x => bTokens.has(x)));
+  const aTokens = new Set(a.toLowerCase().match(/[a-z0-9']+/gi) || []);
+  const bTokens = new Set(b.toLowerCase().match(/[a-z0-9']+/gi) || []);
+  const intersection = new Set([...aTokens].filter((x) => bTokens.has(x)));
   const union = new Set([...aTokens, ...bTokens]);
-  const jacc = union.size > 0 ? intersection.size / union.size : 0.0;
+  const jacc = union.size ? intersection.size / union.size : 0.0;
 
-  // Weighted combination: 70% char similarity, 30% token overlap
   return 0.7 * charRatio + 0.3 * jacc;
 }
 
 /**
- * Normalize a line to extract text only (remove timestamps)
+ * Normalize line to extract text only (remove timestamps)
  * Handles format: [timestamp] text
- * 
- * @param {string} line - Line with optional timestamp
- * @returns {string} Text without timestamp
  */
 function normalizeLineToText(line) {
-  const normalized = line.split(/\s+/).join(' ').trim();
+  const normalized = line.split(/\s+/).join(" ").trim();
   const match = normalized.match(/^\[([^\]]+)\]\s*(.*)$/);
   return match ? match[2].trim() : normalized;
 }

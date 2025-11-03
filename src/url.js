@@ -1,6 +1,10 @@
-// URL utility functions
+/**
+ * URL Utility Functions
+ */
 
-// Cleans a YouTube URL to extract only the video ID and essential parameters
+/**
+ * Clean YouTube URL to extract only video ID and essential parameters
+ */
 function cleanYouTubeUrl(originalUrl) {
   try {
     const url = new URL(originalUrl);
@@ -9,12 +13,14 @@ function cleanYouTubeUrl(originalUrl) {
       return `${url.protocol}//${url.hostname}${url.pathname}?v=${videoId}`;
     }
   } catch (e) {
-    console.error("Error parsing URL for cleaning:", originalUrl, e);
+    console.error("Error parsing URL:", originalUrl, e);
   }
   return originalUrl;
 }
 
-// Extracts video ID from YouTube URL
+/**
+ * Extract video ID from YouTube URL
+ */
 function extractVideoId(url) {
   try {
     const urlObj = new URL(url);
@@ -24,4 +30,3 @@ function extractVideoId(url) {
     return null;
   }
 }
-
