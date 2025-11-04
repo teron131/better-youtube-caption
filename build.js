@@ -13,14 +13,14 @@ const __dirname = dirname(__filename);
 const isWatch = process.argv.includes("--watch");
 
 const buildOptions = {
-  entryPoints: ["src/summaryWorkflow.js"],
+  entryPoints: ["src/captionSummarizer.js", "src/captionRefiner.js"],
   bundle: true,
   format: "iife",
-  globalName: "SummaryWorkflow",
-  outfile: "src/summaryWorkflow.bundle.js",
+  outdir: "dist",
+  entryNames: "[name].bundle",
+  allowOverwrite: true,
   platform: "browser", // Chrome extension service worker
   target: "es2020",
-  // Using @langchain/langgraph/web excludes Node.js modules automatically
   define: {
     "process.env.NODE_ENV": '"production"',
   },
@@ -31,9 +31,9 @@ const buildOptions = {
 if (isWatch) {
   const ctx = await esbuild.context(buildOptions);
   await ctx.watch();
-  console.log("✓ Watching for changes...");
+  console.log("Watching for changes...");
 } else {
   await esbuild.build(buildOptions);
-  console.log("✓ Built src/summaryWorkflow.bundle.js");
+  console.log("Built dist/captionSummarizer.bundle.js and dist/captionRefiner.bundle.js");
 }
 

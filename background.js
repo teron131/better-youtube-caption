@@ -4,9 +4,9 @@ importScripts("src/timestampParser.js");  // Renamed from parser.js
 importScripts("src/url.js");
 importScripts("src/storage.js");
 importScripts("src/segmentParser.js");    // New: DP alignment algorithm
-importScripts("src/refiner.js");          // New: LLM refinement logic
+importScripts("dist/captionRefiner.bundle.js");          // Updated: LLM refinement logic (bundled in dist)
 importScripts("src/transcript.js");
-importScripts("src/summaryWorkflow.bundle.js");  // New: Summary workflow with LangGraph pattern (bundled)
+importScripts("dist/captionSummarizer.bundle.js");  // Updated: Summary workflow with LangGraph pattern (bundled in dist)
 importScripts("config.js");
 
 // Get API key with fallback to test config
@@ -146,13 +146,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             action: "SUMMARY_GENERATED",
             summary: summary,
           });
-          chrome.runtime.sendMessage({
-            action: MESSAGE_ACTIONS.UPDATE_POPUP_STATUS,
-            text: "Summary generated successfully!",
-            success: true,
-            tabId: tabId,
-          });
         }
+        chrome.runtime.sendMessage({
+          action: "SUMMARY_GENERATED",
+          summary: summary,
+          tabId: tabId || null,
+        });
+
+        // Also update status
+        chrome.runtime.sendMessage({
+          action: MESSAGE_ACTIONS.UPDATE_POPUP_STATUS,
+          text: "Summary generated successfully!",
+          success: true,
+          tabId: tabId,
+        });
 
         sendResponse({ status: "completed" });
       } catch (error) {
@@ -237,7 +244,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // Response already sent above
       } else {
           console.log("No cached subtitles found. Fetching transcript...");
-
+  
         if (tabId) {
           chrome.runtime.sendMessage({
             action: MESSAGE_ACTIONS.UPDATE_POPUP_STATUS,
@@ -386,30 +393,30 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 return enhancedSegments;
               }
             })
-          .then((subtitles) => {
-            if (tabId) {
-              chrome.tabs.sendMessage(tabId, {
-                action: MESSAGE_ACTIONS.SUBTITLES_GENERATED,
-                subtitles: subtitles,
-                videoId: videoId, // Pass the video ID to ensure subtitles are saved for the correct video
-              }, () => {
-                // Ignore errors - tab might be closed or content script not loaded
-                if (chrome.runtime.lastError) {
-                  console.log("Could not send message to tab (tab may be closed):", chrome.runtime.lastError.message);
-                }
-              });
-              chrome.runtime.sendMessage({
-                action: MESSAGE_ACTIONS.UPDATE_POPUP_STATUS,
-                  text: "Transcript fetched and ready!",
-                success: true,
-                tabId: tabId,
-              }, () => {
-                // Ignore errors - popup might be closed
-                if (chrome.runtime.lastError) {
-                  // Popup might be closed, ignore
-                }
-              });
-            }
+            .then((subtitles) => {
+              if (tabId) {
+                chrome.tabs.sendMessage(tabId, {
+                  action: MESSAGE_ACTIONS.SUBTITLES_GENERATED,
+                  subtitles: subtitles,
+                  videoId: videoId, // Pass the video ID to ensure subtitles are saved for the correct video
+                }, () => {
+                  // Ignore errors - tab might be closed or content script not loaded
+                  if (chrome.runtime.lastError) {
+                    console.log("Could not send message to tab (tab may be closed):", chrome.runtime.lastError.message);
+                  }
+                });
+                chrome.runtime.sendMessage({
+                  action: MESSAGE_ACTIONS.UPDATE_POPUP_STATUS,
+                    text: "Transcript fetched and ready!",
+                  success: true,
+                  tabId: tabId,
+                }, () => {
+                  // Ignore errors - popup might be closed
+                  if (chrome.runtime.lastError) {
+                    // Popup might be closed, ignore
+                  }
+                });
+              }
 
               // Check storage space before saving
               return ensureStorageSpace()
@@ -424,26 +431,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             // Response already sent above
             console.log("Background: Subtitle fetch completed successfully");
           })
-          .catch((error) => {
-            console.error("Error fetching/parsing subtitles:", error);
-            const errorMessage = `Error: ${
-              error.message || "Unknown error fetching subtitles."
-            }`;
-            if (tabId) {
-              chrome.runtime.sendMessage({
-                action: MESSAGE_ACTIONS.UPDATE_POPUP_STATUS,
-                text: errorMessage,
-                error: true,
-                tabId: tabId,
-              }, () => {
-                if (chrome.runtime.lastError) {
-                  // Popup might be closed, ignore
-                }
-              });
-            }
-            // Response already sent above
-          });
-      }
+            .catch((error) => {
+              console.error("Error fetching/parsing subtitles:", error);
+              const errorMessage = `Error: ${
+                error.message || "Unknown error fetching subtitles."
+              }`;
+              if (tabId) {
+                chrome.runtime.sendMessage({
+                  action: MESSAGE_ACTIONS.UPDATE_POPUP_STATUS,
+                  text: errorMessage,
+                  error: true,
+                  tabId: tabId,
+                }, () => {
+                  if (chrome.runtime.lastError) {
+                    // Popup might be closed, ignore
+                  }
+                });
+              }
+              // Response already sent above
+            });
+        }
       })
       .catch((error) => {
         console.error("Error checking storage:", error);
@@ -468,7 +475,7 @@ async function fetchSubtitlesFromGemini(videoUrl, apiKey, tabId) {
   );
 
   const prompt = `Generate ONLY the SRT subtitles for the YouTube video.\nDo NOT include any introductory text, explanations, or summaries.\nThe output MUST strictly follow the Standard SRT format:\n1\n00:00:01,000 --> 00:00:05,000\nSubtitle text line 1\nSubtitle text line 2 (if needed).\nEnsure timestamps use milliseconds (,) and sequential numbering is correct. Ensure time stamps are in the following format: HH:MM,ms, example: 00:00:01,000. DO NOT recite training data in the prompt.`;
-
+  
   if (tabId) {
     chrome.runtime.sendMessage({
       action: "updatePopupStatus",

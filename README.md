@@ -17,11 +17,37 @@ This extension fetches the transcript reliably via an API (to avoid bot detectio
 
 ## Installation
 
+### With Node.js (Recommended for Development)
+
 1. Clone or download this repository to your local machine.
-2. Open Chrome and navigate to `chrome://extensions/`.
-3. Enable **Developer Mode** (toggle in the top-right corner).
-4. Click **Load unpacked** and select the folder containing this project.
-5. The extension will now appear in your Chrome extensions list.
+2. **Install dependencies**:
+   ```bash
+   npm install
+   ```
+3. **Build bundles** (required for LangChain workflows):
+   ```bash
+   npm run build
+   ```
+   This generates `dist/captionSummarizer.bundle.js` and `dist/captionRefiner.bundle.js` needed by the extension.
+4. Open Chrome and navigate to `chrome://extensions/`.
+5. Enable **Developer Mode** (toggle in the top-right corner).
+6. Click **Load unpacked** and select the folder containing this project.
+7. The extension will now appear in your Chrome extensions list.
+
+**Development**: Use `npm run build:watch` for auto-rebuild during development.
+
+### No Node.js? (Simple Installation)
+
+If you don't have Node.js installed (or prefer not to build):
+
+1. **Download a pre-built release** from GitHub Releases (see "Packaging & Deployment" below).
+2. Extract the ZIP file (includes ready `dist/` bundles).
+3. Open Chrome and navigate to `chrome://extensions/`.
+4. Enable **Developer Mode** (toggle in the top-right corner).
+5. Click **Load unpacked** and select the extracted folder.
+6. The extension will now appear in your Chrome extensions list.
+
+**Note**: Pre-built releases skip the build step—bundles are already compiled. For custom changes or development, install Node.js from [nodejs.org](https://nodejs.org/) and follow the full setup above.
 
 ## Setup
 
@@ -31,9 +57,11 @@ This extension fetches the transcript reliably via an API (to avoid bot detectio
 
 2. **Configure the Extension**:
    - Click the extension icon in your Chrome toolbar
+   - Go to **Settings** tab
    - Enter your Scrape Creators API key (required)
    - Enter your OpenRouter API key (optional, for refinement)
    - Select your preferred AI model (default: `google/gemini-2.5-flash-lite`)
+   - Click **Save Settings**
 
 ## How to Use
 
@@ -48,9 +76,40 @@ This extension fetches the transcript reliably via an API (to avoid bot detectio
 2. Navigate to any YouTube video
 3. Captions will automatically generate after a short delay
 
+### Generate Summary
+1. Navigate to any YouTube video
+2. Click the extension icon
+3. Click **Generate Summary**
+4. Wait for processing (transcript fetching + AI summarization)
+5. Summary appears in popup (no reload needed)
+
 ### Toggle Display
 - Use the **Show subtitles on video** toggle to show/hide captions
 - Setting persists across page reloads
+
+## Architecture
+
+- **background.js**: Service worker; handles API calls, imports bundles from `dist/`.
+- **src/captionRefiner.js**: LLM-based transcript refinement (LangChain batch, OpenRouter).
+- **src/captionSummarizer.js**: LangGraph workflow for summary generation (analysis + quality loop, Zod schemas).
+- **content.js/popup.js**: UI integration (display captions, summaries).
+- **src/utils/**: Helpers (storage, messaging, errors).
+
+### Bundling
+
+Uses esbuild for LangChain deps (browser-compatible IIFE bundles).
+- Run `npm run build` to build bundles.
+- Watch mode: `npm run build:watch` (auto-rebuilds on changes).
+
+### Dependencies
+
+- **JS**: `@langchain/openai`, `@langchain/langgraph`, `zod`, `esbuild` (dev).
+- **Python (tests)**: `langchain`, `pydantic`, `requests`, `dotenv` (optional, for testing).
+
+## Testing
+
+- **JS**: `node test_captionSummarizer.js` or `node test_captionRefiner.js`.
+- **Python**: `uv run python test.py` (refinement example).
 
 ## Why These APIs
 
@@ -128,4 +187,46 @@ const aligned = parseRefinedSegments(
 // Returns the same number of segments as originals, but with refined text
 // and original timestamps preserved.
 ```
+
+## Packaging & Deployment
+
+To distribute the extension without requiring users to build (no Node.js needed):
+
+### GitHub Releases (Manual)
+
+1. **Build bundles**:
+   ```bash
+   npm run build
+   ```
+
+2. **Create ZIP** (exclude source files, tests, node_modules):
+   ```bash
+   zip -r extension.zip \
+     dist/*.bundle.js \
+     dist/*.bundle.js.map \
+     manifest.json \
+     background.js \
+     content.js \
+     popup.html \
+     popup.js \
+     subtitles.css \
+     config.js \
+     images/ \
+     -x "node_modules/*" -x "*.git*" -x "src/*" -x "test*" -x "*.md" -x "*.py" -x "*.json" -x "*.lock"
+   ```
+
+3. **Upload to GitHub Releases**:
+   - Go to your repo → Releases → "Draft a new release"
+   - Tag: `v1.0.0` (or version)
+   - Upload `extension.zip`
+   - Users download ZIP → Extract → Load unpacked
+
+### Automated CI (GitHub Actions)
+
+The repository includes `.github/workflows/build.yml` for auto-build on push/release:
+
+- **On push**: Download ZIP from Actions → Artifacts tab
+- **On release**: Tag (`git tag v1.0.0 && git push --tags`) → ZIP auto-uploads to Releases
+
+This ensures easy installation for all users without Node.js requirements.
 

@@ -1,0 +1,55 @@
+name: Build & Release Extension
+
+on:
+  push:
+    branches: [ main ]
+  release:
+    types: [ published ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build bundles
+        run: npm run build
+
+      - name: Create extension ZIP
+        run: |
+          zip -r dist/extension.zip \
+            dist/*.bundle.js \
+            dist/*.bundle.js.map \
+            manifest.json \
+            background.js \
+            content.js \
+            popup.html \
+            popup.js \
+            subtitles.css \
+            config.js \
+            images/ \
+            -x "node_modules/*" -x "*.git*" -x "src/*" -x "test*"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-build
+          path: dist/extension.zip
+
+      - name: Release ZIP (on release)
+        if: github.event_name == 'release'
+        run: |
+          gh release upload ${{ github.event.release.tag_name }} dist/extension.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
