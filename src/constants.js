@@ -12,10 +12,10 @@ const STORAGE_KEYS = {
 
 // Timing constants
 const TIMING = {
-  AUTO_GENERATION_DELAY_MS: 4000, // 4 seconds delay before auto-generation
+  AUTO_GENERATION_DELAY_MS: 2000, // 2 seconds delay before auto-generation
   INIT_RETRY_DELAY_MS: 500, // Delay between initialization retries
   SUBTITLE_UPDATE_INTERVAL_MS: 100, // How often to update subtitle display
-  MAX_INIT_ATTEMPTS: 3, // Maximum retry attempts for finding video elements
+  MAX_INIT_ATTEMPTS: 5, // Maximum retry attempts for finding video elements
 };
 
 // Storage constants

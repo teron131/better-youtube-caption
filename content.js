@@ -32,9 +32,15 @@ function loadStoredSubtitles() {
       return;
     }
 
+    // Only proceed if we're on a YouTube video page
+    if (!window.location.href.includes("youtube.com/watch")) {
+      console.debug("Content Script: Not on a video page, skipping subtitle load.");
+      return;
+    }
+
     const videoId = extractVideoId(window.location.href);
     if (!videoId) {
-      console.warn("Content Script: Could not extract video ID, skipping subtitle load.");
+      console.debug("Content Script: Could not extract video ID, skipping subtitle load.");
       return;
     }
 
@@ -202,6 +208,7 @@ function monitorUrlChanges() {
 function onUrlChange() {
   console.log("Better YouTube Caption: Reinitializing for new video...");
   clearSubtitles(); // Clear current subtitles
+  initAttempts = 0; // Reset initialization attempts for new page
   // Note: We don't clear autoGenerationTriggered here because we want to prevent
   // re-triggering for the same video if user navigates back
   initialize(); // Reinitialize for the new video
@@ -224,6 +231,12 @@ function findVideoElements() {
 // Initializes the content script
 function initialize() {
   console.log("Better YouTube Caption: Initializing content script...");
+
+  // Only initialize on YouTube video pages
+  if (!window.location.href.includes("youtube.com/watch")) {
+    console.debug("Content Script: Not on a video page, skipping initialization.");
+    return;
+  }
 
   if (!findVideoElements()) {
     initAttempts++;
@@ -522,12 +535,20 @@ function updateSubtitles() {
 }
 
 // --- Start Initialization ---
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", () => {
+// Initialize immediately since we're using document_end in manifest
+(function() {
+  console.log("Better YouTube Caption: Content script loaded, readyState:", document.readyState);
+  
+  // Wait a bit for YouTube's initial render
+  const startInitialization = () => {
     initialize();
     monitorUrlChanges();
-  });
-} else {
-  initialize();
-  monitorUrlChanges();
-}
+  };
+  
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", startInitialization);
+  } else {
+    // Give YouTube a moment to render if we're already loaded
+    setTimeout(startInitialization, 500);
+  }
+})();

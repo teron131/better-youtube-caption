@@ -92,10 +92,10 @@ document.addEventListener("DOMContentLoaded", function () {
     showSubtitlesToggle.addEventListener("change", function () {
       const enabled = showSubtitlesToggle.checked;
       chrome.storage.local.set({ [STORAGE_KEYS.SHOW_SUBTITLES]: enabled }, function () {
-        // Send message to content script to toggle subtitles
+        // Send message to content script to toggle subtitles (only on video pages)
         chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
           const currentTab = tabs[0];
-          if (currentTab && currentTab.url && currentTab.url.includes("youtube.com")) {
+          if (currentTab && currentTab.url && currentTab.url.includes("youtube.com/watch")) {
             chrome.tabs.sendMessage(
               currentTab.id,
               {
@@ -105,6 +105,7 @@ document.addEventListener("DOMContentLoaded", function () {
               },
               () => {
                 if (chrome.runtime.lastError) {
+                  // Silently handle - content script might not be ready yet
                   console.debug(
                     "Popup: Unable to toggle subtitles:",
                     chrome.runtime.lastError.message
@@ -206,7 +207,7 @@ document.addEventListener("DOMContentLoaded", function () {
           currentTab &&
           typeof settings[STORAGE_KEYS.SHOW_SUBTITLES] === "boolean" &&
           currentTab.url &&
-          currentTab.url.includes("youtube.com")
+          currentTab.url.includes("youtube.com/watch")
         ) {
           const enabled = settings[STORAGE_KEYS.SHOW_SUBTITLES];
           chrome.tabs.sendMessage(
@@ -218,6 +219,7 @@ document.addEventListener("DOMContentLoaded", function () {
             },
             () => {
               if (chrome.runtime.lastError) {
+                // Silently handle - content script might not be ready yet
                 console.debug(
                   "Popup: Unable to forward toggle to content script:",
                   chrome.runtime.lastError.message
@@ -248,6 +250,14 @@ document.addEventListener("DOMContentLoaded", function () {
           currentTab.id,
           { action: "GET_VIDEO_TITLE" },
           function (response) {
+            // Silently handle connection errors (content script might not be ready)
+            if (chrome.runtime.lastError) {
+              // Fallback to tab title
+              currentVideoTitle = sanitizeTitle(currentTab.title) || "";
+              videoTitle.textContent = currentVideoTitle || "No video loaded";
+              return;
+            }
+            
             if (response && response.title) {
               currentVideoTitle = sanitizeTitle(response.title);
               videoTitle.textContent = currentVideoTitle || "No video loaded";
