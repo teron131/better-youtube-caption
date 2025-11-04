@@ -1,16 +1,19 @@
 # Better YouTube Caption
 
-A Chrome extension that enhances YouTube video captions by automatically refining transcripts using AI. Captions are stored locally for instant access when revisiting videos.
+YouTube's auto captions keep improving and are often decent, but they still contain typos, missing punctuation, and jittery line changes because they’re produced by near real‑time transcription without much global context. This project uses an LLM to refine those captions into clean, readable subtitles while preserving original timing. The refined transcript also unlocks comprehensive summarization and downstream analysis of the video content.
+
+This extension fetches the transcript reliably via an API (to avoid bot detection), refines it with an LLM through a flexible router, and overlays the improved captions on the YouTube player. Results are cached locally per video for instant reuse.
 
 ## Features
 
-- ✨ **AI-Powered Caption Refinement**: Automatically fixes typos and grammar errors in YouTube transcripts using OpenRouter (Gemini, GPT-4, etc.)
+- ✨ **AI-Powered Caption Refinement**: Automatically fixes typos and grammar errors in YouTube transcripts using OpenRouter (Gemini, GPT‑4, etc.)
 - 🔄 **Auto-Generation**: Automatically generate and refine captions for new videos (toggleable)
 - 💾 **Local Storage**: Captions are cached locally per video for instant playback
 - 🎛️ **Model Selection**: Choose your preferred AI model from OpenRouter
 - 👁️ **Toggle Display**: Show or hide captions on videos with a simple toggle
 - 📦 **Smart Storage Management**: Automatic cleanup to manage Chrome's 10MB storage limit
 - 🔑 **Your Own API Keys**: Use your Scrape Creators and OpenRouter API keys
+ - 🧠 **Summarization & Analysis**: Processed captions enable high‑quality summaries and deeper analysis
 
 ## Installation
 
@@ -49,103 +52,12 @@ A Chrome extension that enhances YouTube video captions by automatically refinin
 - Use the **Show subtitles on video** toggle to show/hide captions
 - Setting persists across page reloads
 
-## Project Structure
+## Why These APIs
 
-```
-better-youtube-caption/
-├── src/                    # Core library code
-│   ├── constants.js       # Configuration constants
-│   ├── storage.js         # Storage management utilities
-│   ├── transcript.js      # Transcript fetching & refinement
-│   ├── segmentParser.js   # Robust alignment of refined text to timestamps
-│   └── url.js             # URL manipulation utilities
-├── background.js          # Service worker (API calls, storage)
-├── content.js             # Content script (subtitle display)
-├── popup.html             # Extension popup UI
-├── popup.js               # Popup logic and event handlers
-├── subtitles.css          # Subtitle styling
-├── manifest.json          # Extension manifest
-└── config.js             # Development config (optional)
-```
+- **Scrape Creators API**: A reliable transcript source that avoids the hassle of scraping and bot detection. It returns consistent, structured data from YouTube at scale.
+- **OpenRouter**: A single interface to many model providers, letting you pick the best option for quality or cost. It also includes some free models to get started quickly.
 
-## File Overview
-
-### Core Files
-
-**`manifest.json`**
-- Defines extension metadata, permissions, and resources
-- Specifies background service worker, content scripts, and popup
-
-**`background.js`**
-- Service worker handling API communication
-- Manages transcript fetching (Scrape Creators API)
-- Coordinates AI refinement (OpenRouter API)
-- Handles storage operations and cleanup
-
-**`content.js`**
-- Runs on YouTube pages
-- Manages subtitle display and synchronization
-- Handles auto-generation logic
-- Listens for user interactions
-
-**`popup.html` & `popup.js`**
-- Extension popup interface
-- API key configuration
-- Model selection
-- Toggle controls (auto-generation, show/hide)
-
-### Source Library (`src/`)
-
-**`constants.js`**
-- Centralized configuration constants
-- Storage keys, timing values, defaults, API endpoints
-
-**`storage.js`**
-- Chrome storage management
-- Quota handling and cleanup
-- Video transcript storage operations
-
-**`transcript.js`**
-- Transcript fetching from Scrape Creators API
-- AI refinement via OpenRouter
-- Format conversion and parsing
-
-**`segmentParser.js`**
-- Robust alignment of refined text to timestamps (DP-based)
-- Converts refined free-form lines back onto original time segments
-
-**`url.js`**
-- YouTube URL manipulation
-- Video ID extraction
-
-## Storage Management
-
-The extension uses Chrome's `chrome.storage.local` API with a 10MB limit:
-- **Quota Management**: Automatic cleanup when storage exceeds 9MB
-- **Smart Cleanup**: Removes oldest videos when space is needed
-- **Per-Video Storage**: Each video's transcript is stored with its video ID as the key
-
-## Technical Details
-
-### API Integration
-
-**Scrape Creators API**
-- Fetches YouTube video transcripts with timestamps
-- Includes video metadata (title, description)
-
-**OpenRouter API**
-- Provides access to multiple providers and LLMs
-- Prioritizes throughput for faster processing
-- Uses system prompts to preserve transcript structure
-
-### Caption Display
-
-- Synchronized with video playback
-- Updates every 100ms for smooth transitions
-- Hidden when video is paused
-- Respects user toggle preferences
-
-### Segment Parser
+## Segment Parser Algorithm
 
 Real-world problem: one-shot LLM generations often reorder, merge, or drop a few lines, and asking an LLM to emit a perfectly structured JSON for hundreds of timestamped fields is brittle and slow. Instead, this project refines text freely and then maps it back to the original timestamps with a dynamic-programming (DP) alignment algorithm.
 
