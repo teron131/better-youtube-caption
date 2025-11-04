@@ -6,8 +6,8 @@ This extension fetches the transcript reliably via an API (to avoid bot detectio
 
 ## Features
 
-- ✨ **AI-Powered Caption Refinement**: Automatically fixes typos and grammar errors in YouTube transcripts using OpenRouter (Gemini, GPT‑4, etc.)
-- 🔄 **Auto-Generation**: Automatically generate and refine captions for new videos (toggleable)
+- ✨ **AI-Powered Caption Refinement**: Automatically fixes typos and grammar errors in YouTube transcripts using OpenRouter
+- 🔄 **Auto-Generation**: Automatically generate and refine captions for new videos
 - 💾 **Local Storage**: Captions are cached locally per video for instant playback
 - 🎛️ **Model Selection**: Choose your preferred AI model from OpenRouter
 - 👁️ **Toggle Display**: Show or hide captions on videos with a simple toggle
