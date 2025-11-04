@@ -6,6 +6,7 @@ importScripts("src/storage.js");
 importScripts("src/segmentParser.js");    // New: DP alignment algorithm
 importScripts("src/refiner.js");          // New: LLM refinement logic
 importScripts("src/transcript.js");
+importScripts("src/summaryWorkflow.bundle.js");  // New: Summary workflow with LangGraph pattern (bundled)
 importScripts("config.js");
 
 // Get API key with fallback to test config
@@ -102,49 +103,39 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           });
         }
 
-        // Generate summary using OpenRouter
+        // Generate summary using workflow
         const transcriptText = transcriptData.segments.map(seg => seg.text).join(' ');
         
-        const summaryPrompt = `You are a helpful assistant that creates concise, informative summaries of YouTube videos.
-
-Based on the following video transcript, create a well-structured summary in markdown format that includes:
-
-1. A brief overview paragraph (2-3 sentences)
-2. A "Key Points" section with bullet points highlighting the main topics covered
-
-Video Title: ${transcriptData.title}
-${transcriptData.description ? `Description: ${transcriptData.description}` : ''}
-
-Transcript:
-${transcriptText}
-
-Format your response in markdown with clear sections.`;
-
-        const summaryResponse = await fetch(API_ENDPOINTS.OPENROUTER, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${openRouterKey}`,
-            'HTTP-Referer': 'https://github.com/better-youtube-caption',
-            'X-Title': 'Better YouTube Caption'
-          },
-          body: JSON.stringify({
-            model: modelSelection,
-            messages: [
-              {
-                role: 'user',
-                content: summaryPrompt
+        // Progress callback for workflow updates
+        const progressCallback = (message) => {
+          console.log("Summary workflow:", message);
+          if (tabId) {
+            chrome.runtime.sendMessage({
+              action: MESSAGE_ACTIONS.UPDATE_POPUP_STATUS,
+              text: message,
+              tabId: tabId,
+            }, () => {
+              if (chrome.runtime.lastError) {
+                // Popup might be closed, ignore
               }
-            ]
-          })
-        });
+            });
+          }
+        };
 
-        if (!summaryResponse.ok) {
-          throw new Error(`OpenRouter API error: ${summaryResponse.status}`);
-        }
+        // Execute summarization workflow
+        const workflowResult = await executeSummarizationWorkflow(
+          {
+            transcript: transcriptText,
+            analysis_model: modelSelection,
+            quality_model: modelSelection,
+          },
+          openRouterKey,
+          progressCallback
+        );
 
-        const summaryData = await summaryResponse.json();
-        const summary = summaryData.choices[0].message.content;
+        const summary = workflowResult.summary_text;
+        
+        console.log(`Summary workflow completed: ${workflowResult.iteration_count} iterations, quality score: ${workflowResult.quality_score}%`);
 
         // Save summary to storage
         chrome.storage.local.set({ [`summary_${videoId}`]: summary });

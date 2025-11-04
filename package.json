@@ -1,0 +1,22 @@
+{
+  "name": "better-youtube-caption",
+  "version": "1.0.0",
+  "description": "Refine YouTube captions using LLM",
+  "type": "module",
+  "scripts": {
+    "build": "node build.js",
+    "build:watch": "node build.js --watch"
+  },
+  "dependencies": {
+    "@langchain/core": "^0.3.79",
+    "@langchain/langgraph": "^0.2.0",
+    "@langchain/openai": "^0.3.0",
+    "langchain": "^0.3.36",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "dotenv": "^17.2.3",
+    "esbuild": "^0.24.0",
+    "node-fetch": "^3.3.2"
+  }
+}
