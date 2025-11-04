@@ -36,7 +36,7 @@
       }
 
       body {
-        width: 520px;
+        width: 720px;
         min-height: 560px;
         margin: 0;
         padding: 32px 28px;
@@ -77,6 +77,25 @@
         align-items: center;
         justify-content: space-between;
         gap: 16px;
+      }
+
+      .header-right {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .header-toggle {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .header-toggle-label {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        white-space: nowrap;
       }
 
       .header-left {
@@ -574,25 +593,34 @@
               <p>Polished video summaries in markdown</p>
             </div>
           </div>
-          <button
-            class="icon-button"
-            id="settingsBtn"
-            type="button"
-            aria-label="Open settings"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93l.898.36a1.125 1.125 0 0 0 1.417-.516l.5-.867a1.125 1.125 0 0 1 1.45-.45l.968.484c.5.25.708.84.458 1.339l-.5.867c-.219.379-.172.848.116 1.338l.69.69c.39.39.39 1.023 0 1.414l-.69.69c-.288.29-.335.69-.116 1.339l.5.867c.25.499.042 1.089-.458 1.338l-.968.484a1.125 1.125 0 0 1-1.45-.45l-.5-.867a1.125 1.125 0 0 0-1.417-.516l-.898.36c-.396.165-.71.505-.78.929l-.149.894c-.09.543-.56.941-1.11.941h-1.094c-.55 0-1.02-.398-1.11-.94l-.149-.894a1.125 1.125 0 0 0-.78-.93l-.9-.36a1.125 1.125 0 0 0-1.417.516l-.5.867a1.125 1.125 0 0 1-1.45.45l-.968-.484c-.5-.25-.708-.84-.458-1.339l.5-.867c.219-.379.172-.848-.116-1.338l-.69-.69a1.125 1.125 0 0 1 0-1.414l.69-.69c.288-.29.335-.69.116-1.339l-.5-.867a1.125 1.125 0 0 1 .458-1.338l.968-.484a1.125 1.125 0 0 1 1.45.45l.5.867c.27.466.846.679 1.417.516l.9-.36c.396-.165.71-.505.78-.93l.149-.893z"
-              ></path>
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"
-              ></path>
-            </svg>
-          </button>
+          <div class="header-right">
+            <div class="header-toggle">
+              <span class="header-toggle-label">Caption</span>
+              <label class="toggle-switch">
+                <input type="checkbox" id="showSubtitlesToggle" />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <button
+              class="icon-button"
+              id="settingsBtn"
+              type="button"
+              aria-label="Open settings"
+            >
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                ></path>
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"
+                ></path>
+              </svg>
+            </button>
+          </div>
         </div>
 
         <div class="card video-card">
@@ -603,17 +631,6 @@
             </div>
             <p class="video-title" id="videoTitle">No video loaded</p>
           </div>
-        </div>
-
-        <div class="toggle-card compact">
-          <div class="toggle-info">
-            <h3>Show Transcript Overlay</h3>
-            <p>Display generated captions on top of the video player</p>
-          </div>
-          <label class="toggle-switch">
-            <input type="checkbox" id="showSubtitlesToggle" />
-            <span class="toggle-slider"></span>
-          </label>
         </div>
 
         <button class="primary-action generate-btn" id="generateBtn" type="button">
@@ -664,11 +681,11 @@
               </svg>
             </button>
             <div class="logo-badge is-settings">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path
                   stroke-linecap="round"
                   stroke-linejoin="round"
-                  d="M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93l.898.36a1.125 1.125 0 0 0 1.417-.516l.5-.867a1.125 1.125 0 0 1 1.45-.45l.968.484c.5.25.708.84.458 1.339l-.5.867c-.219.379-.172.848.116 1.338l.69.69c.39.39.39 1.023 0 1.414l-.69.69c-.288.29-.335.69-.116 1.339l.5.867c.25.499.042 1.089-.458 1.338l-.968.484a1.125 1.125 0 0 1-1.45-.45l-.5-.867a1.125 1.125 0 0 0-1.417-.516l-.898.36c-.396.165-.71.505-.78.929l-.149.894c-.09.543-.56.941-1.11.941h-1.094c-.55 0-1.02-.398-1.11-.94l-.149-.894a1.125 1.125 0 0 0-.78-.93l-.9-.36a1.125 1.125 0 0 0-1.417.516l-.5.867a1.125 1.125 0 0 1-1.45.45l-.968-.484c-.5-.25-.708-.84-.458-1.339l.5-.867c.219-.379.172-.848-.116-1.338l-.69-.69a1.125 1.125 0 0 1 0-1.414l.69-.69c.288-.29.335-.69.116-1.339l-.5-.867a1.125 1.125 0 0 1 .458-1.338l.968-.484a1.125 1.125 0 0 1 1.45.45l.5.867c.27.466.846.679 1.417.516l.9-.36c.396-.165.71-.505.78-.93l.149-.893z"
+                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
                 ></path>
                 <path
                   stroke-linecap="round"
