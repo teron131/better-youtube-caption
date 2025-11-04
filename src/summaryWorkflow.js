@@ -4,7 +4,7 @@
  */
 
 import { ChatPromptTemplate } from "@langchain/core/prompts";
-import { END, START, StateGraph } from "@langchain/langgraph";
+import { END, START, StateGraph } from "@langchain/langgraph/web";
 import { ChatOpenAI } from "@langchain/openai";
 import * as z from "zod";
 

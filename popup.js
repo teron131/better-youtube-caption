@@ -288,52 +288,145 @@ document.addEventListener("DOMContentLoaded", function () {
     summaryContent.innerHTML = convertMarkdownToHTML(summaryText);
   }
 
-  // Simple Markdown to HTML Converter
+  // Enhanced Markdown to HTML Converter
   function convertMarkdownToHTML(markdown) {
-    let html = markdown;
+    if (!markdown || typeof markdown !== "string") {
+      return '<div class="summary-placeholder">No summary available</div>';
+    }
 
-    // Headers
-    html = html.replace(/^### (.*$)/gim, "<h3>$1</h3>");
-    html = html.replace(/^## (.*$)/gim, "<h3>$1</h3>");
-    html = html.replace(/^# (.*$)/gim, "<h3>$1</h3>");
-
-    // Bold
-    html = html.replace(/\*\*(.*?)\*\*/gim, "<strong>$1</strong>");
-
-    // Lists
-    const lines = html.split("\n");
+    const lines = markdown.split("\n");
+    const result = [];
     let inList = false;
-    let result = [];
+    let inParagraph = false;
 
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
+      const line = lines[i].trim();
       
-      if (line.match(/^[\*\-•]\s/)) {
-        if (!inList) {
-          result.push("<ul>");
-          inList = true;
-        }
-        result.push("<li>" + line.replace(/^[\*\-•]\s/, "") + "</li>");
-      } else {
+      // Skip empty lines
+      if (!line) {
         if (inList) {
           result.push("</ul>");
           inList = false;
         }
-        result.push(line);
+        if (inParagraph) {
+          result.push("</p>");
+          inParagraph = false;
+        }
+        continue;
+      }
+
+      // Headers (## for h2, ### for h3, # for h1)
+      if (line.match(/^###\s+(.+)$/)) {
+        if (inList) {
+          result.push("</ul>");
+          inList = false;
+        }
+        if (inParagraph) {
+          result.push("</p>");
+          inParagraph = false;
+        }
+        const headerText = line.replace(/^###\s+/, "");
+        result.push(`<h3>${escapeHTML(headerText)}</h3>`);
+      } else if (line.match(/^##\s+(.+)$/)) {
+        if (inList) {
+          result.push("</ul>");
+          inList = false;
+        }
+        if (inParagraph) {
+          result.push("</p>");
+          inParagraph = false;
+        }
+        const headerText = line.replace(/^##\s+/, "");
+        result.push(`<h2>${escapeHTML(headerText)}</h2>`);
+      } else if (line.match(/^#\s+(.+)$/)) {
+        if (inList) {
+          result.push("</ul>");
+          inList = false;
+        }
+        if (inParagraph) {
+          result.push("</p>");
+          inParagraph = false;
+        }
+        const headerText = line.replace(/^#\s+/, "");
+        result.push(`<h2>${escapeHTML(headerText)}</h2>`);
+      }
+      // Bullet lists (supports -, *, •)
+      else if (line.match(/^[\*\-•]\s+(.+)$/)) {
+        if (inParagraph) {
+          result.push("</p>");
+          inParagraph = false;
+        }
+        if (!inList) {
+          result.push("<ul>");
+          inList = true;
+        }
+        const listItemText = line.replace(/^[\*\-•]\s+/, "");
+        result.push(`<li>${formatInlineMarkdown(listItemText)}</li>`);
+      }
+      // Regular paragraph text
+      else {
+        if (inList) {
+          result.push("</ul>");
+          inList = false;
+        }
+        if (!inParagraph) {
+          result.push("<p>");
+          inParagraph = true;
+        } else {
+          result.push("<br>");
+        }
+        result.push(formatInlineMarkdown(line));
       }
     }
 
+    // Close any open tags
     if (inList) {
       result.push("</ul>");
     }
+    if (inParagraph) {
+      result.push("</p>");
+    }
 
-    html = result.join("\n");
+    return result.join("");
+  }
 
-    // Line breaks
-    html = html.replace(/\n\n/g, "</p><p>");
-    html = "<p>" + html + "</p>";
+  // Format inline markdown (bold, italic, etc.)
+  function formatInlineMarkdown(text) {
+    // Process markdown patterns before escaping to avoid double-escaping
+    // Since this text comes from our workflow (not direct user input), it's relatively safe
+    
+    // Bold (**text** or __text__) - process first
+    text = text.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+    text = text.replace(/__(.+?)__/g, "<strong>$1</strong>");
+    
+    // Italic (*text* or _text_) - only match if not part of bold
+    // Simple approach: match single asterisk/underscore that's not doubled
+    text = text.replace(/(?<!\*)\*([^*]+?)\*(?!\*)/g, "<em>$1</em>");
+    text = text.replace(/(?<!_)_([^_]+?)_(?!_)/g, "<em>$1</em>");
+    
+    // Code (`text`)
+    text = text.replace(/`([^`]+)`/g, "<code>$1</code>");
+    
+    // Now escape any remaining HTML (but preserve our tags)
+    // Split by our HTML tags, escape non-tag parts, then rejoin
+    const parts = text.split(/(<[^>]+>)/g);
+    const result = parts.map((part, index) => {
+      // Odd indices are our HTML tags, keep them as-is
+      if (index % 2 === 1) {
+        return part;
+      }
+      // Even indices are text content, escape it
+      return escapeHTML(part);
+    });
+    
+    return result.join("");
+  }
 
-    return html;
+  // Escape HTML to prevent XSS
+  function escapeHTML(text) {
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
   }
 
   // Generate Summary

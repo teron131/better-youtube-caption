@@ -18,10 +18,9 @@ const buildOptions = {
   format: "iife",
   globalName: "SummaryWorkflow",
   outfile: "src/summaryWorkflow.bundle.js",
-  platform: "node", // Service workers can use Node.js APIs
+  platform: "browser", // Chrome extension service worker
   target: "es2020",
-  // Mark Node.js built-ins as external (they're available in service worker context)
-  external: ["node:async_hooks", "node:util", "node:events", "node:stream", "node:fs", "node:path", "node:url"],
+  // Using @langchain/langgraph/web excludes Node.js modules automatically
   define: {
     "process.env.NODE_ENV": '"production"',
   },
