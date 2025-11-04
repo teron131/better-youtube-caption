@@ -56,8 +56,8 @@ better-youtube-caption/
 ├── src/                    # Core library code
 │   ├── constants.js       # Configuration constants
 │   ├── storage.js         # Storage management utilities
-│   ├── transcript.js       # Transcript fetching & refinement
-│   ├── parser.js          # SRT parsing utilities
+│   ├── transcript.js      # Transcript fetching & refinement
+│   ├── segmentParser.js   # Robust alignment of refined text to timestamps
 │   └── url.js             # URL manipulation utilities
 ├── background.js          # Service worker (API calls, storage)
 ├── content.js             # Content script (subtitle display)
@@ -110,9 +110,9 @@ better-youtube-caption/
 - AI refinement via OpenRouter
 - Format conversion and parsing
 
-**`parser.js`**
-- SRT format parsing utilities
-- Time string conversion
+**`segmentParser.js`**
+- Robust alignment of refined text to timestamps (DP-based)
+- Converts refined free-form lines back onto original time segments
 
 **`url.js`**
 - YouTube URL manipulation
@@ -144,3 +144,76 @@ The extension uses Chrome's `chrome.storage.local` API with a 10MB limit:
 - Updates every 100ms for smooth transitions
 - Hidden when video is paused
 - Respects user toggle preferences
+
+### Segment Parser
+
+Real-world problem: one-shot LLM generations often reorder, merge, or drop a few lines, and asking an LLM to emit a perfectly structured JSON for hundreds of timestamped fields is brittle and slow. Instead, this project refines text freely and then maps it back to the original timestamps with a dynamic-programming (DP) alignment algorithm.
+
+Key idea: treat the original segments (with timestamps) and the refined text lines as two sequences and compute the best alignment. Gaps model merges/splits, and a similarity score selects the most plausible matches.
+
+Illustrative views:
+
+Alignment view (example merges/splits):
+
+```mermaid
+graph LR
+  subgraph Original segments
+    O1[O1] --> O2[O2] --> O3[O3] --> O4[O4]
+  end
+  subgraph Refined lines
+    R1[R1] --> R2[R2] --> R3[R3]
+  end
+  O1 --- R1
+  O2 --- R2
+  O3 --- R2
+  O4 --- R3
+```
+
+DP transition logic (conceptual):
+
+```mermaid
+stateDiagram-v2
+  [*] --> DPij
+  DPij: Evaluate score at i,j
+  DPij --> DPi1j1: match -> (i+1, j+1)
+  DPij --> DPi1j: gap in original -> (i+1, j)
+  DPij --> DPij1: gap in refined -> (i, j+1)
+  DPi1j1 --> DPij: iterate
+  DPi1j --> DPij
+  DPij1 --> DPij
+  DPij --> Backtrack: after table filled
+  Backtrack --> [*]
+```
+
+Algorithm highlights:
+
+- Similarity function mixes character-overlap (70%) and token-level Jaccard (30%).
+- DP is Needleman–Wunsch–style with a small negative gap penalty to allow merges/splits.
+- Tail guard protects boundary items near the end of a processed block: if the refined line’s length deviates by more than 10%, we fall back to the original text for stability.
+- Works even when the LLM slightly reorders or merges lines; no need for fragile mega-JSON outputs.
+
+Important knobs (see `SEGMENT_PARSER_CONFIG`):
+
+- `GAP_PENALTY`: controls willingness to insert gaps (handle merges/splits).
+- `TAIL_GUARD_SIZE`: number of trailing items guarded per block.
+- `LENGTH_TOLERANCE`: max relative length drift allowed in tail before reverting.
+
+Complexity:
+
+- Per alignment it’s `O(n * m)` for `n` original segments and `m` refined lines. With chunking, each chunk is small so it stays fast.
+
+Public API:
+
+```js
+// Choose automatically between chunked and global alignment
+const aligned = parseRefinedSegments(
+  refinedText,           // string from LLM (may include chunk sentinels)
+  originalSegments,      // [{ text, startMs, endMs, startTimeText }, ...]
+  CHUNK_SENTINEL,        // the same sentinel used during generation
+  MAX_SEGMENTS_PER_CHUNK // e.g., 40–80
+);
+
+// Returns the same number of segments as originals, but with refined text
+// and original timestamps preserved.
+```
+
