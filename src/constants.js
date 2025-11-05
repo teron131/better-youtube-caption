@@ -6,6 +6,10 @@ const STORAGE_KEYS = {
   OPENROUTER_API_KEY: "openRouterApiKey",
   RECOMMENDED_MODEL: "recommendedModel",
   CUSTOM_MODEL: "customModel",
+  SUMMARIZER_RECOMMENDED_MODEL: "summarizerRecommendedModel",
+  SUMMARIZER_CUSTOM_MODEL: "summarizerCustomModel",
+  REFINER_RECOMMENDED_MODEL: "refinerRecommendedModel",
+  REFINER_CUSTOM_MODEL: "refinerCustomModel",
   AUTO_GENERATE: "autoGenerate",
   SHOW_SUBTITLES: "showSubtitles",
 };
@@ -21,7 +25,7 @@ const TIMING = {
 // Storage constants
 const STORAGE = {
   QUOTA_BYTES: 10 * 1024 * 1024, // 10MB Chrome storage limit
-  MAX_STORAGE_BYTES: 9 * 1024 * 1024, // 9MB - leave 1MB buffer
+  MAX_STORAGE_BYTES: 9.5 * 1024 * 1024, // 9.5MB - leave 0.5MB buffer
   ESTIMATED_VIDEO_SIZE_BYTES: 30 * 1024, // Estimated ~30KB per video transcript
   CLEANUP_BATCH_SIZE: 10, // Number of videos to remove during cleanup
 };
@@ -36,9 +40,25 @@ const RECOMMENDED_MODELS = [
   { value: "openai/gpt-oss-120b", label: "gpt-oss-120b" },
 ];
 
+// New separate lists for summarizer and refiner
+const RECOMMENDED_SUMMARIZER_MODELS = [
+  { value: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash" },
+  { value: "openai/gpt-4.1-nano", label: "GPT-4.1 Nano" },
+  { value: "openai/gpt-oss-120b", label: "gpt-oss-120b" },
+  { value: "x-ai/grok-4-fast", label: "Grok 4 Fast" },
+];
+
+const RECOMMENDED_REFINER_MODELS = [
+  { value: "google/gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite" },
+  { value: "x-ai/grok-code-fast-1", label: "Grok Code Fast 1" },
+  { value: "x-ai/grok-4-fast", label: "Grok 4 Fast" },
+  { value: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash" },
+];
+
 // Default values
 const DEFAULTS = {
-  MODEL: "google/gemini-2.5-flash-lite",
+  MODEL_SUMMARIZER: "google/gemini-2.5-flash",
+  MODEL_REFINER: "google/gemini-2.5-flash-lite",
   AUTO_GENERATE: false,
   SHOW_SUBTITLES: true, // Subtitles shown by default
 };

@@ -14,48 +14,67 @@ document.addEventListener("DOMContentLoaded", function () {
   // Form inputs
   const scrapeApiKey = document.getElementById("scrapeApiKey");
   const openrouterApiKey = document.getElementById("openrouterApiKey");
-  const recommendedModel = document.getElementById("recommendedModel");
-  const customModel = document.getElementById("customModel");
+  const summarizerRecommendedModel = document.getElementById("summarizerRecommendedModel");
+  const refinerRecommendedModel = document.getElementById("refinerRecommendedModel");
+  const summarizerCustomModel = document.getElementById("summarizerCustomModel");
+  const refinerCustomModel = document.getElementById("refinerCustomModel");
   const autoGenerateToggle = document.getElementById("autoGenerateToggle");
   const showSubtitlesToggle = document.getElementById("showSubtitlesToggle");
 
-  function addModelOption(value, label) {
-    if (!recommendedModel || !value) return;
-
-    const exists = Array.from(recommendedModel.options).some(
-      (option) => option.value === value
-    );
-
-    if (!exists) {
-      const option = document.createElement("option");
-      option.value = value;
-      option.textContent = label || value;
-      recommendedModel.appendChild(option);
-    }
-  }
-
-  function getModelLabel(value) {
-    if (!Array.isArray(RECOMMENDED_MODELS)) {
+  function getModelLabel(value, list = RECOMMENDED_MODELS) {
+    if (!Array.isArray(list)) {
       return value;
     }
 
-    const match = RECOMMENDED_MODELS.find((model) => model.value === value);
+    const match = list.find((model) => model.value === value);
     return match ? match.label : value;
   }
 
   function populateModelOptions() {
-    if (!recommendedModel) return;
+    // Populate summarizer
+    if (summarizerRecommendedModel) {
+      summarizerRecommendedModel.innerHTML = '<option value="" disabled selected hidden>Select a model</option>';
 
-    recommendedModel.innerHTML = "";
+      if (Array.isArray(RECOMMENDED_SUMMARIZER_MODELS) && RECOMMENDED_SUMMARIZER_MODELS.length > 0) {
+        RECOMMENDED_SUMMARIZER_MODELS.forEach((model) => {
+          const option = document.createElement("option");
+          option.value = model.value;
+          option.textContent = model.label || model.value;
+          summarizerRecommendedModel.appendChild(option);
+        });
+      }
 
-    if (Array.isArray(RECOMMENDED_MODELS) && RECOMMENDED_MODELS.length > 0) {
-      RECOMMENDED_MODELS.forEach((model) => {
-        addModelOption(model.value, model.label);
-      });
+      if (DEFAULTS && DEFAULTS.MODEL_SUMMARIZER) {
+        const defaultOption = document.createElement("option");
+        defaultOption.value = DEFAULTS.MODEL_SUMMARIZER;
+        defaultOption.textContent = getModelLabel(DEFAULTS.MODEL_SUMMARIZER, RECOMMENDED_SUMMARIZER_MODELS);
+        if (!Array.from(summarizerRecommendedModel.options).some(opt => opt.value === DEFAULTS.MODEL_SUMMARIZER)) {
+          summarizerRecommendedModel.appendChild(defaultOption);
+        }
+      }
     }
 
-    if (DEFAULTS && DEFAULTS.MODEL) {
-      addModelOption(DEFAULTS.MODEL, getModelLabel(DEFAULTS.MODEL));
+    // Populate refiner
+    if (refinerRecommendedModel) {
+      refinerRecommendedModel.innerHTML = '<option value="" disabled selected hidden>Select a model</option>';
+
+      if (Array.isArray(RECOMMENDED_REFINER_MODELS) && RECOMMENDED_REFINER_MODELS.length > 0) {
+        RECOMMENDED_REFINER_MODELS.forEach((model) => {
+          const option = document.createElement("option");
+          option.value = model.value;
+          option.textContent = model.label || model.value;
+          refinerRecommendedModel.appendChild(option);
+        });
+      }
+
+      if (DEFAULTS && DEFAULTS.MODEL_REFINER) {
+        const defaultOption = document.createElement("option");
+        defaultOption.value = DEFAULTS.MODEL_REFINER;
+        defaultOption.textContent = getModelLabel(DEFAULTS.MODEL_REFINER, RECOMMENDED_REFINER_MODELS);
+        if (!Array.from(refinerRecommendedModel.options).some(opt => opt.value === DEFAULTS.MODEL_REFINER)) {
+          refinerRecommendedModel.appendChild(defaultOption);
+        }
+      }
     }
   }
 
@@ -119,14 +138,16 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // Load Settings
+  // Load Settings - update
   function loadSettings() {
     chrome.storage.local.get(
       [
         STORAGE_KEYS.SCRAPE_CREATORS_API_KEY,
         STORAGE_KEYS.OPENROUTER_API_KEY,
-        STORAGE_KEYS.RECOMMENDED_MODEL,
-        STORAGE_KEYS.CUSTOM_MODEL,
+        STORAGE_KEYS.SUMMARIZER_RECOMMENDED_MODEL,
+        STORAGE_KEYS.SUMMARIZER_CUSTOM_MODEL,
+        STORAGE_KEYS.REFINER_RECOMMENDED_MODEL,
+        STORAGE_KEYS.REFINER_CUSTOM_MODEL,
         STORAGE_KEYS.AUTO_GENERATE,
         STORAGE_KEYS.SHOW_SUBTITLES,
       ],
@@ -138,35 +159,22 @@ document.addEventListener("DOMContentLoaded", function () {
           openrouterApiKey.value = result[STORAGE_KEYS.OPENROUTER_API_KEY];
         }
 
-        const storedModel = result[STORAGE_KEYS.RECOMMENDED_MODEL];
-        const defaultModel = DEFAULTS ? DEFAULTS.MODEL : "";
-        
-        // Validate stored model - check if it exists in RECOMMENDED_MODELS
-        const isValidModel = storedModel && Array.isArray(RECOMMENDED_MODELS) && 
-          RECOMMENDED_MODELS.some((model) => model.value === storedModel);
-        
-        // If stored model is invalid, clear it and use default
-        let activeModel = storedModel;
-        if (storedModel && !isValidModel) {
-          console.log(`Popup: Clearing invalid stored model: ${storedModel}`);
-          activeModel = defaultModel;
-          // Clear the invalid value from storage
-          chrome.storage.local.set({ [STORAGE_KEYS.RECOMMENDED_MODEL]: defaultModel });
-        } else if (!storedModel) {
-          activeModel = defaultModel;
+        // Summarizer
+        let summarizerRec = result[STORAGE_KEYS.SUMMARIZER_RECOMMENDED_MODEL];
+        if (summarizerRecommendedModel) {
+          summarizerRecommendedModel.value = summarizerRec || DEFAULTS.MODEL_SUMMARIZER;
         }
 
-        if (recommendedModel) {
-          recommendedModel.value = activeModel;
-
-          if (!recommendedModel.value && defaultModel) {
-            recommendedModel.value = defaultModel;
-          }
+        if (result[STORAGE_KEYS.SUMMARIZER_CUSTOM_MODEL]) {
+          const trimmed = result[STORAGE_KEYS.SUMMARIZER_CUSTOM_MODEL].trim();
+          summarizerCustomModel.value = trimmed || '';
         }
 
-        if (result[STORAGE_KEYS.CUSTOM_MODEL]) {
-          customModel.value = result[STORAGE_KEYS.CUSTOM_MODEL];
+        if (result[STORAGE_KEYS.REFINER_CUSTOM_MODEL]) {
+          const trimmed = result[STORAGE_KEYS.REFINER_CUSTOM_MODEL].trim();
+          refinerCustomModel.value = trimmed || '';
         }
+
         autoGenerateToggle.checked = result[STORAGE_KEYS.AUTO_GENERATE] === true;
         const showSubtitlesValue =
           result[STORAGE_KEYS.SHOW_SUBTITLES] !== undefined
@@ -179,20 +187,17 @@ document.addEventListener("DOMContentLoaded", function () {
     );
   }
 
-  // Save Settings
+  // Save Settings - update
   saveBtn.addEventListener("click", function () {
-    const selectedModelRaw = recommendedModel && recommendedModel.value ? recommendedModel.value : DEFAULTS.MODEL;
-    const selectedModel = typeof selectedModelRaw === "string" && selectedModelRaw.trim()
-      ? selectedModelRaw.trim()
-      : DEFAULTS.MODEL;
-    const customModelRaw = customModel.value.trim();
     const showSubtitlesValue = showSubtitlesToggle ? showSubtitlesToggle.checked : DEFAULTS.SHOW_SUBTITLES;
 
     const settings = {
       [STORAGE_KEYS.SCRAPE_CREATORS_API_KEY]: scrapeApiKey.value.trim(),
       [STORAGE_KEYS.OPENROUTER_API_KEY]: openrouterApiKey.value.trim(),
-      [STORAGE_KEYS.RECOMMENDED_MODEL]: selectedModel,
-      [STORAGE_KEYS.CUSTOM_MODEL]: customModelRaw,
+      [STORAGE_KEYS.SUMMARIZER_RECOMMENDED_MODEL]: summarizerRecommendedModel ? summarizerRecommendedModel.value.trim() : DEFAULTS.MODEL_SUMMARIZER,
+      [STORAGE_KEYS.SUMMARIZER_CUSTOM_MODEL]: summarizerCustomModel ? summarizerCustomModel.value.trim() || '' : '',
+      [STORAGE_KEYS.REFINER_RECOMMENDED_MODEL]: refinerRecommendedModel ? refinerRecommendedModel.value.trim() : DEFAULTS.MODEL_REFINER,
+      [STORAGE_KEYS.REFINER_CUSTOM_MODEL]: refinerCustomModel ? refinerCustomModel.value.trim() || '' : '',
       [STORAGE_KEYS.AUTO_GENERATE]: autoGenerateToggle.checked,
       [STORAGE_KEYS.SHOW_SUBTITLES]: showSubtitlesValue,
     };
@@ -429,7 +434,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return div.innerHTML;
   }
 
-  // Generate Summary
+  // Generate Summary - update
   generateBtn.addEventListener("click", function () {
     if (generateBtn.disabled) return;
 
@@ -441,8 +446,10 @@ document.addEventListener("DOMContentLoaded", function () {
       [
         STORAGE_KEYS.SCRAPE_CREATORS_API_KEY,
         STORAGE_KEYS.OPENROUTER_API_KEY,
-        STORAGE_KEYS.RECOMMENDED_MODEL,
-        STORAGE_KEYS.CUSTOM_MODEL,
+        STORAGE_KEYS.SUMMARIZER_RECOMMENDED_MODEL,
+        STORAGE_KEYS.SUMMARIZER_CUSTOM_MODEL,
+        STORAGE_KEYS.REFINER_RECOMMENDED_MODEL,
+        STORAGE_KEYS.REFINER_CUSTOM_MODEL,
       ],
       function (result) {
         const scrapeKey = result[STORAGE_KEYS.SCRAPE_CREATORS_API_KEY];
@@ -462,16 +469,15 @@ document.addEventListener("DOMContentLoaded", function () {
           return;
         }
 
-        const customModelValue = result[STORAGE_KEYS.CUSTOM_MODEL]?.trim();
-        const storedRecommendedValue = result[STORAGE_KEYS.RECOMMENDED_MODEL]?.trim();
-        const uiRecommendedValue = recommendedModel && recommendedModel.value ? recommendedModel.value.trim() : "";
-        const modelSelection =
-          customModelValue ||
-          storedRecommendedValue ||
-          uiRecommendedValue ||
-          DEFAULTS.MODEL;
+        const summarizerCustomValue = result[STORAGE_KEYS.SUMMARIZER_CUSTOM_MODEL]?.trim();
+        const summarizerRecommendedValue = result[STORAGE_KEYS.SUMMARIZER_RECOMMENDED_MODEL]?.trim();
+        const refinerCustomValue = result[STORAGE_KEYS.REFINER_CUSTOM_MODEL]?.trim();
+        const refinerRecommendedValue = result[STORAGE_KEYS.REFINER_RECOMMENDED_MODEL]?.trim();
 
-        console.log("Popup: Generate Summary using model:", modelSelection);
+        const summarizerModel = summarizerCustomValue || summarizerRecommendedValue || DEFAULTS.MODEL_SUMMARIZER;
+        const refinerModel = refinerCustomValue || refinerRecommendedValue || DEFAULTS.MODEL_REFINER;
+
+        console.log("Popup: Generate Summary using summarizer:", summarizerModel, "refiner:", refinerModel);
 
         // Show loading state
         status.textContent = "Generating summary...";
@@ -506,7 +512,8 @@ document.addEventListener("DOMContentLoaded", function () {
               videoId: videoId,
               scrapeCreatorsApiKey: scrapeKey,
               openRouterApiKey: openrouterKey,
-              modelSelection: modelSelection,
+              summarizerModel: summarizerModel,
+              refinerModel: refinerModel,
             },
             function (response) {
               if (chrome.runtime.lastError) {
@@ -532,24 +539,91 @@ document.addEventListener("DOMContentLoaded", function () {
   // Listen for messages from background/content script
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === MESSAGE_ACTIONS.SHOW_ERROR) {
-      // Display error message
-      status.textContent = `Error: ${message.error}`;
       status.className = "status error";
       
-      // Show error notification
-      if (message.error.includes("is not a valid model ID")) {
+      const error = message.error.toLowerCase();
+      const isModelError = error.includes('invalid model') || error.includes('not a valid model id') || error.includes('model not found') || error.includes('openrouter');
+      
+      if (isModelError && (summarizerCustomModel || refinerCustomModel)) {
+        // Clear custom models on validation failure
+        const clears = {};
+        let clearedCount = 0;
+        if (summarizerCustomModel && summarizerCustomModel.value.trim()) {
+          summarizerCustomModel.value = '';
+          clears[STORAGE_KEYS.SUMMARIZER_CUSTOM_MODEL] = '';
+          clearedCount++;
+        }
+        if (refinerCustomModel && refinerCustomModel.value.trim()) {
+          refinerCustomModel.value = '';
+          clears[STORAGE_KEYS.REFINER_CUSTOM_MODEL] = '';
+          clearedCount++;
+        }
+        
+        if (Object.keys(clears).length > 0) {
+          chrome.storage.local.set(clears, () => {
+            console.log('Popup: Cleared invalid custom models');
+          });
+          status.textContent = "Model name might be wrong. Invalid custom models cleared—now using recommended.";
+        } else {
+          status.textContent = "Model name might be wrong. Please check your settings.";
+        }
+        
+        // Show alert with details
+        alert(`Model Error: ${message.error}\n\nInvalid custom model input detected and cleared. Now using recommended models for summarizer and refiner. Please check your custom model entries if needed.`);
+      } else if (isModelError) {
+        status.textContent = "Model name might be wrong. Please check your settings.";
         alert(`Model Error: ${message.error}\n\nPlease check your model selection in Settings and ensure it's a valid OpenRouter model ID.`);
+      } else {
+        // Non-model errors: show full error
+        status.textContent = `Error: ${message.error}`;
       }
     } else if (message.action === MESSAGE_ACTIONS.UPDATE_POPUP_STATUS) {
-      status.textContent = message.text;
-      
       if (message.error) {
         status.className = "status error";
         generateBtn.disabled = false;
         summaryContent.innerHTML = '<div class="summary-placeholder">Failed to generate summary. Please try again.</div>';
+        
+        // Also check for model errors here
+        const error = message.error.toLowerCase();
+        const isModelError = error.includes('invalid model') || error.includes('not a valid model id') || error.includes('model not found') || error.includes('openrouter');
+        
+        if (isModelError && (summarizerCustomModel || refinerCustomModel)) {
+          // Clear custom models (same logic as above)
+          const clears = {};
+          let clearedCount = 0;
+          if (summarizerCustomModel && summarizerCustomModel.value.trim()) {
+            summarizerCustomModel.value = '';
+            clears[STORAGE_KEYS.SUMMARIZER_CUSTOM_MODEL] = '';
+            clearedCount++;
+          }
+          if (refinerCustomModel && refinerCustomModel.value.trim()) {
+            refinerCustomModel.value = '';
+            clears[STORAGE_KEYS.REFINER_CUSTOM_MODEL] = '';
+            clearedCount++;
+          }
+          
+          if (Object.keys(clears).length > 0) {
+            chrome.storage.local.set(clears, () => {
+              console.log('Popup: Cleared invalid custom models');
+            });
+            status.textContent = "Model name might be wrong. Invalid custom models cleared—now using recommended.";
+          } else {
+            status.textContent = "Model name might be wrong. Please check your settings.";
+          }
+          
+          // Optional alert for details (or keep silent since it's status update)
+          // alert(`Model Error: ${message.error}\n\nPlease check your settings.`);
+        } else if (isModelError) {
+          status.textContent = "Model name might be wrong. Please check your settings.";
+          // alert if needed
+        } else {
+          status.textContent = message.text || `Error: ${message.error}`;
+        }
       } else if (message.success) {
         status.className = "status success";
         generateBtn.disabled = false;
+      } else {
+        status.textContent = message.text;
       }
     } else if (message.action === "SUMMARY_GENERATED") {
       if (message.summary) {
