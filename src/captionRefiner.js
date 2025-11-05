@@ -386,6 +386,12 @@ async function refineTranscriptWithLLM(
       },
     },
     temperature: 0,
+    use_responses_api: true,
+    reasoning: { effort: "minimal" },
+    extra_body: {
+      include_reasoning: false,
+      provider: { sort: "throughput" },
+    },
   });
 
   // System prompt
@@ -475,7 +481,11 @@ had been had, you missed out big time. I`;
     const chunkIdx = info.chunkIdx;
     const expectedLineCount = info.expectedLineCount;
 
-    const refinedText = response.content;
+    // With use_responses_api, access content via content_blocks
+    const refinedText =
+      response.content_blocks && response.content_blocks.length > 0
+        ? response.content_blocks[response.content_blocks.length - 1].text
+        : response.content;
     const refinedLines = refinedText.trim().split("\n");
     const actualLineCount = refinedLines.length;
 
