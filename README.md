@@ -15,11 +15,12 @@ This extension fetches the transcript reliably via an API (to avoid bot detectio
 - ✨ **AI-Powered Caption Refinement**: Automatically fixes typos and grammar errors in YouTube transcripts using OpenRouter
 - 🔄 **Auto-Generation**: Automatically generate and refine captions for new videos
 - 💾 **Local Storage**: Captions are cached locally per video for instant playback
-- 🎛️ **Model Selection**: Choose your preferred AI model from OpenRouter
+- 🎛️ **Model Selection**: Choose separate AI models for summarization and caption refinement from OpenRouter
 - 👁️ **Toggle Display**: Show or hide captions on videos with a simple toggle
 - 📦 **Smart Storage Management**: Automatic cleanup to manage Chrome's 10MB storage limit
 - 🔑 **Your Own API Keys**: Use your Scrape Creators and OpenRouter API keys
- - 🧠 **Summarization & Analysis**: Processed captions enable high‑quality summaries and deeper analysis
+- 🧠 **Summarization & Analysis**: Processed captions enable high‑quality summaries and deeper analysis
+- 🎨 **Font Size Controls**: Adjust caption and summary font sizes (S/M/L) for better readability
 
 ## Installation
 
@@ -65,8 +66,11 @@ If you don't have Node.js installed (or prefer not to build):
    - Click the extension icon in your Chrome toolbar
    - Go to **Settings** tab
    - Enter your Scrape Creators API key (required)
-   - Enter your OpenRouter API key (optional, for refinement)
-   - Select your preferred AI model (default: `google/gemini-2.5-flash-lite`)
+   - Enter your OpenRouter API key (required for refinement and summarization)
+   - Select your preferred AI models:
+     - **Summarizer Model** (default: `x-ai/grok-4-fast`) - for generating summaries
+     - **Refiner Model** (default: `google/gemini-2.5-flash-lite-preview-09-2025`) - for refining captions
+   - Adjust font sizes for captions and summaries (S/M/L)
    - Click **Save Settings**
 
 ## How to Use
@@ -93,34 +97,9 @@ If you don't have Node.js installed (or prefer not to build):
 - Use the **Show subtitles on video** toggle to show/hide captions
 - Setting persists across page reloads
 
-## Architecture
-
-- **background.js**: Service worker; handles API calls, imports bundles from `dist/`.
-- **src/captionRefiner.js**: LLM-based transcript refinement (LangChain batch, OpenRouter).
-- **src/captionSummarizer.js**: LangGraph workflow for summary generation (analysis + quality loop, Zod schemas).
-- **content.js/popup.js**: UI integration (display captions, summaries).
-- **src/utils/**: Helpers (storage, messaging, errors).
-
-### Bundling
-
-Uses esbuild for LangChain deps (browser-compatible IIFE bundles).
-- Run `npm run build` to build bundles.
-- Watch mode: `npm run build:watch` (auto-rebuilds on changes).
-
-### Dependencies
-
-- **JS**: `@langchain/openai`, `@langchain/langgraph`, `zod`, `esbuild` (dev).
-- **Python (tests)**: `langchain`, `pydantic`, `requests`, `dotenv` (optional, for testing).
-
-## Testing
-
-- **JS**: `node test_captionSummarizer.js` or `node test_captionRefiner.js`.
-- **Python**: `uv run python test.py` (refinement example).
-
-## Why These APIs
-
-- **Scrape Creators API**: A reliable transcript source that avoids the hassle of scraping and bot detection. It returns consistent, structured data from YouTube at scale.
-- **OpenRouter**: A single interface to many model providers, letting you pick the best option for quality or cost. It also includes some free models to get started quickly.
+### Font Size Controls
+- Adjust caption font size (S/M/L) in Settings - changes apply immediately to video captions
+- Adjust summary font size (S/M/L) in Settings - changes apply to summary display in popup
 
 ## Segment Parser Algorithm
 
@@ -193,46 +172,3 @@ const aligned = parseRefinedSegments(
 // Returns the same number of segments as originals, but with refined text
 // and original timestamps preserved.
 ```
-
-## Packaging & Deployment
-
-To distribute the extension without requiring users to build (no Node.js needed):
-
-### GitHub Releases (Manual)
-
-1. **Build bundles**:
-   ```bash
-   npm run build
-   ```
-
-2. **Create ZIP** (exclude source files, tests, node_modules):
-   ```bash
-   zip -r extension.zip \
-     dist/*.bundle.js \
-     dist/*.bundle.js.map \
-     manifest.json \
-     background.js \
-     content.js \
-     popup.html \
-     popup.js \
-     subtitles.css \
-     config.js \
-     images/ \
-     -x "node_modules/*" -x "*.git*" -x "src/*" -x "test*" -x "*.md" -x "*.py" -x "*.json" -x "*.lock"
-   ```
-
-3. **Upload to GitHub Releases**:
-   - Go to your repo → Releases → "Draft a new release"
-   - Tag: `v1.0.0` (or version)
-   - Upload `extension.zip`
-   - Users download ZIP → Extract → Load unpacked
-
-### Automated CI (GitHub Actions)
-
-The repository includes `.github/workflows/build.yml` for auto-build on push/release:
-
-- **On push**: Download ZIP from Actions → Artifacts tab
-- **On release**: Tag (`git tag v1.0.0 && git push --tags`) → ZIP auto-uploads to Releases
-
-This ensures easy installation for all users without Node.js requirements.
-
