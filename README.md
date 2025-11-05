@@ -24,37 +24,35 @@ This extension fetches the transcript reliably via an API (to avoid bot detectio
 
 ## Installation
 
-### With Node.js (Recommended for Development)
+### Quick Installation (No Build Required)
 
-1. Clone or download this repository to your local machine.
-2. **Install dependencies**:
+The repository includes pre-built bundles, so you can use the extension immediately:
+
+1. **Clone or download** this repository to your local machine.
+2. Open Chrome and navigate to `chrome://extensions/`.
+3. Enable **Developer Mode** (toggle in the top-right corner).
+4. Click **Load unpacked** and select the folder containing this project.
+5. The extension will now appear in your Chrome extensions list.
+
+**That's it!** The bundles are already included in the repository, so no build step is required.
+
+### Development Setup (Optional)
+
+If you want to modify the code or rebuild bundles:
+
+1. **Install dependencies**:
    ```bash
    npm install
    ```
-3. **Build bundles** (required for LangChain workflows):
+2. **Build bundles** (if you modify `src/captionRefiner.js` or `src/captionSummarizer.js`):
    ```bash
    npm run build
    ```
-   This generates `dist/captionSummarizer.bundle.js` and `dist/captionRefiner.bundle.js` needed by the extension.
-4. Open Chrome and navigate to `chrome://extensions/`.
-5. Enable **Developer Mode** (toggle in the top-right corner).
-6. Click **Load unpacked** and select the folder containing this project.
-7. The extension will now appear in your Chrome extensions list.
+   This regenerates `dist/captionSummarizer.bundle.js` and `dist/captionRefiner.bundle.js`.
 
 **Development**: Use `npm run build:watch` for auto-rebuild during development.
 
-### No Node.js? (Simple Installation)
-
-If you don't have Node.js installed (or prefer not to build):
-
-1. **Download a pre-built release** from GitHub Releases (see "Packaging & Deployment" below).
-2. Extract the ZIP file (includes ready `dist/` bundles).
-3. Open Chrome and navigate to `chrome://extensions/`.
-4. Enable **Developer Mode** (toggle in the top-right corner).
-5. Click **Load unpacked** and select the extracted folder.
-6. The extension will now appear in your Chrome extensions list.
-
-**Note**: Pre-built releases skip the build step—bundles are already compiled. For custom changes or development, install Node.js from [nodejs.org](https://nodejs.org/) and follow the full setup above.
+**Note**: For regular users, the pre-built bundles included in the repository are sufficient. Only rebuild if you're making code changes.
 
 ## Setup
 
