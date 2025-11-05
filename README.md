@@ -1,8 +1,8 @@
 # Better YouTube Caption
 
-<img src="images/main.png" alt="Main Screenshot" width="70%">
+<img src="images/main.png" alt="Main Screenshot" width="50%">
 
-<img src="images/setting.png" alt="Settings Screenshot" width="70%">
+<img src="images/setting.png" alt="Settings Screenshot" width="50%">
 
 YouTube's auto captions keep improving and are often decent, but they still contain typos, missing punctuation, and jittery line changes because they’re produced by near real‑time transcription without much global context. This project uses an LLM to refine those captions into clean, readable subtitles while preserving original timing. The refined transcript also unlocks comprehensive summarization and downstream analysis of the video content.
 
