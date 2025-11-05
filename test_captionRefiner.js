@@ -28,7 +28,7 @@ global.API_ENDPOINTS = {
 };
 
 // Import the refiner (using source)
-const { refineTranscriptWithLLM } = await import("./src/refiner.js");
+const { refineTranscriptWithLLM } = await import("./src/captionRefiner.js");
 
 /**
  * Get video data from Scrape Creators API

@@ -28,7 +28,7 @@ global.API_ENDPOINTS = {
 };
 
 // Import the workflow (using source, not bundle)
-const workflowModule = await import("./src/summaryWorkflow.js");
+const workflowModule = await import("./src/captionSummarizer.js");
 
 /**
  * Get transcript from Scrape Creators API
