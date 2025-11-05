@@ -5,11 +5,13 @@ document.addEventListener("DOMContentLoaded", function () {
   const settingsBtn = document.getElementById("settingsBtn");
   const backBtn = document.getElementById("backBtn");
   const generateBtn = document.getElementById("generateBtn");
-  const saveBtn = document.getElementById("saveBtn");
   const videoTitle = document.getElementById("videoTitle");
   const summaryContent = document.getElementById("summaryContent");
   const status = document.getElementById("status");
-  const settingsStatus = document.getElementById("settingsStatus");
+
+  // Ensure status is empty on load
+  // settingsStatus.textContent = ''; // Removed
+  // settingsStatus.className = "settings-header-status"; // Removed
 
   // Form inputs
   const scrapeApiKey = document.getElementById("scrapeApiKey");
@@ -132,6 +134,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
           // Set hidden input
           hiddenInput.value = value;
+          saveSetting(hiddenInput.id, value);
         }
       });
     });
@@ -336,60 +339,103 @@ document.addEventListener("DOMContentLoaded", function () {
     );
   }
 
-  // Save Settings - update
-  saveBtn.addEventListener("click", function () {
-    const showSubtitlesValue = showSubtitlesToggle ? showSubtitlesToggle.checked : DEFAULTS.SHOW_SUBTITLES;
-
-    const settings = {
-      [STORAGE_KEYS.SCRAPE_CREATORS_API_KEY]: scrapeApiKey.value.trim(),
-      [STORAGE_KEYS.OPENROUTER_API_KEY]: openrouterApiKey.value.trim(),
-      [STORAGE_KEYS.SUMMARIZER_RECOMMENDED_MODEL]: document.getElementById('summarizerRecommendedModel').value.trim() || DEFAULTS.MODEL_SUMMARIZER,
-      [STORAGE_KEYS.SUMMARIZER_CUSTOM_MODEL]: summarizerCustomModel ? summarizerCustomModel.value.trim() || '' : '',
-      [STORAGE_KEYS.REFINER_RECOMMENDED_MODEL]: document.getElementById('refinerRecommendedModel').value.trim() || DEFAULTS.MODEL_REFINER,
-      [STORAGE_KEYS.REFINER_CUSTOM_MODEL]: refinerCustomModel ? refinerCustomModel.value.trim() || '' : '',
-      [STORAGE_KEYS.AUTO_GENERATE]: autoGenerateToggle.checked,
-      [STORAGE_KEYS.SHOW_SUBTITLES]: showSubtitlesValue,
-    };
-
+  function saveSetting(key, value) {
+    const settings = { [key]: value };
     chrome.storage.local.set(settings, function () {
-      settingsStatus.textContent = "Settings saved successfully!";
-      settingsStatus.className = "status success";
-
-      chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-        const currentTab = tabs[0];
-        if (
-          currentTab &&
-          typeof settings[STORAGE_KEYS.SHOW_SUBTITLES] === "boolean" &&
-          currentTab.url &&
-          currentTab.url.includes("youtube.com/watch")
-        ) {
-          const enabled = settings[STORAGE_KEYS.SHOW_SUBTITLES];
-          chrome.tabs.sendMessage(
-            currentTab.id,
-            {
-              action: MESSAGE_ACTIONS.TOGGLE_SUBTITLES,
-              showSubtitles: enabled,
-              enabled: enabled,
-            },
-            () => {
-              if (chrome.runtime.lastError) {
-                // Silently handle - content script might not be ready yet
-                console.debug(
-                  "Popup: Unable to forward toggle to content script:",
-                  chrome.runtime.lastError.message
-                );
-              }
-            }
-          );
-        }
-      });
-
-      setTimeout(() => {
-        settingsStatus.textContent = "";
-        settingsStatus.className = "status";
-      }, 3000);
+      console.debug('Auto-saved:', key, value);
     });
-  });
+  }
+
+  // Add event listeners after loadSettings() in DOMContentLoaded
+  // For API keys
+  if (scrapeApiKey) {
+    scrapeApiKey.addEventListener('input', function() {
+      saveSetting(STORAGE_KEYS.SCRAPE_CREATORS_API_KEY, this.value.trim());
+    });
+  }
+
+  if (openrouterApiKey) {
+    openrouterApiKey.addEventListener('input', function() {
+      saveSetting(STORAGE_KEYS.OPENROUTER_API_KEY, this.value.trim());
+    });
+  }
+
+  // For custom models
+  if (summarizerCustomModel) {
+    summarizerCustomModel.addEventListener('input', function() {
+      saveSetting(STORAGE_KEYS.SUMMARIZER_CUSTOM_MODEL, this.value.trim());
+    });
+  }
+
+  if (refinerCustomModel) {
+    refinerCustomModel.addEventListener('input', function() {
+      saveSetting(STORAGE_KEYS.REFINER_CUSTOM_MODEL, this.value.trim());
+    });
+  }
+
+  // For toggle - already has change, but update to use saveSetting
+  if (autoGenerateToggle) {
+    autoGenerateToggle.addEventListener('change', function() {
+      saveSetting(STORAGE_KEYS.AUTO_GENERATE, this.checked);
+    });
+  }
+
+  // For custom selects, update the click handler in populateModelOptions (around line 150-200 in items.addEventListener):
+  // After hiddenInput.value = value;
+  // saveSetting(hiddenInput.id, value); // This line was removed from the new_code, so it's removed here.
+
+  // Save Settings - update
+  // Removed: const showSubtitlesValue = showSubtitlesToggle ? showSubtitlesToggle.checked : DEFAULTS.SHOW_SUBTITLES;
+
+  // Removed: const settings = {
+  // Removed:   [STORAGE_KEYS.SCRAPE_CREATORS_API_KEY]: scrapeApiKey.value.trim(),
+  // Removed:   [STORAGE_KEYS.OPENROUTER_API_KEY]: openrouterApiKey.value.trim(),
+  // Removed:   [STORAGE_KEYS.SUMMARIZER_RECOMMENDED_MODEL]: document.getElementById('summarizerRecommendedModel').value.trim() || DEFAULTS.MODEL_SUMMARIZER,
+  // Removed:   [STORAGE_KEYS.SUMMARIZER_CUSTOM_MODEL]: summarizerCustomModel ? summarizerCustomModel.value.trim() || '' : '',
+  // Removed:   [STORAGE_KEYS.REFINER_RECOMMENDED_MODEL]: document.getElementById('refinerRecommendedModel').value.trim() || DEFAULTS.MODEL_REFINER,
+  // Removed:   [STORAGE_KEYS.REFINER_CUSTOM_MODEL]: refinerCustomModel ? refinerCustomModel.value.trim() || '' : '',
+  // Removed:   [STORAGE_KEYS.AUTO_GENERATE]: autoGenerateToggle.checked,
+  // Removed:   [STORAGE_KEYS.SHOW_SUBTITLES]: showSubtitlesValue,
+  // Removed: };
+
+  // Removed: chrome.storage.local.set(settings, function () {
+  // Removed:   settingsStatus.textContent = "Settings saved successfully!";
+  // Removed:   settingsStatus.className = "settings-header-status success";
+
+  // Removed:   chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+  // Removed:     const currentTab = tabs[0];
+  // Removed:     if (
+  // Removed:       currentTab &&
+  // Removed:       typeof settings[STORAGE_KEYS.SHOW_SUBTITLES] === "boolean" &&
+  // Removed:       currentTab.url &&
+  // Removed:       currentTab.url.includes("youtube.com/watch")
+  // Removed:     ) {
+  // Removed:       const enabled = settings[STORAGE_KEYS.SHOW_SUBTITLES];
+  // Removed:       chrome.tabs.sendMessage(
+  // Removed:         currentTab.id,
+  // Removed:         {
+  // Removed:           action: MESSAGE_ACTIONS.TOGGLE_SUBTITLES,
+  // Removed:           showSubtitles: enabled,
+  // Removed:           enabled: enabled,
+  // Removed:         },
+  // Removed:         () => {
+  // Removed:           if (chrome.runtime.lastError) {
+  // Removed:             // Silently handle - content script might not be ready yet
+  // Removed:             console.debug(
+  // Removed:               "Popup: Unable to forward toggle to content script:",
+  // Removed:               chrome.runtime.lastError.message
+  // Removed:             );
+  // Removed:           }
+  // Removed:         }
+  // Removed:       );
+  // Removed:     }
+  // Removed:   });
+
+  // Removed:   setTimeout(() => {
+  // Removed:     settingsStatus.textContent = "";
+  // Removed:     settingsStatus.className = "status";
+  // Removed:   }, 3000);
+  // Removed: });
 
   // Load Current Video Info
   function loadCurrentVideo() {
@@ -712,15 +758,16 @@ document.addEventListener("DOMContentLoaded", function () {
           chrome.storage.local.set(clears, () => {
             console.log('Popup: Cleared invalid custom models');
           });
-          status.textContent = "Model name might be wrong. Invalid custom models cleared—now using recommended.";
+          // settingsStatus.textContent = "Model name might be wrong. Invalid custom models cleared—now using recommended."; // Removed
+          // settingsStatus.className = "settings-header-status error"; // Removed
         } else {
-          status.textContent = "Model name might be wrong. Please check your settings.";
+          // settingsStatus.textContent = "Model name might be wrong. Please check your settings."; // Removed
         }
         
         // Show alert with details
         alert(`Model Error: ${message.error}\n\nInvalid custom model input detected and cleared. Now using recommended models for summarizer and refiner. Please check your custom model entries if needed.`);
       } else if (isModelError) {
-        status.textContent = "Model name might be wrong. Please check your settings.";
+        // settingsStatus.textContent = "Model name might be wrong. Please check your settings."; // Removed
         alert(`Model Error: ${message.error}\n\nPlease check your model selection in Settings and ensure it's a valid OpenRouter model ID.`);
       } else {
         // Non-model errors: show full error
@@ -755,15 +802,16 @@ document.addEventListener("DOMContentLoaded", function () {
             chrome.storage.local.set(clears, () => {
               console.log('Popup: Cleared invalid custom models');
             });
-            status.textContent = "Model name might be wrong. Invalid custom models cleared—now using recommended.";
+            // settingsStatus.textContent = "Model name might be wrong. Invalid custom models cleared—now using recommended."; // Removed
+            // settingsStatus.className = "settings-header-status error"; // Removed
           } else {
-            status.textContent = "Model name might be wrong. Please check your settings.";
+            // settingsStatus.textContent = "Model name might be wrong. Please check your settings."; // Removed
           }
           
           // Optional alert for details (or keep silent since it's status update)
           // alert(`Model Error: ${message.error}\n\nPlease check your settings.`);
         } else if (isModelError) {
-          status.textContent = "Model name might be wrong. Please check your settings.";
+          // settingsStatus.textContent = "Model name might be wrong. Please check your settings."; // Removed
           // alert if needed
         } else {
           status.textContent = message.text || `Error: ${message.error}`;
@@ -794,6 +842,82 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       generateBtn.disabled = false;
     }
+  });
+
+  // Add tooltip delay functionality for easier URL copying
+  const infoIcons = document.querySelectorAll('.info-icon');
+  const iconTooltips = new Map(); // Track icon -> tooltip element
+  
+  infoIcons.forEach(icon => {
+    // Wrap icon if not already wrapped
+    let wrapper = icon.parentElement;
+    if (!wrapper || !wrapper.classList.contains('info-icon-wrapper')) {
+      wrapper = document.createElement('span');
+      wrapper.className = 'info-icon-wrapper';
+      icon.parentNode.insertBefore(wrapper, icon);
+      wrapper.appendChild(icon);
+    }
+    
+    // Create tooltip element and append to wrapper
+    const tooltip = document.createElement('div');
+    tooltip.className = 'info-tooltip';
+    tooltip.textContent = icon.getAttribute('data-tooltip');
+    wrapper.appendChild(tooltip);
+    
+    // Store reference
+    iconTooltips.set(icon, { tooltip: tooltip, hideTimeout: null });
+
+    icon.addEventListener('mouseenter', function() {
+      const state = iconTooltips.get(this);
+      if (!state) return;
+      
+      // Clear any pending hide timeout
+      if (state.hideTimeout) {
+        clearTimeout(state.hideTimeout);
+        state.hideTimeout = null;
+      }
+      
+      // Show tooltip
+      state.tooltip.classList.remove('hide');
+      state.tooltip.classList.add('show');
+    });
+
+    icon.addEventListener('mouseleave', function(e) {
+      const state = iconTooltips.get(this);
+      if (!state) return;
+      
+      // Start delay - will be cancelled if mouse enters tooltip
+      state.hideTimeout = setTimeout(() => {
+        state.tooltip.classList.remove('show');
+        state.tooltip.classList.add('hide');
+        state.hideTimeout = null;
+      }, 2000);
+    });
+
+    // Keep tooltip visible when hovering over it
+    tooltip.addEventListener('mouseenter', function() {
+      const state = iconTooltips.get(icon);
+      if (!state) return;
+      
+      if (state.hideTimeout) {
+        clearTimeout(state.hideTimeout);
+        state.hideTimeout = null;
+      }
+      tooltip.classList.remove('hide');
+      tooltip.classList.add('show');
+    });
+
+    tooltip.addEventListener('mouseleave', function() {
+      const state = iconTooltips.get(icon);
+      if (!state) return;
+      
+      // Delay before hiding
+      state.hideTimeout = setTimeout(() => {
+        tooltip.classList.remove('show');
+        tooltip.classList.add('hide');
+        state.hideTimeout = null;
+      }, 500);
+    });
   });
 
   // Initialize

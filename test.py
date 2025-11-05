@@ -1,13 +1,13 @@
-from langchain_core.messages.ai import AIMessage
+import difflib
 import os
 import re
 import sys
 from typing import Any, List, Optional, Tuple
 
-import difflib
 import requests
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages.ai import AIMessage
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 
@@ -15,7 +15,7 @@ load_dotenv()
 
 
 # Model configuration
-MODEL = "google/gemini-2.5-flash-lite"
+MODEL = "google/gemini-2.5-flash-lite-preview-09-2025"
 
 # Chunking configuration
 MAX_SEGMENTS_PER_CHUNK = 50

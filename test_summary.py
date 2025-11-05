@@ -13,6 +13,21 @@ Examples:
     uv run python test.py "https://www.youtube.com/watch?v=dQw4w9WgXcQ" "x-ai/grok-4-fast"
 """
 
+import os
+import sys
+import time
+from typing import Any, Literal, Optional, Union
+
+import requests
+from dotenv import load_dotenv
+from langchain.chat_models import init_chat_model
+from langchain_core.language_models import BaseChatModel
+from langchain_core.prompts import ChatPromptTemplate
+from langgraph.graph import END, START, StateGraph
+from pydantic import BaseModel, Field
+
+load_dotenv()
+
 
 def schema_to_string(schema: Union[dict[str, Any], BaseModel]) -> str:
     """Parse a Pydantic BaseModel or a JSON schema and return a string representation of the schema.
@@ -101,22 +116,6 @@ def schema_to_string(schema: Union[dict[str, Any], BaseModel]) -> str:
     return "\n".join(lines)
 
 
-import os
-import sys
-import time
-from typing import Any, Literal, Optional, Union
-
-import requests
-from dotenv import load_dotenv
-from langchain.chat_models import init_chat_model
-from langchain_core.language_models import BaseChatModel
-from langchain_core.prompts import ChatPromptTemplate
-from langgraph.graph import END, START, StateGraph
-from pydantic import BaseModel, Field
-
-load_dotenv()
-
-
 # ============================================================================
 # Configuration
 # ============================================================================
@@ -125,8 +124,8 @@ load_dotenv()
 class Config:
     """Configuration for the test workflow."""
 
-    ANALYSIS_MODEL = "x-ai/grok-4-fast"
-    QUALITY_MODEL = "x-ai/grok-4-fast"
+    ANALYSIS_MODEL = "anthropic/claude-sonnet-4.5"
+    QUALITY_MODEL = "anthropic/claude-sonnet-4.5"
     MIN_QUALITY_SCORE = 90
     MAX_ITERATIONS = 2
 

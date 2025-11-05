@@ -42,11 +42,8 @@ const RECOMMENDED_SUMMARIZER_MODELS = [
 ];
 
 const RECOMMENDED_REFINER_MODELS = [
-  { value: "x-ai/grok-4-fast", label: "Grok 4 Fast" },
-  { value: "x-ai/grok-code-fast-1", label: "Grok Code Fast 1" },
   { value: "google/gemini-2.5-flash-lite-preview-09-2025", label: "Gemini 2.5 Flash Lite" },
-  { value: "openai/gpt-5-nano", label: "GPT-5 Nano" },
-  { value: "openai/gpt-oss-120b", label: "gpt-oss-120b" },
+  { value: "x-ai/grok-4-fast", label: "Grok 4 Fast" },
 ];
 
 // Default values

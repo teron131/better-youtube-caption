@@ -701,6 +701,144 @@
       .select-selected.open .select-arrow {
         transform: rotate(180deg);
       }
+
+      .info-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: rgba(255, 0, 0, 0.2);
+        color: var(--primary);
+        font-size: 12px;
+        font-weight: bold;
+        margin-left: 8px;
+        transition: background 0.2s ease;
+        border: 1px solid rgba(255, 0, 0, 0.3);
+        position: relative;
+        cursor: help;
+      }
+
+
+      .info-icon:hover {
+        background: rgba(255, 0, 0, 0.3);
+      }
+
+      .info-icon-wrapper {
+        position: relative;
+        display: inline-block;
+        vertical-align: middle;
+      }
+
+      .info-icon-wrapper .info-tooltip {
+        position: absolute;
+        bottom: calc(100% + 8px);
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.95);
+        color: white;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 12px;
+        max-width: 650px;
+        min-width: 200px;
+        white-space: normal;
+        word-wrap: break-word;
+        z-index: 10000;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.15s ease 0.1s, visibility 0.15s ease 0.1s;
+        pointer-events: auto;
+        user-select: text;
+        -webkit-user-select: text;
+        -moz-user-select: text;
+        -ms-user-select: text;
+        cursor: text;
+        line-height: 1.5;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      }
+
+      .info-icon-wrapper .info-tooltip.show {
+        opacity: 1;
+        visibility: visible;
+        transition: opacity 0.15s ease 0.1s, visibility 0.15s ease 0.1s;
+      }
+
+      .info-icon-wrapper .info-tooltip.hide {
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.5s ease, visibility 0.5s ease;
+      }
+
+      .info-icon-wrapper .info-tooltip::after {
+        content: '';
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        border: 6px solid transparent;
+        border-top-color: rgba(0, 0, 0, 0.95);
+      }
+
+      .header-right {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .save-btn-small {
+        padding: 8px 12px;
+        font-size: 13px;
+        border-radius: var(--radius-sm);
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-primary);
+        border: 1px solid var(--border);
+        transition: all 0.2s;
+        width: auto;
+        min-width: auto;
+        flex-shrink: 0;
+      }
+
+      .save-btn-small:hover {
+        background: rgba(255, 0, 0, 0.14);
+        border-color: var(--border-strong);
+      }
+
+      #settingsStatus {
+        font-size: 12px;
+        padding: 4px 8px;
+        border-radius: var(--radius-sm);
+        max-width: 300px;
+        text-align: center;
+        margin: 0;
+        flex: 1;
+      }
+
+      .settings-header-status {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--border);
+      }
+
+      .settings-header-status.success {
+        color: var(--success);
+        border-color: rgba(58, 211, 105, 0.3);
+        background: rgba(58, 211, 105, 0.08);
+      }
+
+      .settings-header-status.error {
+        color: var(--error);
+        border-color: rgba(255, 0, 0, 0.3);
+        background: rgba(255, 0, 0, 0.08);
+      }
+
+      .settings-header-status:empty {
+        display: none;
+        min-height: 0;
+        padding: 0;
+        border: none;
+      }
     </style>
   </head>
   <body>
@@ -816,12 +954,15 @@
               <p>Configure your YouTube caption experience</p>
             </div>
           </div>
+          <div class="header-right">
+            <div class="status settings-header-status" id="settingsStatus"></div>
+          </div>
         </div>
 
         <div class="card settings-card">
           <div class="form-stack">
             <div class="form-group">
-              <label for="scrapeApiKey">Scrape Creators API Key</label>
+              <label for="scrapeApiKey">Scrape Creators API Key <span class="info-icon" data-tooltip="Get your API key from https://scrapecreators.com" title="Get your API key from https://scrapecreators.com">?</span></label>
               <input
                 type="password"
                 id="scrapeApiKey"
@@ -830,7 +971,7 @@
             </div>
 
             <div class="form-group">
-              <label for="openrouterApiKey">OpenRouter API Key</label>
+              <label for="openrouterApiKey">OpenRouter API Key <span class="info-icon" data-tooltip="Create API Key at https://openrouter.ai/settings/keys" title="Create API Key at https://openrouter.ai/settings/keys">?</span></label>
               <input
                 type="password"
                 id="openrouterApiKey"
@@ -844,7 +985,7 @@
 
             <div class="model-row">
               <div class="form-group">
-                <label for="summarizerRecommendedModel">Summarizer</label>
+                <label for="summarizerRecommendedModel">Summarizer <span class="info-icon" data-tooltip="Reasoning Effort: Medium. Summarization is usually not a complex task unless the video is very long." title="Reasoning Effort: Medium. Summarization is usually not a complex task unless the video is very long.">?</span></label>
                 <div class="custom-select" data-model-type="summarizer">
                   <div class="select-selected">
                     <span class="select-icon"></span>
@@ -858,7 +999,7 @@
                 </div>
               </div>
               <div class="form-group">
-                <label for="refinerRecommendedModel">Refiner</label>
+                <label for="refinerRecommendedModel">Refiner <span class="info-icon" data-tooltip="Reasoning Effort: Minimal. Most models are good enough so cost and speed are prioritized." title="Reasoning Effort: Minimal. Most models are good enough so cost and speed are prioritized.">?</span></label>
                 <div class="custom-select" data-model-type="refiner">
                   <div class="select-selected">
                     <span class="select-icon"></span>
@@ -898,21 +1039,6 @@
                 <span class="toggle-slider"></span>
               </label>
             </div>
-
-            <button class="primary-action save-btn" id="saveBtn" type="button">
-              <span class="action-icon">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    d="M3 16.5v2.25A1.5 1.5 0 0 0 4.5 20.25h15a1.5 1.5 0 0 0 1.5-1.5V16.5M7.5 11.25 12 15.75l4.5-4.5M12 4.5v11.25"
-                  ></path>
-                </svg>
-              </span>
-              <span>Save Settings</span>
-            </button>
-
-            <div class="status" id="settingsStatus"></div>
           </div>
         </div>
       </div>
