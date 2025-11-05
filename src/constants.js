@@ -4,14 +4,14 @@
 const STORAGE_KEYS = {
   SCRAPE_CREATORS_API_KEY: "scrapeCreatorsApiKey",
   OPENROUTER_API_KEY: "openRouterApiKey",
-  RECOMMENDED_MODEL: "recommendedModel",
-  CUSTOM_MODEL: "customModel",
   SUMMARIZER_RECOMMENDED_MODEL: "summarizerRecommendedModel",
   SUMMARIZER_CUSTOM_MODEL: "summarizerCustomModel",
   REFINER_RECOMMENDED_MODEL: "refinerRecommendedModel",
   REFINER_CUSTOM_MODEL: "refinerCustomModel",
   AUTO_GENERATE: "autoGenerate",
   SHOW_SUBTITLES: "showSubtitles",
+  CAPTION_FONT_SIZE: "captionFontSize",
+  SUMMARY_FONT_SIZE: "summaryFontSize",
 };
 
 // Timing constants
@@ -52,6 +52,22 @@ const DEFAULTS = {
   MODEL_REFINER: "google/gemini-2.5-flash-lite-preview-09-2025",
   AUTO_GENERATE: false,
   SHOW_SUBTITLES: true, // Subtitles shown by default
+  CAPTION_FONT_SIZE: "M", // Medium
+  SUMMARY_FONT_SIZE: "M", // Medium
+};
+
+// Font size mappings
+const FONT_SIZES = {
+  CAPTION: {
+    S: { base: "1.4vw", max: "22px", min: "12px", fullscreen: "1.7vw", fullscreenMax: "28px" },
+    M: { base: "1.8vw", max: "28px", min: "14px", fullscreen: "2.2vw", fullscreenMax: "36px" },
+    L: { base: "2.2vw", max: "34px", min: "16px", fullscreen: "2.7vw", fullscreenMax: "44px" },
+  },
+  SUMMARY: {
+    S: { base: "13px", h2: "17px", h3: "15px" },
+    M: { base: "15px", h2: "20px", h3: "17px" },
+    L: { base: "17px", h2: "23px", h3: "19px" },
+  },
 };
 
 // API endpoints
@@ -81,6 +97,7 @@ const MESSAGE_ACTIONS = {
   TOGGLE_SUBTITLES: "toggleSubtitles",
   GET_VIDEO_TITLE: "getVideoTitle",
   SHOW_ERROR: "showError",
+  UPDATE_CAPTION_FONT_SIZE: "updateCaptionFontSize",
 };
 
 // Element IDs

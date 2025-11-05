@@ -1,5 +1,7 @@
-// Content script for Better YouTube Caption
-// Handles subtitle display, auto-generation, and communication with background script
+/**
+ * Content Script for Better YouTube Caption Extension
+ * Handles subtitle display, auto-generation, and communication with background script
+ */
 
 // Global state
 let currentSubtitles = [];
@@ -13,34 +15,40 @@ let currentUrl = window.location.href;
 let autoGenerationTriggered = new Set(); // Track which videos have had auto-generation triggered
 let showSubtitlesEnabled = true; // Whether subtitles should be displayed
 
+/**
+ * Check if extension context is valid
+ * @returns {boolean} True if context is valid
+ */
 function isExtensionContextValid() {
   return (
-    typeof chrome !== "undefined" &&
+    typeof chrome !== 'undefined' &&
     !!chrome.runtime &&
-    typeof chrome.runtime.id === "string" &&
+    typeof chrome.runtime.id === 'string' &&
     !!chrome.storage &&
     !!chrome.storage.local
   );
 }
 
-// Loads stored subtitles for the current video from local storage
-// Also checks for auto-generation setting and triggers generation if enabled
+/**
+ * Load stored subtitles for the current video from local storage
+ * Also checks for auto-generation setting and triggers generation if enabled
+ */
 function loadStoredSubtitles() {
   try {
     if (!isExtensionContextValid()) {
-      console.debug("Content Script: Extension context invalidated, skipping subtitle load.");
+      console.debug('Content Script: Extension context invalidated, skipping subtitle load.');
       return;
     }
 
     // Only proceed if we're on a YouTube video page
-    if (!window.location.href.includes("youtube.com/watch")) {
-      console.debug("Content Script: Not on a video page, skipping subtitle load.");
+    if (!window.location.href.includes('youtube.com/watch')) {
+      console.debug('Content Script: Not on a video page, skipping subtitle load.');
       return;
     }
 
     const videoId = extractVideoId(window.location.href);
     if (!videoId) {
-      console.debug("Content Script: Could not extract video ID, skipping subtitle load.");
+      console.debug('Content Script: Could not extract video ID, skipping subtitle load.');
       return;
     }
 
@@ -49,8 +57,8 @@ function loadStoredSubtitles() {
       STORAGE_KEYS.AUTO_GENERATE,
       STORAGE_KEYS.SCRAPE_CREATORS_API_KEY,
       STORAGE_KEYS.OPENROUTER_API_KEY,
-      STORAGE_KEYS.RECOMMENDED_MODEL,
-      STORAGE_KEYS.CUSTOM_MODEL,
+      STORAGE_KEYS.REFINER_RECOMMENDED_MODEL,
+      STORAGE_KEYS.REFINER_CUSTOM_MODEL,
       STORAGE_KEYS.SHOW_SUBTITLES,
     ];
 
@@ -59,13 +67,13 @@ function loadStoredSubtitles() {
         if (chrome.runtime.lastError) {
           if (
             chrome.runtime.lastError.message &&
-            chrome.runtime.lastError.message.includes("Extension context invalidated")
+            chrome.runtime.lastError.message.includes('Extension context invalidated')
           ) {
-            console.debug("Content Script: Subtitle load aborted - extension context invalidated.");
+            console.debug('Content Script: Subtitle load aborted - extension context invalidated.');
             return;
           }
           console.error(
-            "Content Script: Error loading subtitles from storage:",
+            'Content Script: Error loading subtitles from storage:',
             chrome.runtime.lastError.message
           );
           return;
@@ -75,13 +83,13 @@ function loadStoredSubtitles() {
         showSubtitlesEnabled = result[STORAGE_KEYS.SHOW_SUBTITLES] !== false;
 
         if (result && result[videoId]) {
-          console.log("Content Script: Found stored subtitles for this video.");
-          currentSubtitles = result[videoId]; // Load stored subtitles
+          console.log('Content Script: Found stored subtitles for this video.');
+          currentSubtitles = result[videoId];
           if (showSubtitlesEnabled) {
-            startSubtitleDisplay(); // Start displaying the subtitles
+            startSubtitleDisplay();
           }
         } else {
-          console.log("Content Script: No stored subtitles found for this video.");
+          console.log('Content Script: No stored subtitles found for this video.');
 
           // Check if auto-generation is enabled and hasn't been triggered for this video
           if (
@@ -89,38 +97,31 @@ function loadStoredSubtitles() {
             result[STORAGE_KEYS.SCRAPE_CREATORS_API_KEY] &&
             !autoGenerationTriggered.has(videoId)
           ) {
-            console.log("Content Script: Auto-generation enabled, waiting for page to load...");
-            autoGenerationTriggered.add(videoId); // Mark as triggered to prevent duplicate triggers
+            console.log('Content Script: Auto-generation enabled, waiting for page to load...');
+            autoGenerationTriggered.add(videoId);
 
-            // Wait 2-3 seconds for page to fully load before auto-generating
+            // Wait for page to fully load before auto-generating
             setTimeout(() => {
               if (!isExtensionContextValid()) {
-                console.debug("Content Script: Context invalidated before auto-generation.");
+                console.debug('Content Script: Context invalidated before auto-generation.');
                 autoGenerationTriggered.delete(videoId);
                 return;
               }
 
-              // Double-check video ID hasn't changed (user might have navigated away)
+              // Double-check video ID hasn't changed
               const currentVideoId = extractVideoId(window.location.href);
               if (currentVideoId === videoId) {
-                console.log("Content Script: Triggering auto-generation after delay...");
+                console.log('Content Script: Triggering auto-generation after delay...');
+                
                 // Determine model selection: custom model > recommended model > default
-                const customModel = result[STORAGE_KEYS.CUSTOM_MODEL]?.trim();
-                const recommendedModel = result[STORAGE_KEYS.RECOMMENDED_MODEL]?.trim();
+                // Use refiner defaults for auto-generation (subtitle refinement)
+                const customModel = result[STORAGE_KEYS.REFINER_CUSTOM_MODEL]?.trim();
+                const recommendedModel = result[STORAGE_KEYS.REFINER_RECOMMENDED_MODEL]?.trim();
                 const modelSelection =
                   (customModel && customModel.length > 0 ? customModel : null) ||
                   (recommendedModel && recommendedModel.length > 0 ? recommendedModel : null) ||
-                  DEFAULTS.MODEL;
+                  DEFAULTS.MODEL_REFINER;
 
-                console.log("Content Script: Auto-generation params:", {
-                  videoId: videoId,
-                  hasScrapeKey: !!result[STORAGE_KEYS.SCRAPE_CREATORS_API_KEY],
-                  hasOpenRouterKey: !!result[STORAGE_KEYS.OPENROUTER_API_KEY],
-                  modelSelection: modelSelection,
-                  scrapeKeyLength: result[STORAGE_KEYS.SCRAPE_CREATORS_API_KEY] ? result[STORAGE_KEYS.SCRAPE_CREATORS_API_KEY].length : 0,
-                  openRouterKeyLength: result[STORAGE_KEYS.OPENROUTER_API_KEY] ? result[STORAGE_KEYS.OPENROUTER_API_KEY].length : 0,
-                });
-                
                 triggerAutoGeneration(
                   videoId,
                   result[STORAGE_KEYS.SCRAPE_CREATORS_API_KEY],
@@ -129,42 +130,44 @@ function loadStoredSubtitles() {
                 );
               } else {
                 console.log(
-                  "Content Script: Video ID changed during delay, cancelling auto-generation"
+                  'Content Script: Video ID changed during delay, cancelling auto-generation'
                 );
-                autoGenerationTriggered.delete(videoId); // Remove from set if video changed
+                autoGenerationTriggered.delete(videoId);
               }
             }, TIMING.AUTO_GENERATION_DELAY_MS);
           }
         }
       } catch (error) {
-        console.error("Content Script: Error processing stored subtitles:", error);
+        console.error('Content Script: Error processing stored subtitles:', error);
       }
     });
   } catch (error) {
-    if (error && error.message && error.message.includes("Extension context invalidated")) {
-      console.debug("Content Script: Subtitle load aborted - extension context invalidated (outer).");
+    if (error && error.message && error.message.includes('Extension context invalidated')) {
+      console.debug('Content Script: Subtitle load aborted - extension context invalidated (outer).');
       return;
     }
-    console.error("Content Script: Error in loadStoredSubtitles:", error);
+    console.error('Content Script: Error in loadStoredSubtitles:', error);
   }
 }
 
-// Triggers automatic subtitle generation
+/**
+ * Trigger automatic subtitle generation
+ * @param {string} videoId - Video ID
+ * @param {string} scrapeCreatorsApiKey - Scrape Creators API key
+ * @param {string} openRouterApiKey - OpenRouter API key
+ * @param {string} modelSelection - Model selection
+ */
 function triggerAutoGeneration(videoId, scrapeCreatorsApiKey, openRouterApiKey, modelSelection) {
-  // Clear any existing subtitles first
   clearSubtitles();
   
-  console.log("Content Script: Sending fetchSubtitles message to background...", {
+  console.log('Content Script: Sending fetchSubtitles message to background...', {
     action: MESSAGE_ACTIONS.FETCH_SUBTITLES,
     videoId: videoId,
     hasScrapeKey: !!scrapeCreatorsApiKey,
     hasOpenRouterKey: !!openRouterApiKey,
-    scrapeKeyLength: scrapeCreatorsApiKey ? scrapeCreatorsApiKey.length : 0,
-    openRouterKeyLength: openRouterApiKey ? openRouterApiKey.length : 0,
     modelSelection: modelSelection,
   });
   
-  // Send message to background script to fetch subtitles
   chrome.runtime.sendMessage(
     {
       action: MESSAGE_ACTIONS.FETCH_SUBTITLES,
@@ -175,19 +178,21 @@ function triggerAutoGeneration(videoId, scrapeCreatorsApiKey, openRouterApiKey, 
     },
     (response) => {
       if (chrome.runtime.lastError) {
-        console.error("Content Script: Error triggering auto-generation:", chrome.runtime.lastError.message);
+        console.error('Content Script: Error triggering auto-generation:', chrome.runtime.lastError.message);
       } else {
-        console.log("Content Script: Auto-generation triggered successfully, response:", response);
+        console.log('Content Script: Auto-generation triggered successfully, response:', response);
       }
     }
   );
 }
 
-// Monitors URL changes on YouTube (SPA behavior)
+/**
+ * Monitor URL changes on YouTube (SPA behavior)
+ */
 function monitorUrlChanges() {
   const observer = new MutationObserver(() => {
     if (currentUrl !== window.location.href) {
-      console.log("Better YouTube Caption: URL changed.");
+      console.log('Better YouTube Caption: URL changed.');
       const oldVideoId = extractVideoId(currentUrl);
       currentUrl = window.location.href;
       const newVideoId = extractVideoId(currentUrl);
@@ -204,17 +209,20 @@ function monitorUrlChanges() {
   observer.observe(document.body, { childList: true, subtree: true });
 }
 
-// Handles actions when the URL changes
+/**
+ * Handle actions when the URL changes
+ */
 function onUrlChange() {
-  console.log("Better YouTube Caption: Reinitializing for new video...");
-  clearSubtitles(); // Clear current subtitles
-  initAttempts = 0; // Reset initialization attempts for new page
-  // Note: We don't clear autoGenerationTriggered here because we want to prevent
-  // re-triggering for the same video if user navigates back
-  initialize(); // Reinitialize for the new video
+  console.log('Better YouTube Caption: Reinitializing for new video...');
+  clearSubtitles();
+  initAttempts = 0;
+  initialize();
 }
 
-// Finds video elements on the YouTube page
+/**
+ * Find video elements on the YouTube page
+ * @returns {boolean} True if video elements found
+ */
 function findVideoElements() {
   videoPlayer = document.querySelector(YOUTUBE.SELECTORS.VIDEO_PLAYER);
   if (!videoPlayer) return false;
@@ -228,13 +236,15 @@ function findVideoElements() {
   return !!videoContainer;
 }
 
-// Initializes the content script
+/**
+ * Initialize the content script
+ */
 function initialize() {
-  console.log("Better YouTube Caption: Initializing content script...");
+  console.log('Better YouTube Caption: Initializing content script...');
 
   // Only initialize on YouTube video pages
-  if (!window.location.href.includes("youtube.com/watch")) {
-    console.debug("Content Script: Not on a video page, skipping initialization.");
+  if (!window.location.href.includes('youtube.com/watch')) {
+    console.debug('Content Script: Not on a video page, skipping initialization.');
     return;
   }
 
@@ -247,266 +257,337 @@ function initialize() {
       setTimeout(initialize, TIMING.INIT_RETRY_DELAY_MS);
     } else {
       console.error(
-        "Better YouTube Caption: Video player or container not found after multiple attempts."
+        'Better YouTube Caption: Video player or container not found after multiple attempts.'
       );
     }
     return;
   }
 
-  console.log("Better YouTube Caption: Video player found.", videoPlayer);
-  console.log(
-    "Better YouTube Caption: Video container found.",
-    videoContainer
-  );
+  console.log('Better YouTube Caption: Video player found.', videoPlayer);
+  console.log('Better YouTube Caption: Video container found.', videoContainer);
 
-  createSubtitleElements(); // Create subtitle elements
-  loadStoredSubtitles(); // Load stored subtitles for the current video
+  createSubtitleElements();
+  loadStoredSubtitles();
+  loadCaptionFontSize();
+  setupMessageListener();
+}
 
-  // Listen for messages from popup or background
+/**
+ * Setup message listener for content script
+ */
+function setupMessageListener() {
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === MESSAGE_ACTIONS.GET_VIDEO_TITLE) {
-      // Get video title from the page
       const titleElement = document.querySelector('h1.ytd-watch-metadata yt-formatted-string');
       const title = titleElement ? titleElement.textContent : null;
       sendResponse({ title: title });
       return true;
     } else if (message.action === MESSAGE_ACTIONS.GENERATE_SUMMARY) {
-      console.log("Content Script: Received generateSummary request");
-      
-      const videoId = message.videoId || extractVideoId(window.location.href);
-
-      if (!videoId) {
-        sendResponse({
-          status: "error",
-          message: "Could not extract video ID from URL.",
-        });
-        return true;
-      }
-
-      console.log("Content Script: Requesting summary from background for video:", videoId);
-
-      // Request summary from background script
-      chrome.runtime.sendMessage(
-        {
-          action: MESSAGE_ACTIONS.GENERATE_SUMMARY,
-          videoId: videoId,
-          scrapeCreatorsApiKey: message.scrapeCreatorsApiKey,
-          openRouterApiKey: message.openRouterApiKey,
-          modelSelection: message.modelSelection,
-        },
-        (response) => {
-          if (chrome.runtime.lastError) {
-            console.error(
-              "Error sending message to background:",
-              chrome.runtime.lastError
-            );
-            sendResponse({
-              status: "error",
-              message: "Could not communicate with background script.",
-            });
-          } else {
-            console.log(
-              "Content Script: Summary request sent to background, response:",
-              response
-            );
-          }
-        }
-      );
-
-      sendResponse({ status: "started" });
+      handleGenerateSummary(message, sendResponse);
       return true;
     } else if (message.action === MESSAGE_ACTIONS.GENERATE_SUBTITLES) {
-      console.log("Content Script: Received generateSubtitles request");
-      
-      // Use the video ID from the message if provided (captured at button click time),
-      // otherwise extract from current URL
-      const videoId = message.videoId || extractVideoId(window.location.href);
-
-      if (!videoId) {
-        sendResponse({
-          status: "error",
-          message: "Could not extract video ID from URL.",
-        });
-        return true;
-      }
-
-      console.log("Content Script: Sending video ID to background:", videoId);
-
-      clearSubtitles(); // Clear previous subtitles
-
-      // Request subtitles from background script
-      chrome.runtime.sendMessage(
-        {
-          action: MESSAGE_ACTIONS.FETCH_SUBTITLES,
-          videoId: videoId,
-          scrapeCreatorsApiKey: message.scrapeCreatorsApiKey,
-          openRouterApiKey: message.openRouterApiKey,
-          modelSelection: message.modelSelection,
-        },
-        (response) => {
-          if (chrome.runtime.lastError) {
-            console.error(
-              "Error sending message to background:",
-              chrome.runtime.lastError
-            );
-            sendResponse({
-              status: "error",
-              message: "Could not communicate with background script.",
-            });
-          } else {
-            console.log(
-              "Content Script: Message sent to background, response:",
-              response
-            );
-          }
-        }
-      );
-
-      sendResponse({ status: "started" });
-      return true; // Indicate async response possible
+      handleGenerateSubtitles(message, sendResponse);
+      return true;
     } else if (message.action === MESSAGE_ACTIONS.SUBTITLES_GENERATED) {
-      console.log("Content Script: Received subtitlesGenerated request");
-      currentSubtitles = message.subtitles || []; // Ensure it's an array
-      console.log(`Received ${currentSubtitles.length} subtitle entries.`);
-
-      if (currentSubtitles.length > 0) {
-        // Only start display if subtitles are enabled
-        if (showSubtitlesEnabled) {
-          startSubtitleDisplay(); // Start displaying subtitles
-        }
-
-        // Store the subtitles locally for future use
-        // Use the videoId from message if provided (captured at button click),
-        // otherwise extract from current URL
-        const videoId = message.videoId || extractVideoId(window.location.href);
-        
-        if (videoId) {
-          chrome.storage.local.set({ [videoId]: currentSubtitles }, () => {
-            if (chrome.runtime.lastError) {
-              // Check if it's a quota exceeded error
-              if (chrome.runtime.lastError.message && chrome.runtime.lastError.message.includes("QUOTA")) {
-                console.warn("Storage quota exceeded. Transcript will not be saved, but subtitles will still display.");
-              } else {
-                console.error("Error saving subtitles:", chrome.runtime.lastError.message);
-              }
-            } else {
-              console.log("Content Script: Subtitles saved to local storage for video ID:", videoId);
-            }
-          });
-        } else {
-          console.warn("Content Script: Could not extract video ID, subtitles not saved.");
-        }
-
-        sendResponse({ status: "success" }); // Confirm success to background
-      } else {
-        console.warn("Received empty subtitles array.");
-        clearSubtitles(); // Ensure display is cleared if no subs found
-        sendResponse({ status: "no_subtitles_found" });
-      }
-      return true; // Indicate response sent
+      handleSubtitlesGenerated(message, sendResponse);
+      return true;
     } else if (message.action === MESSAGE_ACTIONS.TOGGLE_SUBTITLES) {
-      console.log("Content Script: Received toggleSubtitles request");
-      const hasShowSubtitles = Object.prototype.hasOwnProperty.call(message, "showSubtitles");
-      const hasEnabled = Object.prototype.hasOwnProperty.call(message, "enabled");
-      const nextState = hasShowSubtitles
-        ? message.showSubtitles !== false
-        : hasEnabled
-        ? message.enabled !== false
-        : true;
-      showSubtitlesEnabled = nextState;
-      chrome.storage.local.set({ [STORAGE_KEYS.SHOW_SUBTITLES]: showSubtitlesEnabled });
-
-      if (showSubtitlesEnabled && currentSubtitles.length > 0) {
-        startSubtitleDisplay();
-      } else {
-        stopSubtitleDisplay();
-        hideCurrentSubtitle();
-      }
-
-      sendResponse({ status: "success" });
+      handleToggleSubtitles(message, sendResponse);
+      return true;
+    } else if (message.action === MESSAGE_ACTIONS.UPDATE_CAPTION_FONT_SIZE) {
+      handleUpdateCaptionFontSize(message, sendResponse);
       return true;
     }
   });
-
-  console.log(
-    "Better YouTube Caption: Initialization complete. Listening for messages."
-  );
 }
 
-// Creates subtitle elements and appends them to the video container
+/**
+ * Handle generate summary request
+ * @param {Object} message - Message object
+ * @param {Function} sendResponse - Response callback
+ */
+function handleGenerateSummary(message, sendResponse) {
+  console.log('Content Script: Received generateSummary request');
+  
+  const videoId = message.videoId || extractVideoId(window.location.href);
+
+  if (!videoId) {
+    sendResponse({
+      status: 'error',
+      message: 'Could not extract video ID from URL.',
+    });
+    return;
+  }
+
+  console.log('Content Script: Requesting summary from background for video:', videoId);
+
+  chrome.runtime.sendMessage(
+    {
+      action: MESSAGE_ACTIONS.GENERATE_SUMMARY,
+      videoId: videoId,
+      scrapeCreatorsApiKey: message.scrapeCreatorsApiKey,
+      openRouterApiKey: message.openRouterApiKey,
+      modelSelection: message.modelSelection,
+    },
+    (response) => {
+      if (chrome.runtime.lastError) {
+        console.error('Error sending message to background:', chrome.runtime.lastError);
+        sendResponse({
+          status: 'error',
+          message: 'Could not communicate with background script.',
+        });
+      } else {
+        console.log('Content Script: Summary request sent to background, response:', response);
+      }
+    }
+  );
+
+  sendResponse({ status: 'started' });
+}
+
+/**
+ * Handle generate subtitles request
+ * @param {Object} message - Message object
+ * @param {Function} sendResponse - Response callback
+ */
+function handleGenerateSubtitles(message, sendResponse) {
+  console.log('Content Script: Received generateSubtitles request');
+  
+  const videoId = message.videoId || extractVideoId(window.location.href);
+
+  if (!videoId) {
+    sendResponse({
+      status: 'error',
+      message: 'Could not extract video ID from URL.',
+    });
+    return;
+  }
+
+  console.log('Content Script: Sending video ID to background:', videoId);
+
+  clearSubtitles();
+
+  chrome.runtime.sendMessage(
+    {
+      action: MESSAGE_ACTIONS.FETCH_SUBTITLES,
+      videoId: videoId,
+      scrapeCreatorsApiKey: message.scrapeCreatorsApiKey,
+      openRouterApiKey: message.openRouterApiKey,
+      modelSelection: message.modelSelection,
+    },
+    (response) => {
+      if (chrome.runtime.lastError) {
+        console.error('Error sending message to background:', chrome.runtime.lastError);
+        sendResponse({
+          status: 'error',
+          message: 'Could not communicate with background script.',
+        });
+      } else {
+        console.log('Content Script: Message sent to background, response:', response);
+      }
+    }
+  );
+
+  sendResponse({ status: 'started' });
+}
+
+/**
+ * Handle subtitles generated message
+ * @param {Object} message - Message object
+ * @param {Function} sendResponse - Response callback
+ */
+function handleSubtitlesGenerated(message, sendResponse) {
+  console.log('Content Script: Received subtitlesGenerated request');
+  currentSubtitles = message.subtitles || [];
+  console.log(`Received ${currentSubtitles.length} subtitle entries.`);
+
+  if (currentSubtitles.length > 0) {
+    if (showSubtitlesEnabled) {
+      startSubtitleDisplay();
+    }
+
+    // Store the subtitles locally
+    const videoId = message.videoId || extractVideoId(window.location.href);
+    
+    if (videoId) {
+      chrome.storage.local.set({ [videoId]: currentSubtitles }, () => {
+        if (chrome.runtime.lastError) {
+          if (chrome.runtime.lastError.message && chrome.runtime.lastError.message.includes('QUOTA')) {
+            console.warn('Storage quota exceeded. Transcript will not be saved, but subtitles will still display.');
+          } else {
+            console.error('Error saving subtitles:', chrome.runtime.lastError.message);
+          }
+        } else {
+          console.log('Content Script: Subtitles saved to local storage for video ID:', videoId);
+        }
+      });
+    } else {
+      console.warn('Content Script: Could not extract video ID, subtitles not saved.');
+    }
+
+    sendResponse({ status: 'success' });
+  } else {
+    console.warn('Received empty subtitles array.');
+    clearSubtitles();
+    sendResponse({ status: 'no_subtitles_found' });
+  }
+}
+
+/**
+ * Load and apply caption font size from storage
+ */
+function loadCaptionFontSize() {
+  chrome.storage.local.get([STORAGE_KEYS.CAPTION_FONT_SIZE], (result) => {
+    const fontSize = result[STORAGE_KEYS.CAPTION_FONT_SIZE] || DEFAULTS.CAPTION_FONT_SIZE;
+    applyCaptionFontSize(fontSize);
+  });
+}
+
+/**
+ * Apply caption font size
+ * @param {string} size - Size key (S, M, L)
+ */
+function applyCaptionFontSize(size) {
+  const sizeConfig = FONT_SIZES.CAPTION[size] || FONT_SIZES.CAPTION.M;
+  const subtitleText = document.getElementById(ELEMENT_IDS.SUBTITLE_TEXT);
+  
+  if (subtitleText) {
+    // Use clamp() to set min/max bounds
+    subtitleText.style.fontSize = `clamp(${sizeConfig.min}, ${sizeConfig.base}, ${sizeConfig.max})`;
+  }
+  
+  // Set CSS custom properties for fullscreen styles
+  document.documentElement.style.setProperty('--caption-font-size-base', sizeConfig.base);
+  document.documentElement.style.setProperty('--caption-font-size-max', sizeConfig.max);
+  document.documentElement.style.setProperty('--caption-font-size-min', sizeConfig.min);
+  document.documentElement.style.setProperty('--caption-font-size-fullscreen', sizeConfig.fullscreen);
+  document.documentElement.style.setProperty('--caption-font-size-fullscreen-max', sizeConfig.fullscreenMax);
+}
+
+/**
+ * Handle update caption font size message
+ * @param {Object} message - Message object
+ * @param {Function} sendResponse - Response callback
+ */
+function handleUpdateCaptionFontSize(message, sendResponse) {
+  const fontSize = message.fontSize || DEFAULTS.CAPTION_FONT_SIZE;
+  applyCaptionFontSize(fontSize);
+  sendResponse({ status: 'success' });
+}
+
+/**
+ * Handle toggle subtitles message
+ * @param {Object} message - Message object
+ * @param {Function} sendResponse - Response callback
+ */
+function handleToggleSubtitles(message, sendResponse) {
+  console.log('Content Script: Received toggleSubtitles request');
+  const hasShowSubtitles = Object.prototype.hasOwnProperty.call(message, 'showSubtitles');
+  const hasEnabled = Object.prototype.hasOwnProperty.call(message, 'enabled');
+  const nextState = hasShowSubtitles
+    ? message.showSubtitles !== false
+    : hasEnabled
+    ? message.enabled !== false
+    : true;
+  showSubtitlesEnabled = nextState;
+  chrome.storage.local.set({ [STORAGE_KEYS.SHOW_SUBTITLES]: showSubtitlesEnabled });
+
+  if (showSubtitlesEnabled && currentSubtitles.length > 0) {
+    startSubtitleDisplay();
+  } else {
+    stopSubtitleDisplay();
+    hideCurrentSubtitle();
+  }
+
+  sendResponse({ status: 'success' });
+}
+
+/**
+ * Create subtitle elements and append them to the video container
+ */
 function createSubtitleElements() {
   if (document.getElementById(ELEMENT_IDS.SUBTITLE_CONTAINER)) return;
 
-  subtitleContainer = document.createElement("div");
+  subtitleContainer = document.createElement('div');
   subtitleContainer.id = ELEMENT_IDS.SUBTITLE_CONTAINER;
-  subtitleContainer.style.position = "absolute";
-  subtitleContainer.style.zIndex = "9999";
-  subtitleContainer.style.pointerEvents = "none";
-  subtitleContainer.style.display = "none";
+  subtitleContainer.style.position = 'absolute';
+  subtitleContainer.style.zIndex = '9999';
+  subtitleContainer.style.pointerEvents = 'none';
+  subtitleContainer.style.display = 'none';
 
-  subtitleText = document.createElement("div");
+  subtitleText = document.createElement('div');
   subtitleText.id = ELEMENT_IDS.SUBTITLE_TEXT;
   subtitleContainer.appendChild(subtitleText);
 
   if (videoContainer) {
-    if (getComputedStyle(videoContainer).position === "static") {
-      videoContainer.style.position = "relative";
+    if (getComputedStyle(videoContainer).position === 'static') {
+      videoContainer.style.position = 'relative';
     }
     videoContainer.appendChild(subtitleContainer);
-    console.log("Subtitle container added to video container.");
+    console.log('Subtitle container added to video container.');
   } else {
-    console.error("Cannot add subtitle container, video container not found.");
+    console.error('Cannot add subtitle container, video container not found.');
   }
 }
 
-// Starts displaying subtitles
+/**
+ * Start displaying subtitles
+ */
 function startSubtitleDisplay() {
   if (!videoPlayer || !subtitleContainer) {
-    console.warn("Cannot start subtitle display: Player or container missing.");
+    console.warn('Cannot start subtitle display: Player or container missing.');
     return;
   }
 
-  stopSubtitleDisplay(); // Clear any existing interval
+  stopSubtitleDisplay();
 
-  console.log("Starting subtitle display interval.");
+  console.log('Starting subtitle display interval.');
   checkInterval = setInterval(updateSubtitles, TIMING.SUBTITLE_UPDATE_INTERVAL_MS);
 
-  videoPlayer.addEventListener("play", updateSubtitles);
-  videoPlayer.addEventListener("seeked", updateSubtitles);
+  videoPlayer.addEventListener('play', updateSubtitles);
+  videoPlayer.addEventListener('seeked', updateSubtitles);
 }
 
-// Stops displaying subtitles
+/**
+ * Stop displaying subtitles
+ */
 function stopSubtitleDisplay() {
   if (checkInterval) {
     clearInterval(checkInterval);
     checkInterval = null;
-    console.log("Stopped subtitle display interval.");
+    console.log('Stopped subtitle display interval.');
   }
   if (videoPlayer) {
-    videoPlayer.removeEventListener("play", updateSubtitles);
-    videoPlayer.removeEventListener("seeked", updateSubtitles);
+    videoPlayer.removeEventListener('play', updateSubtitles);
+    videoPlayer.removeEventListener('seeked', updateSubtitles);
   }
 }
 
-// Clears subtitles and stops display
+/**
+ * Clear subtitles and stop display
+ */
 function clearSubtitles() {
   currentSubtitles = [];
   stopSubtitleDisplay();
   hideCurrentSubtitle();
-  console.log("Subtitles cleared.");
+  console.log('Subtitles cleared.');
 }
 
-// Hides the current subtitle
+/**
+ * Hide the current subtitle
+ */
 function hideCurrentSubtitle() {
   if (subtitleContainer) {
-    subtitleContainer.style.display = "none";
+    subtitleContainer.style.display = 'none';
   }
   if (subtitleText) {
-    subtitleText.textContent = "";
+    subtitleText.textContent = '';
   }
 }
 
-// Updates subtitles based on the current video time
+/**
+ * Update subtitles based on the current video time
+ */
 function updateSubtitles() {
   if (!videoPlayer || !subtitleText || !subtitleContainer) {
     return;
@@ -528,25 +609,23 @@ function updateSubtitles() {
     if (subtitleText.textContent !== foundSubtitle.text) {
       subtitleText.textContent = foundSubtitle.text;
     }
-    subtitleContainer.style.display = "block";
+    subtitleContainer.style.display = 'block';
   } else {
     hideCurrentSubtitle();
   }
 }
 
-// --- Start Initialization ---
 // Initialize immediately since we're using document_end in manifest
 (function() {
-  console.log("Better YouTube Caption: Content script loaded, readyState:", document.readyState);
+  console.log('Better YouTube Caption: Content script loaded, readyState:', document.readyState);
   
-  // Wait a bit for YouTube's initial render
   const startInitialization = () => {
     initialize();
     monitorUrlChanges();
   };
   
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", startInitialization);
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', startInitialization);
   } else {
     // Give YouTube a moment to render if we're already loaded
     setTimeout(startInitialization, 500);

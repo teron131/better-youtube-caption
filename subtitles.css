@@ -22,11 +22,11 @@
   color: white;
   padding: 5px 10px; /* Slightly smaller padding */
   border-radius: 3px;
-  font-size: 1.8vw; /* Responsive font size based on viewport width */
-  /* Add max font-size to prevent huge text on large screens */
-  max-font-size: 28px;
-  /* Add min font-size for readability on small screens */
-  min-font-size: 14px;
+  font-size: clamp(
+    var(--caption-font-size-min, 14px),
+    var(--caption-font-size-base, 1.8vw),
+    var(--caption-font-size-max, 28px)
+  );
   font-family: "YouTube Noto", Roboto, Arial, Helvetica, sans-serif; /* Match YouTube's font */
   max-width: 80%; /* Limit width */
   /* Text shadow for better readability */
@@ -43,6 +43,9 @@ ytd-player[fullscreen] #youtube-gemini-subtitles-container {
 }
 
 ytd-player[fullscreen] #youtube-gemini-subtitles-text {
-  font-size: 2.2vw; /* Slightly larger in fullscreen */
-  max-font-size: 36px;
+  font-size: clamp(
+    var(--caption-font-size-min, 14px),
+    var(--caption-font-size-fullscreen, 2.2vw),
+    var(--caption-font-size-fullscreen-max, 36px)
+  );
 }

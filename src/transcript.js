@@ -100,7 +100,7 @@ async function refineTranscriptSegments(
   description,
   openRouterApiKey,
   progressCallback,
-  model = DEFAULTS.MODEL
+  model = DEFAULTS.MODEL_REFINER
 ) {
   if (!segments?.length) {
     throw new Error("No transcript segments provided");
