@@ -30,35 +30,29 @@ const STORAGE = {
   CLEANUP_BATCH_SIZE: 10, // Number of videos to remove during cleanup
 };
 
-// Recommended models for dropdown
-const RECOMMENDED_MODELS = [
-  { value: "google/gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite" },
-  { value: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash" },
-  { value: "x-ai/grok-code-fast-1", label: "Grok Code Fast 1" },
-  { value: "x-ai/grok-4-fast", label: "Grok 4 Fast" },
-  { value: "openai/gpt-4.1-nano", label: "GPT-4.1 Nano" },
-  { value: "openai/gpt-oss-120b", label: "gpt-oss-120b" },
-];
-
 // New separate lists for summarizer and refiner
 const RECOMMENDED_SUMMARIZER_MODELS = [
-  { value: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash" },
-  { value: "openai/gpt-4.1-nano", label: "GPT-4.1 Nano" },
-  { value: "openai/gpt-oss-120b", label: "gpt-oss-120b" },
   { value: "x-ai/grok-4-fast", label: "Grok 4 Fast" },
+  { value: "x-ai/grok-code-fast-1", label: "Grok Code Fast 1" },
+  { value: "x-ai/grok-4", label: "Grok 4" },
+  { value: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash" },
+  { value: "google/gemini-2.5-pro", label: "Gemini 2.5 Pro" },
+  { value: "openai/gpt-5", label: "GPT-5" },
+  { value: "anthropic/claude-sonnet-4.5", label: "Claude Sonnet 4.5" },
 ];
 
 const RECOMMENDED_REFINER_MODELS = [
-  { value: "google/gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite" },
-  { value: "x-ai/grok-code-fast-1", label: "Grok Code Fast 1" },
   { value: "x-ai/grok-4-fast", label: "Grok 4 Fast" },
-  { value: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash" },
+  { value: "x-ai/grok-code-fast-1", label: "Grok Code Fast 1" },
+  { value: "google/gemini-2.5-flash-lite-preview-09-2025", label: "Gemini 2.5 Flash Lite" },
+  { value: "openai/gpt-5-nano", label: "GPT-5 Nano" },
+  { value: "openai/gpt-oss-120b", label: "gpt-oss-120b" },
 ];
 
 // Default values
 const DEFAULTS = {
-  MODEL_SUMMARIZER: "google/gemini-2.5-flash",
-  MODEL_REFINER: "google/gemini-2.5-flash-lite",
+  MODEL_SUMMARIZER: "x-ai/grok-4-fast",
+  MODEL_REFINER: "google/gemini-2.5-flash-lite-preview-09-2025",
   AUTO_GENERATE: false,
   SHOW_SUBTITLES: true, // Subtitles shown by default
 };

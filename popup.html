@@ -609,6 +609,98 @@
         white-space: nowrap;
         border: 0;
       }
+
+      .custom-select {
+        position: relative;
+        width: 100%;
+      }
+
+      .select-selected {
+        background: var(--surface-secondary);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 12px 14px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--text-primary);
+        font-size: 14px;
+        min-height: 20px;
+        transition: border-color 0.2s ease;
+      }
+
+      .select-selected:hover {
+        border-color: rgba(255, 0, 0, 0.55);
+      }
+
+      .select-selected:focus-within {
+        outline: none;
+        border-color: rgba(255, 0, 0, 0.55);
+        box-shadow: 0 0 0 4px rgba(255, 0, 0, 0.2);
+      }
+
+      .select-icon, .item-icon {
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+      }
+
+      .select-items {
+        position: absolute;
+        top: calc(100% + 2px);
+        left: 0;
+        right: 0;
+        background: #121212; /* Solid dark background */
+        border: 1px solid var(--border);
+        border-top: none;
+        border-radius: 0 0 var(--radius-md) var(--radius-md);
+        max-height: 200px;
+        overflow-y: auto;
+        z-index: 1000;
+        display: none;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        opacity: 1;
+      }
+
+      .select-items.show {
+        display: block;
+      }
+
+      .select-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        cursor: pointer;
+        border-bottom: 1px solid var(--border);
+        transition: background 0.2s ease;
+        color: var(--text-primary);
+        background: transparent; /* Ensure no transparency */
+      }
+
+      .select-item:hover {
+        background: rgba(255, 0, 0, 0.1);
+      }
+
+      .select-item:last-child {
+        border-bottom: none;
+      }
+
+      .select-item.selected {
+        background: rgba(255, 0, 0, 0.15);
+        font-weight: 500;
+      }
+
+      .select-arrow {
+        margin-left: auto;
+        font-size: 12px;
+        transition: transform 0.2s ease;
+      }
+
+      .select-selected.open .select-arrow {
+        transform: rotate(180deg);
+      }
     </style>
   </head>
   <body>
@@ -753,15 +845,31 @@
             <div class="model-row">
               <div class="form-group">
                 <label for="summarizerRecommendedModel">Summarizer</label>
-                <select id="summarizerRecommendedModel">
-                  <option value="" disabled selected hidden>Select a model</option>
-                </select>
+                <div class="custom-select" data-model-type="summarizer">
+                  <div class="select-selected">
+                    <span class="select-icon"></span>
+                    <span class="select-label">Select a model</span>
+                    <span class="select-arrow">▼</span>
+                  </div>
+                  <div class="select-items">
+                    <!-- Options populated by JS -->
+                  </div>
+                  <input type="hidden" id="summarizerRecommendedModel" />
+                </div>
               </div>
               <div class="form-group">
                 <label for="refinerRecommendedModel">Refiner</label>
-                <select id="refinerRecommendedModel">
-                  <option value="" disabled selected hidden>Select a model</option>
-                </select>
+                <div class="custom-select" data-model-type="refiner">
+                  <div class="select-selected">
+                    <span class="select-icon"></span>
+                    <span class="select-label">Select a model</span>
+                    <span class="select-arrow">▼</span>
+                  </div>
+                  <div class="select-items">
+                    <!-- Options populated by JS -->
+                  </div>
+                  <input type="hidden" id="refinerRecommendedModel" />
+                </div>
               </div>
             </div>
 

@@ -21,61 +21,128 @@ document.addEventListener("DOMContentLoaded", function () {
   const autoGenerateToggle = document.getElementById("autoGenerateToggle");
   const showSubtitlesToggle = document.getElementById("showSubtitlesToggle");
 
-  function getModelLabel(value, list = RECOMMENDED_MODELS) {
-    if (!Array.isArray(list)) {
-      return value;
-    }
+  function getProviderIcon(provider) {
+    const icons = {
+      'anthropic': 'images/anthropic.svg',
+      'google': 'images/google.svg',
+      'openai': 'images/openai.svg',
+      'x-ai': 'images/xai.svg',
+    };
+    return icons[provider] || '';
+  }
 
-    const match = list.find((model) => model.value === value);
-    return match ? match.label : value;
+  function createOptionElement(model, type) {
+    const item = document.createElement('div');
+    item.className = 'select-item';
+    item.dataset.value = model.value;
+
+    const icon = document.createElement('span');
+    icon.className = 'item-icon';
+    const provider = model.value.split('/')[0];
+    const iconSrc = getProviderIcon(provider);
+    if (iconSrc) {
+      const img = document.createElement('img');
+      img.src = iconSrc;
+      img.alt = provider;
+      img.width = 16;
+      img.height = 16;
+      icon.appendChild(img);
+    }
+    item.appendChild(icon);
+
+    const label = document.createElement('span');
+    label.className = 'item-label';
+    label.textContent = model.label || model.value;
+    item.appendChild(label);
+
+    return item;
   }
 
   function populateModelOptions() {
-    // Populate summarizer
-    if (summarizerRecommendedModel) {
-      summarizerRecommendedModel.innerHTML = '<option value="" disabled selected hidden>Select a model</option>';
+    const customSelects = document.querySelectorAll('.custom-select');
+    customSelects.forEach(select => {
+      const type = select.dataset.modelType;
+      const itemsContainer = select.querySelector('.select-items');
+      const hiddenInput = select.querySelector('input[type="hidden"]');
+      const modelList = type === 'summarizer' ? RECOMMENDED_SUMMARIZER_MODELS : RECOMMENDED_REFINER_MODELS;
+      const defaultModel = type === 'summarizer' ? DEFAULTS.MODEL_SUMMARIZER : DEFAULTS.MODEL_REFINER;
 
-      if (Array.isArray(RECOMMENDED_SUMMARIZER_MODELS) && RECOMMENDED_SUMMARIZER_MODELS.length > 0) {
-        RECOMMENDED_SUMMARIZER_MODELS.forEach((model) => {
-          const option = document.createElement("option");
-          option.value = model.value;
-          option.textContent = model.label || model.value;
-          summarizerRecommendedModel.appendChild(option);
+      itemsContainer.innerHTML = '';
+
+      if (Array.isArray(modelList) && modelList.length > 0) {
+        modelList.forEach(model => {
+          const option = createOptionElement(model, type);
+          itemsContainer.appendChild(option);
         });
       }
 
-      if (DEFAULTS && DEFAULTS.MODEL_SUMMARIZER) {
-        const defaultOption = document.createElement("option");
-        defaultOption.value = DEFAULTS.MODEL_SUMMARIZER;
-        defaultOption.textContent = getModelLabel(DEFAULTS.MODEL_SUMMARIZER, RECOMMENDED_SUMMARIZER_MODELS);
-        if (!Array.from(summarizerRecommendedModel.options).some(opt => opt.value === DEFAULTS.MODEL_SUMMARIZER)) {
-          summarizerRecommendedModel.appendChild(defaultOption);
+      // Add default if not in list
+      if (defaultModel && !modelList.some(m => m.value === defaultModel)) {
+        const defaultModelObj = { value: defaultModel, label: defaultModel };
+        const defaultOption = createOptionElement(defaultModelObj, type);
+        itemsContainer.appendChild(defaultOption);
+      }
+    });
+
+    // Add event listeners for all custom selects
+    customSelects.forEach(select => {
+      const selected = select.querySelector('.select-selected');
+      const items = select.querySelector('.select-items');
+      const hiddenInput = select.querySelector('input[type="hidden"]');
+
+      selected.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = select.classList.contains('open');
+        document.querySelectorAll('.custom-select.open').forEach(s => s.classList.remove('open'));
+        document.querySelectorAll('.select-items.show').forEach(i => i.classList.remove('show'));
+        if (!isOpen) {
+          select.classList.add('open');
+          items.classList.add('show');
         }
-      }
-    }
+        const type = select.dataset.modelType;
+        console.log('Dropdown clicked for type: ' + type);
+      });
 
-    // Populate refiner
-    if (refinerRecommendedModel) {
-      refinerRecommendedModel.innerHTML = '<option value="" disabled selected hidden>Select a model</option>';
+      items.addEventListener('click', (e) => {
+        if (e.target.closest('.select-item')) {
+          const item = e.target.closest('.select-item');
+          const value = item.dataset.value;
+          const labelText = item.querySelector('.item-label').textContent;
+          const provider = value.split('/')[0];
+          const iconSrc = getProviderIcon(provider);
 
-      if (Array.isArray(RECOMMENDED_REFINER_MODELS) && RECOMMENDED_REFINER_MODELS.length > 0) {
-        RECOMMENDED_REFINER_MODELS.forEach((model) => {
-          const option = document.createElement("option");
-          option.value = model.value;
-          option.textContent = model.label || model.value;
-          refinerRecommendedModel.appendChild(option);
-        });
-      }
+          // Update selected
+          const iconSpan = selected.querySelector('.select-icon');
+          iconSpan.innerHTML = '';
+          if (iconSrc) {
+            const img = document.createElement('img');
+            img.src = iconSrc;
+            img.alt = provider;
+            img.width = 16;
+            img.height = 16;
+            iconSpan.appendChild(img);
+          }
+          selected.querySelector('.select-label').textContent = labelText;
+          select.classList.remove('open');
+          items.classList.remove('show');
 
-      if (DEFAULTS && DEFAULTS.MODEL_REFINER) {
-        const defaultOption = document.createElement("option");
-        defaultOption.value = DEFAULTS.MODEL_REFINER;
-        defaultOption.textContent = getModelLabel(DEFAULTS.MODEL_REFINER, RECOMMENDED_REFINER_MODELS);
-        if (!Array.from(refinerRecommendedModel.options).some(opt => opt.value === DEFAULTS.MODEL_REFINER)) {
-          refinerRecommendedModel.appendChild(defaultOption);
+          // Update items
+          items.querySelectorAll('.select-item').forEach(i => i.classList.remove('selected'));
+          item.classList.add('selected');
+
+          // Set hidden input
+          hiddenInput.value = value;
         }
+      });
+    });
+
+    // Close dropdowns on outside click
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.custom-select')) {
+        document.querySelectorAll('.custom-select.open').forEach(s => s.classList.remove('open'));
+        document.querySelectorAll('.select-items.show').forEach(i => i.classList.remove('show'));
       }
-    }
+    });
   }
 
   function sanitizeTitle(title) {
@@ -170,6 +237,12 @@ document.addEventListener("DOMContentLoaded", function () {
           summarizerCustomModel.value = trimmed || '';
         }
 
+        // Refiner
+        let refinerRec = result[STORAGE_KEYS.REFINER_RECOMMENDED_MODEL];
+        if (refinerRecommendedModel) {
+          refinerRecommendedModel.value = refinerRec || DEFAULTS.MODEL_REFINER;
+        }
+
         if (result[STORAGE_KEYS.REFINER_CUSTOM_MODEL]) {
           const trimmed = result[STORAGE_KEYS.REFINER_CUSTOM_MODEL].trim();
           refinerCustomModel.value = trimmed || '';
@@ -183,6 +256,82 @@ document.addEventListener("DOMContentLoaded", function () {
         if (showSubtitlesToggle) {
           showSubtitlesToggle.checked = showSubtitlesValue === true;
         }
+
+        // Set selected for summarizer
+        const summarizerValue = summarizerRec || DEFAULTS.MODEL_SUMMARIZER;
+        const summarizerHidden = document.getElementById('summarizerRecommendedModel');
+        if (summarizerHidden) {
+          summarizerHidden.value = summarizerValue;
+        }
+        const summarizerSelect = document.querySelector('[data-model-type="summarizer"]');
+        if (summarizerSelect) {
+          const items = summarizerSelect.querySelector('.select-items');
+          if (items) {
+            const matchingItem = items.querySelector(`[data-value="${summarizerValue}"]`);
+            const selected = summarizerSelect.querySelector('.select-selected');
+            if (selected) {
+              const provider = summarizerValue.split('/')[0];
+              const iconSrc = getProviderIcon(provider);
+              const iconSpan = selected.querySelector('.select-icon');
+              iconSpan.innerHTML = '';
+              if (iconSrc) {
+                const img = document.createElement('img');
+                img.src = iconSrc;
+                img.alt = provider;
+                img.width = 16;
+                img.height = 16;
+                iconSpan.appendChild(img);
+              }
+              let labelText = summarizerValue.split('/')[1] || summarizerValue; // Fallback label
+              if (matchingItem) {
+                labelText = matchingItem.querySelector('.item-label').textContent;
+                matchingItem.classList.add('selected');
+                items.querySelectorAll('.select-item').forEach(i => {
+                  if (i !== matchingItem) i.classList.remove('selected');
+                });
+              }
+              selected.querySelector('.select-label').textContent = labelText;
+            }
+          }
+        }
+
+        // Similar for refiner
+        const refinerValue = refinerRec || DEFAULTS.MODEL_REFINER;
+        const refinerHidden = document.getElementById('refinerRecommendedModel');
+        if (refinerHidden) {
+          refinerHidden.value = refinerValue;
+        }
+        const refinerSelect = document.querySelector('[data-model-type="refiner"]');
+        if (refinerSelect) {
+          const items = refinerSelect.querySelector('.select-items');
+          if (items) {
+            const matchingItem = items.querySelector(`[data-value="${refinerValue}"]`);
+            const selected = refinerSelect.querySelector('.select-selected');
+            if (selected) {
+              const provider = refinerValue.split('/')[0];
+              const iconSrc = getProviderIcon(provider);
+              const iconSpan = selected.querySelector('.select-icon');
+              iconSpan.innerHTML = '';
+              if (iconSrc) {
+                const img = document.createElement('img');
+                img.src = iconSrc;
+                img.alt = provider;
+                img.width = 16;
+                img.height = 16;
+                iconSpan.appendChild(img);
+              }
+              let labelText = refinerValue.split('/')[1] || refinerValue;
+              if (matchingItem) {
+                labelText = matchingItem.querySelector('.item-label').textContent;
+                matchingItem.classList.add('selected');
+                items.querySelectorAll('.select-item').forEach(i => {
+                  if (i !== matchingItem) i.classList.remove('selected');
+                });
+              }
+              selected.querySelector('.select-label').textContent = labelText;
+            }
+          }
+        }
       }
     );
   }
@@ -194,9 +343,9 @@ document.addEventListener("DOMContentLoaded", function () {
     const settings = {
       [STORAGE_KEYS.SCRAPE_CREATORS_API_KEY]: scrapeApiKey.value.trim(),
       [STORAGE_KEYS.OPENROUTER_API_KEY]: openrouterApiKey.value.trim(),
-      [STORAGE_KEYS.SUMMARIZER_RECOMMENDED_MODEL]: summarizerRecommendedModel ? summarizerRecommendedModel.value.trim() : DEFAULTS.MODEL_SUMMARIZER,
+      [STORAGE_KEYS.SUMMARIZER_RECOMMENDED_MODEL]: document.getElementById('summarizerRecommendedModel').value.trim() || DEFAULTS.MODEL_SUMMARIZER,
       [STORAGE_KEYS.SUMMARIZER_CUSTOM_MODEL]: summarizerCustomModel ? summarizerCustomModel.value.trim() || '' : '',
-      [STORAGE_KEYS.REFINER_RECOMMENDED_MODEL]: refinerRecommendedModel ? refinerRecommendedModel.value.trim() : DEFAULTS.MODEL_REFINER,
+      [STORAGE_KEYS.REFINER_RECOMMENDED_MODEL]: document.getElementById('refinerRecommendedModel').value.trim() || DEFAULTS.MODEL_REFINER,
       [STORAGE_KEYS.REFINER_CUSTOM_MODEL]: refinerCustomModel ? refinerCustomModel.value.trim() || '' : '',
       [STORAGE_KEYS.AUTO_GENERATE]: autoGenerateToggle.checked,
       [STORAGE_KEYS.SHOW_SUBTITLES]: showSubtitlesValue,
