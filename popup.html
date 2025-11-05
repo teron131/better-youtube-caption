@@ -222,7 +222,7 @@
         width: 100%;
         border: none;
         border-radius: var(--radius-lg);
-        padding: 16px 20px;
+        padding: 10px 20px;
         font-size: 15px;
         font-weight: 600;
         cursor: pointer;
@@ -839,6 +839,12 @@
         padding: 0;
         border: none;
       }
+
+      .button-row {
+        display: flex;
+        gap: 48px;
+        width: 100%;
+      }
     </style>
   </head>
   <body>
@@ -884,28 +890,32 @@
           </div>
         </div>
 
-        <div class="card video-card">
-          <div class="card-label">Current video</div>
-          <div class="video-row">
-            <div class="media-badge">
-              <span class="logo-play small"></span>
-            </div>
-            <p class="video-title" id="videoTitle">No video loaded</p>
-          </div>
+        <div class="button-row">
+          <button class="primary-action generate-btn" id="generateCaptionBtn" type="button" style="flex: 1;">
+            <span class="action-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-3.227-1.591 1.591M5.25 12H3m3.227-4.773L4.636 5.636M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"
+                ></path>
+              </svg>
+            </span>
+            <span>Generate Caption</span>
+          </button>
+          <button class="primary-action generate-btn" id="generateSummaryBtn" type="button" style="flex: 1;">
+            <span class="action-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-3.227-1.591 1.591M5.25 12H3m3.227-4.773L4.636 5.636M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"
+                ></path>
+              </svg>
+            </span>
+            <span>Generate Summary</span>
+          </button>
         </div>
-
-        <button class="primary-action generate-btn" id="generateBtn" type="button">
-          <span class="action-icon">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-3.227-1.591 1.591M5.25 12H3m3.227-4.773L4.636 5.636M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"
-              ></path>
-            </svg>
-          </span>
-          <span>Generate Summary</span>
-        </button>
 
         <div class="status" id="status"></div>
 
