@@ -5,6 +5,10 @@
 
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { ChatOpenAI } from "@langchain/openai";
+import {
+  chunkSegmentsByCount,
+  parseRefinedSegments,
+} from "./segmentParser.js";
 
 // ============================================================================
 // Configuration
@@ -21,26 +25,6 @@ const REFINER_CONFIG = {
 // ============================================================================
 
 /**
- * Chunk segments into groups of at most max_segments_per_chunk segments
- * @param {Array} segments - Array of transcript segments
- * @param {number} maxSegmentsPerChunk - Maximum segments per chunk
- * @returns {Array<[number, number]>} List of (start_idx, end_idx) ranges where end_idx is exclusive
- */
-function chunkSegmentsByCount(segments, maxSegmentsPerChunk) {
-  const ranges = [];
-  const n = segments.length;
-  let start = 0;
-
-  while (start < n) {
-    const end = Math.min(start + maxSegmentsPerChunk, n);
-    ranges.push([start, end]);
-    start = end;
-  }
-
-  return ranges;
-}
-
-/**
  * Format transcript segments as newline-separated text
  * Removes internal newlines from each segment and joins with spaces
  */
@@ -53,294 +37,6 @@ function formatTranscriptSegments(segments) {
       return `[${timestamp}] ${normalizedText}`;
     })
     .join("\n");
-}
-
-/**
- * Extract text from a line, removing timestamp if present
- */
-function normalizeLineToText(line) {
-  const normalized = line.split(/\s+/).join(" ");
-  const match = normalized.match(/\[([^\]]+)\]\s*(.*)/);
-  return match ? match[2].trim() : normalized.trim();
-}
-
-/**
- * Compute similarity score between two text lines
- * Uses character-level similarity and token-level Jaccard similarity
- */
-function computeLineSimilarity(a, b) {
-  if (!a || !b) {
-    return 0.0;
-  }
-
-  // Character-level similarity using SequenceMatcher-like approach
-  const charRatio = calculateStringSimilarity(a, b);
-
-  // Token-level Jaccard similarity
-  const aTokens = new Set(
-    a.toLowerCase().match(/[A-Za-z0-9']+/g) || []
-  );
-  const bTokens = new Set(
-    b.toLowerCase().match(/[A-Za-z0-9']+/g) || []
-  );
-
-  const intersection = new Set([...aTokens].filter((x) => bTokens.has(x)));
-  const union = new Set([...aTokens, ...bTokens]);
-  const jacc = union.size > 0 ? intersection.size / union.size : 0.0;
-
-  return 0.7 * charRatio + 0.3 * jacc;
-}
-
-/**
- * Calculate string similarity (simplified SequenceMatcher)
- */
-function calculateStringSimilarity(a, b) {
-  if (a === b) return 1.0;
-  if (!a || !b) return 0.0;
-
-  const lenA = a.length;
-  const lenB = b.length;
-  const maxLen = Math.max(lenA, lenB);
-
-  if (maxLen === 0) return 1.0;
-
-  // Simple longest common subsequence approximation
-  let matches = 0;
-  const minLen = Math.min(lenA, lenB);
-  for (let i = 0; i < minLen; i++) {
-    if (a[i] === b[i]) matches++;
-  }
-
-  return matches / maxLen;
-}
-
-/**
- * Align original segments to refined texts using dynamic programming
- */
-function dpAlignSegments(
-  origSegments,
-  refTexts,
-  applyTailGuard = false
-) {
-  const _GAP_PENALTY = -0.3;
-  const _TAIL_GUARD_SIZE = 5;
-  const _LENGTH_TOLERANCE = 0.1;
-
-  const nOrig = origSegments.length;
-  const nRef = refTexts.length;
-
-  if (nOrig === 0) {
-    return [];
-  }
-
-  // Initialize DP matrices
-  const dp = Array(nOrig + 1)
-    .fill(null)
-    .map(() => Array(nRef + 1).fill(-Infinity));
-  const back = Array(nOrig + 1)
-    .fill(null)
-    .map(() => Array(nRef + 1).fill(null));
-
-  dp[0][0] = 0.0;
-
-  // Initialize boundaries
-  for (let i = 1; i <= nOrig; i++) {
-    dp[i][0] = dp[i - 1][0] + _GAP_PENALTY;
-    back[i][0] = "O";
-  }
-
-  for (let j = 1; j <= nRef; j++) {
-    dp[0][j] = dp[0][j - 1] + _GAP_PENALTY;
-    back[0][j] = "R";
-  }
-
-  // Fill DP table
-  for (let i = 1; i <= nOrig; i++) {
-    const origText = origSegments[i - 1].text || "";
-    for (let j = 1; j <= nRef; j++) {
-      const refText = refTexts[j - 1] || "";
-
-      // Match score
-      const matchScore =
-        dp[i - 1][j - 1] + computeLineSimilarity(origText, refText);
-      let bestScore = matchScore;
-      let bestPtr = "M";
-
-      // Gap in original
-      const oScore = dp[i - 1][j] + _GAP_PENALTY;
-      if (oScore > bestScore) {
-        bestScore = oScore;
-        bestPtr = "O";
-      }
-
-      // Gap in refined
-      const rScore = dp[i][j - 1] + _GAP_PENALTY;
-      if (rScore > bestScore) {
-        bestScore = rScore;
-        bestPtr = "R";
-      }
-
-      dp[i][j] = bestScore;
-      back[i][j] = bestPtr;
-    }
-  }
-
-  // Backtrack to build mapping
-  const mapping = Array(nOrig).fill(null);
-  let i = nOrig;
-  let j = nRef;
-
-  while (i > 0 || j > 0) {
-    const ptr = i >= 0 && j >= 0 ? back[i][j] : null;
-
-    if (ptr === "M" && i > 0 && j > 0) {
-      mapping[i - 1] = j - 1;
-      i--;
-      j--;
-    } else if (ptr === "O" && i > 0) {
-      mapping[i - 1] = null;
-      i--;
-    } else if (ptr === "R" && j > 0) {
-      j--;
-    } else {
-      if (i > 0) {
-        mapping[i - 1] = null;
-        i--;
-      } else if (j > 0) {
-        j--;
-      } else {
-        break;
-      }
-    }
-  }
-
-  // Build refined segments with optional tail guard
-  const refinedSegments = [];
-  const tailStart = applyTailGuard
-    ? nOrig - _TAIL_GUARD_SIZE
-    : nOrig + 1;
-
-  for (let idx = 0; idx < origSegments.length; idx++) {
-    const origSeg = origSegments[idx];
-    const refIdx = mapping[idx];
-
-    // Get refined text or fall back to original
-    let textCandidate;
-    if (refIdx !== null && refIdx >= 0 && refIdx < nRef) {
-      textCandidate = refTexts[refIdx];
-    } else {
-      textCandidate = origSeg.text;
-    }
-
-    // Apply tail guard
-    if (idx >= tailStart && textCandidate) {
-      const origLen = origSeg.text?.length || 1;
-      if (
-        Math.abs(textCandidate.length - origLen) / origLen >
-        _LENGTH_TOLERANCE
-      ) {
-        textCandidate = origSeg.text;
-      }
-    }
-
-    // Final fallback to original if empty
-    if (!textCandidate) {
-      textCandidate = origSeg.text;
-    }
-
-    refinedSegments.push({
-      text: textCandidate,
-      startMs: origSeg.startMs,
-      endMs: origSeg.endMs,
-      startTimeText: origSeg.startTimeText,
-    });
-  }
-
-  return refinedSegments;
-}
-
-/**
- * Parse refined transcript back into segments, preserving original timestamps
- * Uses per-chunk alignment with sentinels if available, otherwise global alignment
- */
-function parseRefinedTranscript(refinedText, originalSegments) {
-  if (!refinedText) {
-    return [];
-  }
-
-  function parseWithChunks() {
-    // Split refined text into chunk blocks by sentinel lines
-    const rawBlocks = refinedText.split(REFINER_CONFIG.CHUNK_SENTINEL);
-
-    // Compute original chunk ranges identically to generation
-    const ranges = chunkSegmentsByCount(
-      originalSegments,
-      REFINER_CONFIG.MAX_SEGMENTS_PER_CHUNK
-    );
-
-    // Pad missing blocks as empty to trigger original fallbacks
-    while (rawBlocks.length < ranges.length) {
-      rawBlocks.push("");
-    }
-
-    // Build per-chunk alignment with tail guard enabled
-    const finalSegments = [];
-    for (let i = 0; i < ranges.length; i++) {
-      const [startIdx, endIdx] = ranges[i];
-      const blockText = rawBlocks[i] || "";
-      const origChunk = originalSegments.slice(startIdx, endIdx);
-
-      // Normalize block to text-only lines
-      const lines = blockText
-        .trim()
-        .split("\n")
-        .filter((x) => x)
-        .map((x) => x.split(/\s+/).join(" "));
-      const refinedTextsChunk = lines
-        .map((ln) => normalizeLineToText(ln))
-        .filter((t) => t);
-
-      // Debug if mismatch
-      if (refinedTextsChunk.length !== origChunk.length) {
-        console.warn(
-          `Parser chunk warning: expected ${origChunk.length} lines, got ${refinedTextsChunk.length}`
-        );
-      }
-
-      // Align with tail guard for robustness at chunk ends
-      finalSegments.push(
-        ...dpAlignSegments(origChunk, refinedTextsChunk, true)
-      );
-    }
-
-    return finalSegments;
-  }
-
-  function parseGlobal() {
-    // Extract text from each line
-    const refinedTexts = refinedText
-      .trim()
-      .split("\n")
-      .map((line) => normalizeLineToText(line))
-      .filter((t) => t);
-
-    // Log parsing details for debugging
-    if (refinedTexts.length !== originalSegments.length) {
-      console.warn(
-        `Parser warning: Expected ${originalSegments.length} lines, got ${refinedTexts.length} lines`
-      );
-    }
-
-    // Global DP alignment with tail guard disabled (no chunk boundaries)
-    return dpAlignSegments(originalSegments, refinedTexts, false);
-  }
-
-  // Route to appropriate parser
-  if (refinedText.includes(REFINER_CONFIG.CHUNK_SENTINEL)) {
-    return parseWithChunks();
-  } else {
-    return parseGlobal();
-  }
 }
 
 // ============================================================================
@@ -506,8 +202,13 @@ had been had, you missed out big time. I`;
 
   const refinedText = allRefinedLines.join("\n");
 
-  // Parse refined text back into segments
-  const refinedSegments = parseRefinedTranscript(refinedText, segments);
+  // Parse refined text back into segments using segmentParser
+  const refinedSegments = parseRefinedSegments(
+    refinedText,
+    segments,
+    REFINER_CONFIG.CHUNK_SENTINEL,
+    REFINER_CONFIG.MAX_SEGMENTS_PER_CHUNK
+  );
 
   return refinedSegments;
 }
