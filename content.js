@@ -30,6 +30,109 @@ function isExtensionContextValid() {
 }
 
 /**
+ * Get refiner model selection from storage result
+ * Priority: custom model > recommended model > default
+ * @param {Object} result - Storage result object
+ * @returns {string} Selected model
+ */
+function getRefinerModelSelection(result) {
+  const customModel = result[STORAGE_KEYS.REFINER_CUSTOM_MODEL]?.trim();
+  const recommendedModel = result[STORAGE_KEYS.REFINER_RECOMMENDED_MODEL]?.trim();
+  return (
+    (customModel && customModel.length > 0 ? customModel : null) ||
+    (recommendedModel && recommendedModel.length > 0 ? recommendedModel : null) ||
+    DEFAULTS.MODEL_REFINER
+  );
+}
+
+/**
+ * Check if auto-generation should be triggered and trigger it if conditions are met
+ * @param {string} videoId - Video ID
+ * @param {Object} storageResult - Storage result with API keys and settings
+ * @param {boolean} checkCaptionsEnabled - Whether to check if captions are enabled
+ * @param {boolean} withDelay - Whether to add a delay before triggering (for initial page load)
+ */
+function checkAndTriggerAutoGeneration(videoId, storageResult, checkCaptionsEnabled = true, withDelay = false) {
+  // Check if auto-generation is enabled
+  if (storageResult[STORAGE_KEYS.AUTO_GENERATE] !== true) {
+    return false;
+  }
+
+  // Check if captions are enabled (if required)
+  if (checkCaptionsEnabled && !showSubtitlesEnabled) {
+    console.log('Content Script: Auto-generation enabled but captions are disabled, skipping auto-generation');
+    return false;
+  }
+
+  // Check if API key is available
+  if (!storageResult[STORAGE_KEYS.SCRAPE_CREATORS_API_KEY]) {
+    return false;
+  }
+
+  // Check if already triggered for this video
+  if (autoGenerationTriggered.has(videoId)) {
+    return false;
+  }
+
+  // Mark as triggered
+  autoGenerationTriggered.add(videoId);
+  console.log('Content Script: Auto-generation enabled, ' + (withDelay ? 'waiting for page to load...' : 'triggering immediately...'));
+
+  const trigger = () => {
+    const executeTrigger = () => {
+      // Double-check video ID hasn't changed
+      const currentVideoId = extractVideoId(window.location.href);
+      if (currentVideoId !== videoId) {
+        console.log('Content Script: Video ID changed, cancelling auto-generation');
+        autoGenerationTriggered.delete(videoId);
+        return;
+      }
+
+      const modelSelection = getRefinerModelSelection(storageResult);
+      triggerAutoGeneration(
+        videoId,
+        storageResult[STORAGE_KEYS.SCRAPE_CREATORS_API_KEY],
+        storageResult[STORAGE_KEYS.OPENROUTER_API_KEY],
+        modelSelection
+      );
+    };
+
+    // Double-check captions are still enabled if required
+    if (checkCaptionsEnabled) {
+      chrome.storage.local.get([STORAGE_KEYS.SHOW_SUBTITLES], (checkResult) => {
+        const captionsStillEnabled = checkResult[STORAGE_KEYS.SHOW_SUBTITLES] !== false;
+        
+        if (!captionsStillEnabled) {
+          console.log('Content Script: Captions disabled, cancelling auto-generation');
+          autoGenerationTriggered.delete(videoId);
+          return;
+        }
+
+        executeTrigger();
+      });
+    } else {
+      // No caption check needed, trigger directly
+      executeTrigger();
+    }
+  };
+
+  if (withDelay) {
+    setTimeout(() => {
+      if (!isExtensionContextValid()) {
+        console.debug('Content Script: Context invalidated before auto-generation.');
+        autoGenerationTriggered.delete(videoId);
+        return;
+      }
+      trigger();
+    }, TIMING.AUTO_GENERATION_DELAY_MS);
+  } else {
+    trigger();
+  }
+
+  return true;
+}
+
+/**
  * Load stored subtitles for the current video from local storage
  * Also checks for auto-generation setting and triggers generation if enabled
  */
@@ -90,52 +193,8 @@ function loadStoredSubtitles() {
           }
         } else {
           console.log('Content Script: No stored subtitles found for this video.');
-
-          // Check if auto-generation is enabled and hasn't been triggered for this video
-          if (
-            result[STORAGE_KEYS.AUTO_GENERATE] === true &&
-            result[STORAGE_KEYS.SCRAPE_CREATORS_API_KEY] &&
-            !autoGenerationTriggered.has(videoId)
-          ) {
-            console.log('Content Script: Auto-generation enabled, waiting for page to load...');
-            autoGenerationTriggered.add(videoId);
-
-            // Wait for page to fully load before auto-generating
-            setTimeout(() => {
-              if (!isExtensionContextValid()) {
-                console.debug('Content Script: Context invalidated before auto-generation.');
-                autoGenerationTriggered.delete(videoId);
-                return;
-              }
-
-              // Double-check video ID hasn't changed
-              const currentVideoId = extractVideoId(window.location.href);
-              if (currentVideoId === videoId) {
-                console.log('Content Script: Triggering auto-generation after delay...');
-                
-                // Determine model selection: custom model > recommended model > default
-                // Use refiner defaults for auto-generation (subtitle refinement)
-                const customModel = result[STORAGE_KEYS.REFINER_CUSTOM_MODEL]?.trim();
-                const recommendedModel = result[STORAGE_KEYS.REFINER_RECOMMENDED_MODEL]?.trim();
-                const modelSelection =
-                  (customModel && customModel.length > 0 ? customModel : null) ||
-                  (recommendedModel && recommendedModel.length > 0 ? recommendedModel : null) ||
-                  DEFAULTS.MODEL_REFINER;
-
-                triggerAutoGeneration(
-                  videoId,
-                  result[STORAGE_KEYS.SCRAPE_CREATORS_API_KEY],
-                  result[STORAGE_KEYS.OPENROUTER_API_KEY],
-                  modelSelection
-                );
-              } else {
-                console.log(
-                  'Content Script: Video ID changed during delay, cancelling auto-generation'
-                );
-                autoGenerationTriggered.delete(videoId);
-              }
-            }, TIMING.AUTO_GENERATION_DELAY_MS);
-          }
+          // Try to trigger auto-generation if conditions are met
+          checkAndTriggerAutoGeneration(videoId, result, true, true);
         }
       } catch (error) {
         console.error('Content Script: Error processing stored subtitles:', error);
@@ -489,6 +548,7 @@ function handleToggleSubtitles(message, sendResponse) {
     : hasEnabled
     ? message.enabled !== false
     : true;
+  const wasEnabled = showSubtitlesEnabled;
   showSubtitlesEnabled = nextState;
   chrome.storage.local.set({ [STORAGE_KEYS.SHOW_SUBTITLES]: showSubtitlesEnabled });
 
@@ -497,6 +557,35 @@ function handleToggleSubtitles(message, sendResponse) {
   } else {
     stopSubtitleDisplay();
     hideCurrentSubtitle();
+  }
+
+  // If captions were just turned on and there are no subtitles, check for auto-generation
+  if (showSubtitlesEnabled && !wasEnabled && currentSubtitles.length === 0) {
+    const videoId = extractVideoId(window.location.href);
+    if (videoId) {
+      chrome.storage.local.get(
+        [
+          videoId,
+          STORAGE_KEYS.AUTO_GENERATE,
+          STORAGE_KEYS.SCRAPE_CREATORS_API_KEY,
+          STORAGE_KEYS.OPENROUTER_API_KEY,
+          STORAGE_KEYS.REFINER_RECOMMENDED_MODEL,
+          STORAGE_KEYS.REFINER_CUSTOM_MODEL,
+        ],
+        (result) => {
+          // Check if subtitles already exist for this video
+          if (result[videoId] && result[videoId].length > 0) {
+            console.log('Content Script: Subtitles already exist for this video, loading them...');
+            currentSubtitles = result[videoId];
+            startSubtitleDisplay();
+            return;
+          }
+
+          // Try to trigger auto-generation (no delay, captions already enabled)
+          checkAndTriggerAutoGeneration(videoId, result, false, false);
+        }
+      );
+    }
   }
 
   sendResponse({ status: 'success' });
