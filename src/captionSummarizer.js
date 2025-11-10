@@ -202,6 +202,31 @@ function schemaToString(schema) {
 // ============================================================================
 
 class PromptBuilder {
+  // Language code to description mapping
+  static LANGUAGE_DESCRIPTIONS = {
+    "auto": "Use the same language as the transcript, or English if the transcript language is unclear",
+    "en": "English (US)",
+    "zh-TW": "Traditional Chinese (繁體中文)",
+  };
+
+  /**
+   * Get language instruction text for a given language code
+   * @param {string} targetLanguage - Language code (e.g., "auto", "en", "zh-TW")
+   * @param {boolean} isRefinement - Whether this is for refinement (affects formatting)
+   * @returns {string} Language instruction text
+   */
+  static _getLanguageInstruction(targetLanguage, isRefinement = false) {
+    const prefix = isRefinement ? "\n\nOUTPUT LANGUAGE (REQUIRED): " : "- OUTPUT LANGUAGE (REQUIRED): ";
+    const suffix = isRefinement ? " All text must be in this language." : "";
+    
+    const description = PromptBuilder.LANGUAGE_DESCRIPTIONS[targetLanguage] || targetLanguage;
+    const instruction = targetLanguage === "auto" 
+      ? description 
+      : `Write ALL output (summary, takeaways, key_facts) in ${description}. Do not use English or any other language.`;
+    
+    return `${prefix}${instruction}${suffix}`;
+  }
+
   /**
    * Extract field info from Zod schema (equivalent to Python's _extract_field_info)
    */
@@ -271,7 +296,7 @@ class PromptBuilder {
     return lines;
   }
 
-  static buildAnalysisPrompt() {
+  static buildAnalysisPrompt(targetLanguage = "auto") {
     const schema = schemaToString(AnalysisSchema);
     const fieldsInfo = PromptBuilder._extractFieldInfo(AnalysisSchema);
 
@@ -296,8 +321,13 @@ class PromptBuilder {
       fieldRequirements.push(requirement);
     }
 
+    // Build language instruction
+    const languageInstruction = PromptBuilder._getLanguageInstruction(targetLanguage, false);
+
     const promptParts = [
       "Create a comprehensive analysis that strictly follows the transcript content.",
+      "",
+      languageInstruction,
       "",
       "OUTPUT SCHEMA:",
       schema,
@@ -309,6 +339,7 @@ class PromptBuilder {
       "- ACCURACY: Every claim must be directly supported by the transcript",
       "- TONE: Write in objective, article-like style (avoid 'This video...', 'The speaker...')",
       "- AVOID META-DESCRIPTIVE LANGUAGE: Do not use phrases like 'This analysis explores', etc. Write direct, factual content only",
+      languageInstruction,
       "",
       "CONTENT FILTERING:",
       "- Remove all promotional content (speaker intros, calls-to-action, self-promotion)",
@@ -477,6 +508,7 @@ const GraphStateSchema = z.object({
   transcript: z.string(),
   analysis_model: z.string().default(SUMMARY_CONFIG.ANALYSIS_MODEL),
   quality_model: z.string().default(SUMMARY_CONFIG.QUALITY_MODEL),
+  target_language: z.string().default("auto"),
   analysis: AnalysisSchema.nullable().default(null),
   quality: QualitySchema.nullable().default(null),
   iteration_count: z.number().default(0),
@@ -566,8 +598,11 @@ Please provide an improved version that addresses the specific issues identified
     const transcriptContext = `Original Transcript:\n${state.transcript}`;
     const fullImprovementPrompt = `${transcriptContext}\n\n${improvementContext}`;
 
+    // Include language instruction in refinement prompt too
+    const languageInstruction = PromptBuilder._getLanguageInstruction(state.target_language || "auto", true);
+
     prompt = ChatPromptTemplate.fromMessages([
-      ["system", improvementSystemPrompt],
+      ["system", improvementSystemPrompt + languageInstruction],
       ["human", "{improvement_prompt}"],
     ]);
 
@@ -586,11 +621,17 @@ Please provide an improved version that addresses the specific issues identified
     };
   } else {
     // Generation path
-    const analysisPrompt = PromptBuilder.buildAnalysisPrompt();
+    const targetLang = state.target_language || "auto";
+    const analysisPrompt = PromptBuilder.buildAnalysisPrompt(targetLang);
+
+    // Add language reminder to human message for non-auto languages
+    const humanMessage = targetLang === "auto" 
+      ? "{content}"
+      : `{content}\n\nRemember: Write ALL output in ${PromptBuilder.LANGUAGE_DESCRIPTIONS[targetLang] || targetLang}. Do not use English or any other language.`;
 
     prompt = ChatPromptTemplate.fromMessages([
       ["system", analysisPrompt],
-      ["human", "{content}"],
+      ["human", humanMessage],
     ]);
 
     const chain = prompt.pipe(structuredLLM);
@@ -716,6 +757,7 @@ async function executeSummarizationWorkflow(input, apiKey, progressCallback) {
     transcript: input.transcript,
     analysis_model: input.analysis_model || SUMMARY_CONFIG.ANALYSIS_MODEL,
     quality_model: input.quality_model || SUMMARY_CONFIG.QUALITY_MODEL,
+    target_language: input.target_language || "auto",
     analysis: null,
     quality: null,
     iteration_count: 0,

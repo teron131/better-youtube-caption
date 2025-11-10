@@ -387,6 +387,7 @@ function handleGenerateSummary(message, sendResponse) {
       scrapeCreatorsApiKey: message.scrapeCreatorsApiKey,
       openRouterApiKey: message.openRouterApiKey,
       modelSelection: message.modelSelection,
+      targetLanguage: message.targetLanguage,
     },
     (response) => {
       if (chrome.runtime.lastError) {

@@ -12,6 +12,7 @@ const STORAGE_KEYS = {
   SHOW_SUBTITLES: "showSubtitles",
   CAPTION_FONT_SIZE: "captionFontSize",
   SUMMARY_FONT_SIZE: "summaryFontSize",
+  TARGET_LANGUAGE: "targetLanguage",
 };
 
 // Timing constants
@@ -46,6 +47,13 @@ const RECOMMENDED_REFINER_MODELS = [
   { value: "x-ai/grok-4-fast", label: "Grok 4 Fast" },
 ];
 
+// Target language options for summarization
+const TARGET_LANGUAGES = [
+  { value: "auto", label: "🌐 Auto" },
+  { value: "en", label: "🇺🇸 English" },
+  { value: "zh-TW", label: "🇭🇰 Chinese" },
+];
+
 // Default values
 const DEFAULTS = {
   MODEL_SUMMARIZER: "x-ai/grok-4-fast",
@@ -54,6 +62,7 @@ const DEFAULTS = {
   SHOW_SUBTITLES: true, // Subtitles shown by default
   CAPTION_FONT_SIZE: "M", // Medium
   SUMMARY_FONT_SIZE: "M", // Medium
+  TARGET_LANGUAGE: "auto", // Auto-detect language
 };
 
 // Font size mappings

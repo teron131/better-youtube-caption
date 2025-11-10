@@ -70,6 +70,7 @@ async function generateSummary(elements, showSettingsView) {
       STORAGE_KEYS.SUMMARIZER_CUSTOM_MODEL,
       STORAGE_KEYS.REFINER_RECOMMENDED_MODEL,
       STORAGE_KEYS.REFINER_CUSTOM_MODEL,
+      STORAGE_KEYS.TARGET_LANGUAGE,
     ],
     async (result) => {
       // Validate API keys
@@ -78,8 +79,7 @@ async function generateSummary(elements, showSettingsView) {
       }
 
       const summarizerModel = getSummarizerModel(result);
-
-      console.log('Popup: Generate Summary using summarizer:', summarizerModel);
+      const targetLanguage = result[STORAGE_KEYS.TARGET_LANGUAGE] || DEFAULTS.TARGET_LANGUAGE;
 
       // Show loading state
       elements.status.textContent = 'Generating summary...';
@@ -115,6 +115,7 @@ async function generateSummary(elements, showSettingsView) {
           scrapeCreatorsApiKey: result[STORAGE_KEYS.SCRAPE_CREATORS_API_KEY],
           openRouterApiKey: result[STORAGE_KEYS.OPENROUTER_API_KEY],
           modelSelection: summarizerModel,
+          targetLanguage: targetLanguage,
         },
         (response) => {
           if (chrome.runtime.lastError) {
@@ -126,11 +127,15 @@ async function generateSummary(elements, showSettingsView) {
           } else if (response && response.status === 'started') {
             elements.status.textContent = 'Processing video transcript...';
           } else if (response && response.status === 'error') {
-            elements.status.textContent = 'Error: ' + (response.message || 'Unknown error');
+            const errorMsg = response.message || 'Unknown error';
+            elements.status.textContent = 'Error: ' + errorMsg;
             elements.status.className = 'status error';
             elements.generateSummaryBtn.disabled = false;
             elements.generateCaptionBtn.disabled = false;
-            elements.summaryContent.innerHTML = '<div class="summary-placeholder">Failed to generate summary. Please try again.</div>';
+            // Don't clear summary content if it's just a "already running" error
+            if (!errorMsg.includes('already in progress')) {
+              elements.summaryContent.innerHTML = '<div class="summary-placeholder">Failed to generate summary. Please try again.</div>';
+            }
           }
         }
       );

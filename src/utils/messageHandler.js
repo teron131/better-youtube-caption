@@ -44,12 +44,38 @@ function handleModelError(elements, errorMessage) {
 }
 
 /**
+ * Safely convert error to string and lowercase
+ * @param {*} error - Error (can be string, object, array, etc.)
+ * @returns {string} Lowercased error string
+ */
+function errorToString(error) {
+  if (typeof error === 'string') {
+    return error.toLowerCase();
+  }
+  if (error instanceof Error) {
+    return error.message.toLowerCase();
+  }
+  if (typeof error === 'object' && error !== null) {
+    // Try to extract meaningful error message from object
+    if (error.message) {
+      return String(error.message).toLowerCase();
+    }
+    if (error.error) {
+      return errorToString(error.error);
+    }
+    // Fallback: stringify the object
+    return JSON.stringify(error).toLowerCase();
+  }
+  return String(error).toLowerCase();
+}
+
+/**
  * Check if error is a model-related error
- * @param {string} error - Error message
+ * @param {*} error - Error message (can be string, object, etc.)
  * @returns {boolean} True if model error
  */
 function isModelError(error) {
-  const lowerError = error.toLowerCase();
+  const lowerError = errorToString(error);
   return (
     lowerError.includes('invalid model') ||
     lowerError.includes('not a valid model id') ||
@@ -67,18 +93,20 @@ function setupMessageListener(elements) {
     if (message.action === MESSAGE_ACTIONS.SHOW_ERROR) {
       elements.status.className = 'status error';
       
-      const error = message.error.toLowerCase();
-      const isModel = isModelError(error);
+      const errorString = typeof message.error === 'string' 
+        ? message.error 
+        : (message.error?.message || JSON.stringify(message.error) || 'Unknown error');
+      const isModel = isModelError(message.error);
       
       if (isModel && (elements.summarizerCustomModel || elements.refinerCustomModel)) {
-        handleModelError(elements, message.error);
+        handleModelError(elements, errorString);
       } else if (isModel) {
         alert(
-          `Model Error: ${message.error}\n\n` +
+          `Model Error: ${errorString}\n\n` +
           `Please check your model selection in Settings and ensure it's a valid OpenRouter model ID.`
         );
       } else {
-        elements.status.textContent = `Error: ${message.error}`;
+        elements.status.textContent = `Error: ${errorString}`;
       }
     } else if (message.action === MESSAGE_ACTIONS.UPDATE_POPUP_STATUS) {
       if (message.error) {
@@ -87,13 +115,15 @@ function setupMessageListener(elements) {
         elements.generateCaptionBtn.disabled = false;
         elements.summaryContent.innerHTML = '<div class="summary-placeholder">Failed to generate summary. Please try again.</div>';
         
-        const error = message.error.toLowerCase();
-        const isModel = isModelError(error);
+        const errorString = typeof message.error === 'string' 
+          ? message.error 
+          : (message.error?.message || JSON.stringify(message.error) || 'Unknown error');
+        const isModel = isModelError(message.error);
         
         if (isModel && (elements.summarizerCustomModel || elements.refinerCustomModel)) {
-          handleModelError(elements, message.error);
+          handleModelError(elements, errorString);
         } else {
-          elements.status.textContent = message.text || `Error: ${message.error}`;
+          elements.status.textContent = message.text || `Error: ${errorString}`;
         }
       } else if (message.success) {
         elements.status.className = 'status success';

@@ -30,6 +30,7 @@ function loadSettings(elements) {
       STORAGE_KEYS.REFINER_CUSTOM_MODEL,
       STORAGE_KEYS.AUTO_GENERATE,
       STORAGE_KEYS.SHOW_SUBTITLES,
+      STORAGE_KEYS.TARGET_LANGUAGE,
     ],
     (result) => {
       // API Keys
@@ -70,6 +71,12 @@ function loadSettings(elements) {
         : DEFAULTS.SHOW_SUBTITLES;
       if (elements.showSubtitlesToggle) {
         elements.showSubtitlesToggle.checked = showSubtitlesValue === true;
+      }
+
+      // Target Language
+      const targetLanguageValue = result[STORAGE_KEYS.TARGET_LANGUAGE] || DEFAULTS.TARGET_LANGUAGE;
+      if (elements.targetLanguage) {
+        elements.targetLanguage.value = targetLanguageValue;
       }
 
       // Update select dropdowns
@@ -148,6 +155,13 @@ function setupSettingsListeners(elements) {
           );
         }
       });
+    });
+  }
+
+  // Target Language
+  if (elements.targetLanguage) {
+    elements.targetLanguage.addEventListener('change', function() {
+      saveSetting(STORAGE_KEYS.TARGET_LANGUAGE, this.value);
     });
   }
 }
