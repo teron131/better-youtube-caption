@@ -109,7 +109,16 @@ function setupSelectListeners(select, hiddenInput) {
     iconSpan.innerHTML = '';
     
     if (modelType === 'targetLanguage') {
-      // For language select, no provider icon needed
+      // For language select, get emoji from the item icon
+      const itemIcon = item.querySelector('.item-icon');
+      if (itemIcon && itemIcon.textContent) {
+        iconSpan.textContent = itemIcon.textContent;
+        iconSpan.style.fontSize = '16px';
+        iconSpan.style.lineHeight = '16px';
+        iconSpan.style.display = 'flex';
+        iconSpan.style.alignItems = 'center';
+        iconSpan.style.justifyContent = 'center';
+      }
     } else {
       // For model selects, show provider icon
       const provider = value.split('/')[0];
@@ -167,17 +176,41 @@ function setSelectValue(modelType, value) {
   
   // Update display
   if (modelType === 'targetLanguage') {
-    // For language select, no provider icon needed
+    // For language select, get emoji from matching item icon
     const iconSpan = selected.querySelector('.select-icon');
     iconSpan.innerHTML = '';
     
     let labelText = value;
     if (matchingItem) {
       labelText = matchingItem.querySelector('.item-label').textContent;
+      const itemIcon = matchingItem.querySelector('.item-icon');
+      if (itemIcon && itemIcon.textContent) {
+        iconSpan.textContent = itemIcon.textContent;
+        iconSpan.style.fontSize = '16px';
+        iconSpan.style.lineHeight = '16px';
+        iconSpan.style.display = 'flex';
+        iconSpan.style.alignItems = 'center';
+        iconSpan.style.justifyContent = 'center';
+      }
       matchingItem.classList.add('selected');
       items.querySelectorAll('.select-item').forEach(i => {
         if (i !== matchingItem) i.classList.remove('selected');
       });
+    } else {
+      // Fallback: try to get emoji from TARGET_LANGUAGES
+      const langOption = TARGET_LANGUAGES.find(l => l.value === value);
+      if (langOption) {
+        const emojiMatch = langOption.label.match(/^(\p{Emoji}+)\s*(.+)$/u);
+        if (emojiMatch) {
+          iconSpan.textContent = emojiMatch[1];
+          iconSpan.style.fontSize = '16px';
+          iconSpan.style.lineHeight = '16px';
+          iconSpan.style.display = 'flex';
+          iconSpan.style.alignItems = 'center';
+          iconSpan.style.justifyContent = 'center';
+          labelText = emojiMatch[2].trim();
+        }
+      }
     }
     
     const labelElement = selected.querySelector('.select-label');

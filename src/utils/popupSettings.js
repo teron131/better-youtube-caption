@@ -42,26 +42,6 @@ function loadSettings(elements) {
         elements.openrouterApiKey.value = result[STORAGE_KEYS.OPENROUTER_API_KEY];
       }
 
-      // Summarizer models
-      const summarizerRec = result[STORAGE_KEYS.SUMMARIZER_RECOMMENDED_MODEL];
-      if (elements.summarizerRecommendedModel) {
-        elements.summarizerRecommendedModel.value = summarizerRec || DEFAULTS.MODEL_SUMMARIZER;
-      }
-      if (result[STORAGE_KEYS.SUMMARIZER_CUSTOM_MODEL] && elements.summarizerCustomModel) {
-        const trimmed = result[STORAGE_KEYS.SUMMARIZER_CUSTOM_MODEL].trim();
-        elements.summarizerCustomModel.value = trimmed || '';
-      }
-
-      // Refiner models
-      const refinerRec = result[STORAGE_KEYS.REFINER_RECOMMENDED_MODEL];
-      if (elements.refinerRecommendedModel) {
-        elements.refinerRecommendedModel.value = refinerRec || DEFAULTS.MODEL_REFINER;
-      }
-      if (result[STORAGE_KEYS.REFINER_CUSTOM_MODEL] && elements.refinerCustomModel) {
-        const trimmed = result[STORAGE_KEYS.REFINER_CUSTOM_MODEL].trim();
-        elements.refinerCustomModel.value = trimmed || '';
-      }
-
       // Toggles
       if (elements.autoGenerateToggle) {
         elements.autoGenerateToggle.checked = result[STORAGE_KEYS.AUTO_GENERATE] === true;
@@ -74,25 +54,24 @@ function loadSettings(elements) {
         elements.showSubtitlesToggle.checked = showSubtitlesValue === true;
       }
 
+      // Update comboboxes (custom takes priority over recommended)
+      // Summarizer
+      const summarizerCustom = result[STORAGE_KEYS.SUMMARIZER_CUSTOM_MODEL]?.trim();
+      const summarizerRecommended = result[STORAGE_KEYS.SUMMARIZER_RECOMMENDED_MODEL] || DEFAULTS.MODEL_SUMMARIZER;
+      const summarizerValue = summarizerCustom || summarizerRecommended;
+      setComboboxValue('summarizer', summarizerValue);
+
+      // Refiner
+      const refinerCustom = result[STORAGE_KEYS.REFINER_CUSTOM_MODEL]?.trim();
+      const refinerRecommended = result[STORAGE_KEYS.REFINER_RECOMMENDED_MODEL] || DEFAULTS.MODEL_REFINER;
+      const refinerValue = refinerCustom || refinerRecommended;
+      setComboboxValue('refiner', refinerValue);
+      
       // Target Language
-      const targetLanguageRec = result[STORAGE_KEYS.TARGET_LANGUAGE_RECOMMENDED];
-      if (elements.targetLanguageRecommended) {
-        elements.targetLanguageRecommended.value = targetLanguageRec || DEFAULTS.TARGET_LANGUAGE_RECOMMENDED;
-      }
-      if (result[STORAGE_KEYS.TARGET_LANGUAGE_CUSTOM] && elements.targetLanguageCustom) {
-        const trimmed = result[STORAGE_KEYS.TARGET_LANGUAGE_CUSTOM].trim();
-        elements.targetLanguageCustom.value = trimmed || '';
-      }
-
-      // Update select dropdowns
-      const summarizerValue = summarizerRec || DEFAULTS.MODEL_SUMMARIZER;
-      setSelectValue('summarizer', summarizerValue);
-
-      const refinerValue = refinerRec || DEFAULTS.MODEL_REFINER;
-      setSelectValue('refiner', refinerValue);
-
-      const targetLanguageValue = targetLanguageRec || DEFAULTS.TARGET_LANGUAGE_RECOMMENDED;
-      setSelectValue('targetLanguage', targetLanguageValue);
+      const customLanguage = result[STORAGE_KEYS.TARGET_LANGUAGE_CUSTOM]?.trim();
+      const recommendedLanguage = result[STORAGE_KEYS.TARGET_LANGUAGE_RECOMMENDED] || DEFAULTS.TARGET_LANGUAGE_RECOMMENDED;
+      const targetLanguageValue = customLanguage || recommendedLanguage;
+      setComboboxValue('targetLanguage', targetLanguageValue);
     }
   );
 }
@@ -115,18 +94,7 @@ function setupSettingsListeners(elements) {
     });
   }
 
-  // Custom models
-  if (elements.summarizerCustomModel) {
-    elements.summarizerCustomModel.addEventListener('input', function() {
-      saveSetting(STORAGE_KEYS.SUMMARIZER_CUSTOM_MODEL, this.value.trim());
-    });
-  }
-
-  if (elements.refinerCustomModel) {
-    elements.refinerCustomModel.addEventListener('input', function() {
-      saveSetting(STORAGE_KEYS.REFINER_CUSTOM_MODEL, this.value.trim());
-    });
-  }
+  // Model comboboxes are handled by combobox.js
 
   // Toggles
   if (elements.autoGenerateToggle) {
@@ -166,12 +134,7 @@ function setupSettingsListeners(elements) {
     });
   }
 
-  // Target Language
-  if (elements.targetLanguageCustom) {
-    elements.targetLanguageCustom.addEventListener('input', function() {
-      saveSetting(STORAGE_KEYS.TARGET_LANGUAGE_CUSTOM, this.value.trim());
-    });
-  }
+  // Target Language is handled by combobox.js
 }
 
 /**

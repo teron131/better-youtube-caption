@@ -79,8 +79,10 @@ async function generateSummary(elements, showSettingsView) {
         return;
       }
 
-      const summarizerModel = getSummarizerModel(result);
-      const targetLanguage = getTargetLanguage(result);
+      // Get models and target language from combobox inputs (takes priority) or storage
+      const summarizerModel = elements.summarizerInput?.value.trim() || getSummarizerModel(result);
+      const refinerModel = elements.refinerInput?.value.trim() || getRefinerModel(result);
+      const targetLanguage = elements.targetLanguageInput?.value.trim() || getTargetLanguage(result);
 
       // Show loading state
       elements.status.textContent = 'Generating summary...';
@@ -170,7 +172,7 @@ async function generateCaptions(elements, showSettingsView) {
         return;
       }
 
-      const refinerModel = getRefinerModel(result);
+      const refinerModel = elements.refinerInput?.value.trim() || getRefinerModel(result);
 
       // Show loading state
       elements.status.textContent = 'Generating refined captions...';

@@ -23,14 +23,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Form inputs
     scrapeApiKey: document.getElementById('scrapeApiKey'),
     openrouterApiKey: document.getElementById('openrouterApiKey'),
-    summarizerRecommendedModel: document.getElementById('summarizerRecommendedModel'),
-    refinerRecommendedModel: document.getElementById('refinerRecommendedModel'),
-    summarizerCustomModel: document.getElementById('summarizerCustomModel'),
-    refinerCustomModel: document.getElementById('refinerCustomModel'),
+    summarizerInput: document.getElementById('summarizerInput'),
+    refinerInput: document.getElementById('refinerInput'),
     autoGenerateToggle: document.getElementById('autoGenerateToggle'),
     showSubtitlesToggle: document.getElementById('showSubtitlesToggle'),
-    targetLanguageRecommended: document.getElementById('targetLanguageRecommended'),
-    targetLanguageCustom: document.getElementById('targetLanguageCustom'),
+    targetLanguageInput: document.getElementById('targetLanguageInput'),
   };
 
   // View Management
@@ -54,6 +51,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Initialize components
   initializeCustomSelects();
+  initializeComboboxes();
   loadSettings(elements);
   setupSettingsListeners(elements);
   initializeFontSizeSelectors(elements);

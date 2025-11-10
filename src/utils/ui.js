@@ -33,7 +33,19 @@ function createOptionElement(model, type) {
   icon.className = 'item-icon';
   
   if (type === 'targetLanguage') {
-    // For language select, no provider icon needed
+    // For language select, extract emoji from label and put it in icon
+    const labelText = model.label || model.value;
+    // Match emoji at the start of the label (e.g., "🌐 Auto", "🇺🇸 English")
+    const emojiMatch = labelText.match(/^(\p{Emoji}+)\s*(.+)$/u);
+    if (emojiMatch) {
+      const emoji = emojiMatch[1];
+      icon.textContent = emoji;
+      icon.style.fontSize = '16px';
+      icon.style.lineHeight = '16px';
+      icon.style.display = 'flex';
+      icon.style.alignItems = 'center';
+      icon.style.justifyContent = 'center';
+    }
   } else {
     // For model selects, show provider icon
     const provider = model.value.split('/')[0];
@@ -51,7 +63,14 @@ function createOptionElement(model, type) {
 
   const label = document.createElement('span');
   label.className = 'item-label';
-  label.textContent = model.label || model.value;
+  if (type === 'targetLanguage') {
+    // For language select, remove emoji from label text (it's now in icon)
+    const labelText = model.label || model.value;
+    const emojiMatch = labelText.match(/^(\p{Emoji}+)\s*(.+)$/u);
+    label.textContent = emojiMatch ? emojiMatch[2].trim() : labelText;
+  } else {
+    label.textContent = model.label || model.value;
+  }
   item.appendChild(label);
 
   return item;
