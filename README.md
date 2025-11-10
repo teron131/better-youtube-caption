@@ -2,7 +2,7 @@
 
 <div style="display: flex; gap: 2%; align-items: flex-start;">
   <img src="images/main.png" alt="Main Screenshot" style="width: 48%;">
-  <img src="images/setting.png" alt="Settings Screenshot" style="width: 48%;">
+  <img src="images/settings.png" alt="Settings Screenshot" style="width: 48%;">
 </div>
 <br>
 
