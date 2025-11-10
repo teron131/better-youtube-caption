@@ -70,6 +70,8 @@ async function generateSummary(elements, showSettingsView) {
       STORAGE_KEYS.SUMMARIZER_CUSTOM_MODEL,
       STORAGE_KEYS.REFINER_RECOMMENDED_MODEL,
       STORAGE_KEYS.REFINER_CUSTOM_MODEL,
+      STORAGE_KEYS.TARGET_LANGUAGE,
+      STORAGE_KEYS.TARGET_LANGUAGE_CUSTOM,
     ],
     async (result) => {
       // Validate API keys
@@ -78,6 +80,7 @@ async function generateSummary(elements, showSettingsView) {
       }
 
       const summarizerModel = getSummarizerModel(result);
+      const targetLanguage = getTargetLanguage(result);
 
       console.log('Popup: Generate Summary using summarizer:', summarizerModel);
 
@@ -115,6 +118,7 @@ async function generateSummary(elements, showSettingsView) {
           scrapeCreatorsApiKey: result[STORAGE_KEYS.SCRAPE_CREATORS_API_KEY],
           openRouterApiKey: result[STORAGE_KEYS.OPENROUTER_API_KEY],
           modelSelection: summarizerModel,
+          targetLanguage: targetLanguage,
         },
         (response) => {
           if (chrome.runtime.lastError) {
