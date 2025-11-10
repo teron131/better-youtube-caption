@@ -271,7 +271,7 @@ class PromptBuilder {
     return lines;
   }
 
-  static buildAnalysisPrompt(targetLanguage = "auto") {
+  static buildAnalysisPrompt() {
     const schema = schemaToString(AnalysisSchema);
     const fieldsInfo = PromptBuilder._extractFieldInfo(AnalysisSchema);
 
@@ -296,11 +296,6 @@ class PromptBuilder {
       fieldRequirements.push(requirement);
     }
 
-    // Build language instruction
-    const languageInstruction = targetLanguage === "auto"
-      ? "- OUTPUT LANGUAGE: Output in the same language as the transcript (auto-detect)"
-      : `- OUTPUT LANGUAGE: Output must be in ${targetLanguage}`;
-
     const promptParts = [
       "Create a comprehensive analysis that strictly follows the transcript content.",
       "",
@@ -314,7 +309,6 @@ class PromptBuilder {
       "- ACCURACY: Every claim must be directly supported by the transcript",
       "- TONE: Write in objective, article-like style (avoid 'This video...', 'The speaker...')",
       "- AVOID META-DESCRIPTIVE LANGUAGE: Do not use phrases like 'This analysis explores', etc. Write direct, factual content only",
-      languageInstruction,
       "",
       "CONTENT FILTERING:",
       "- Remove all promotional content (speaker intros, calls-to-action, self-promotion)",
@@ -371,7 +365,7 @@ class PromptBuilder {
     return promptParts.join("\n");
   }
 
-  static buildImprovementPrompt(targetLanguage = "auto") {
+  static buildImprovementPrompt() {
     const schema = schemaToString(AnalysisSchema);
     const fieldsInfo = PromptBuilder._extractFieldInfo(AnalysisSchema);
 
@@ -396,11 +390,6 @@ class PromptBuilder {
       fieldRequirements.push(requirement);
     }
 
-    // Build language instruction
-    const languageInstruction = targetLanguage === "auto"
-      ? "7. OUTPUT LANGUAGE: Output in the same language as the transcript (auto-detect)"
-      : `7. OUTPUT LANGUAGE: Output must be in ${targetLanguage}`;
-
     const promptParts = [
       "Improve the analysis based on quality feedback while maintaining transcript accuracy.",
       "",
@@ -411,7 +400,6 @@ class PromptBuilder {
       "4. AVOID META-DESCRIPTIVE LANGUAGE: Remove phrases like 'This analysis explores', etc.",
       "5. TYPO CORRECTION: Fix obvious typos naturally",
       "6. ARRAY FORMATTING: Return takeaways/key_facts as simple string arrays",
-      languageInstruction,
       "",
       "CONTENT TARGETS:",
       fieldRequirements.join("\n"),
@@ -496,7 +484,6 @@ const GraphStateSchema = z.object({
   // Internal state for API key and callback (not validated by Zod)
   apiKey: z.string().optional(),
   progressCallback: z.any().optional(),
-  targetLanguage: z.string().default("auto"),
 });
 
 // ============================================================================
@@ -542,7 +529,6 @@ function createOpenRouterLLM(model, apiKey) {
 async function analysisNode(state) {
   const apiKey = state.apiKey;
   const progressCallback = state.progressCallback;
-  const targetLanguage = state.targetLanguage || "auto";
 
   if (progressCallback) {
     if (state.quality && state.analysis) {
@@ -576,7 +562,7 @@ ${JSON.stringify(state.quality, null, 2)}
 
 Please provide an improved version that addresses the specific issues identified above to improve the overall quality score.`;
 
-    const improvementSystemPrompt = PromptBuilder.buildImprovementPrompt(targetLanguage);
+    const improvementSystemPrompt = PromptBuilder.buildImprovementPrompt();
     const transcriptContext = `Original Transcript:\n${state.transcript}`;
     const fullImprovementPrompt = `${transcriptContext}\n\n${improvementContext}`;
 
@@ -600,7 +586,7 @@ Please provide an improved version that addresses the specific issues identified
     };
   } else {
     // Generation path
-    const analysisPrompt = PromptBuilder.buildAnalysisPrompt(targetLanguage);
+    const analysisPrompt = PromptBuilder.buildAnalysisPrompt();
 
     prompt = ChatPromptTemplate.fromMessages([
       ["system", analysisPrompt],
@@ -736,7 +722,6 @@ async function executeSummarizationWorkflow(input, apiKey, progressCallback) {
     is_complete: false,
     apiKey: apiKey,
     progressCallback: progressCallback,
-    targetLanguage: input.targetLanguage || "auto",
   };
 
   const result = await graph.invoke(initialState);

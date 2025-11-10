@@ -29,8 +29,6 @@ document.addEventListener('DOMContentLoaded', function() {
     refinerCustomModel: document.getElementById('refinerCustomModel'),
     autoGenerateToggle: document.getElementById('autoGenerateToggle'),
     showSubtitlesToggle: document.getElementById('showSubtitlesToggle'),
-    targetLanguage: document.getElementById('targetLanguage'),
-    targetLanguageCustom: document.getElementById('targetLanguageCustom'),
   };
 
   // View Management

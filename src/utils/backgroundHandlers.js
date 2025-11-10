@@ -90,7 +90,6 @@ async function handleGenerateSummary(message, tabId, sendResponse) {
     scrapeCreatorsApiKey: messageScrapeCreatorsKey,
     openRouterApiKey: messageOpenRouterKey,
     modelSelection: messageModelSelection,
-    targetLanguage: messageTargetLanguage,
   } = message;
 
   console.log('Background Script: Received generateSummary request for Video ID:', videoId);
@@ -149,13 +148,6 @@ async function handleGenerateSummary(message, tabId, sendResponse) {
       );
       console.log('Background (summary): using model', modelSelection);
 
-      // Get target language - prefer custom over recommended
-      const customLanguage = await getApiKeyFromStorage(STORAGE_KEYS.TARGET_LANGUAGE_CUSTOM);
-      const recommendedLanguage = await getApiKeyFromStorage(STORAGE_KEYS.TARGET_LANGUAGE);
-      const targetLanguage = messageTargetLanguage || 
-        (customLanguage?.trim() || recommendedLanguage || DEFAULTS.TARGET_LANGUAGE);
-      console.log('Background (summary): using target language', targetLanguage);
-
       // Fetch transcript
       const transcriptData = await fetchYouTubeTranscript(urlForApi, scrapeCreatorsKey);
       console.log(`Fetched ${transcriptData.segments.length} transcript segments for summary`);
@@ -176,7 +168,6 @@ async function handleGenerateSummary(message, tabId, sendResponse) {
           transcript: transcriptText,
           analysis_model: modelSelection,
           quality_model: modelSelection,
-          targetLanguage: targetLanguage,
         },
         openRouterKey,
         progressCallback
