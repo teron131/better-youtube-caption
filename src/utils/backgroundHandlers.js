@@ -165,9 +165,11 @@ async function handleGenerateSummary(message, tabId, sendResponse) {
     );
     console.log('Background (summary): using model', modelSelection);
 
-    // Get target language
-    const storedTargetLanguage = await getApiKeyFromStorage(STORAGE_KEYS.TARGET_LANGUAGE);
-    const targetLanguage = messageTargetLanguage || storedTargetLanguage || DEFAULTS.TARGET_LANGUAGE;
+      // Get target language (custom if provided, otherwise recommended)
+      const customLanguage = await getApiKeyFromStorage(STORAGE_KEYS.TARGET_LANGUAGE_CUSTOM);
+      const recommendedLanguage = await getApiKeyFromStorage(STORAGE_KEYS.TARGET_LANGUAGE_RECOMMENDED);
+      const storedTargetLanguage = (customLanguage?.trim() || recommendedLanguage || DEFAULTS.TARGET_LANGUAGE_RECOMMENDED);
+      const targetLanguage = messageTargetLanguage || storedTargetLanguage;
 
     // Fetch transcript
     const transcriptData = await fetchYouTubeTranscript(urlForApi, scrapeCreatorsKey);

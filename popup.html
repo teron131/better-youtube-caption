@@ -1099,14 +1099,27 @@
               </div>
             </div>
 
-            <div class="form-group">
-              <label for="targetLanguage">Target Language <span class="info-icon" data-tooltip="Language for summarization output" title="Language for summarization output">?</span></label>
-              <select id="targetLanguage" class="form-select">
-                <option value="auto">🌐 Auto</option>
-                <option value="en">🇺🇸 English</option>
-                <option value="zh-TW">🇭🇰 Chinese</option>
-              </select>
-              <div class="form-hint">Only applies to summarization</div>
+            <div class="model-row">
+              <div class="form-group">
+                <label for="targetLanguageRecommended">Target Language <span class="info-icon" data-tooltip="Language for summarization output" title="Language for summarization output">?</span></label>
+                <div class="custom-select" data-model-type="targetLanguage">
+                  <div class="select-selected">
+                    <span class="select-icon"></span>
+                    <span class="select-label">Select a language</span>
+                    <span class="select-arrow">▼</span>
+                  </div>
+                  <div class="select-items">
+                    <!-- Options populated by JS -->
+                  </div>
+                  <input type="hidden" id="targetLanguageRecommended" />
+                </div>
+                <div class="form-hint">Only applies to summarization</div>
+              </div>
+              <div class="form-group">
+                <label for="targetLanguageCustom">Custom Language</label>
+                <input type="text" id="targetLanguageCustom" placeholder="e.g., ja, fr, es" />
+                <div class="form-hint">Leave empty to use recommended language</div>
+              </div>
             </div>
 
             <div class="toggle-card">

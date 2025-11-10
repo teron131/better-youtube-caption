@@ -31,15 +31,21 @@ function createOptionElement(model, type) {
 
   const icon = document.createElement('span');
   icon.className = 'item-icon';
-  const provider = model.value.split('/')[0];
-  const iconSrc = getProviderIcon(provider);
-  if (iconSrc) {
-    const img = document.createElement('img');
-    img.src = iconSrc;
-    img.alt = provider;
-    img.width = 16;
-    img.height = 16;
-    icon.appendChild(img);
+  
+  if (type === 'targetLanguage') {
+    // For language select, no provider icon needed
+  } else {
+    // For model selects, show provider icon
+    const provider = model.value.split('/')[0];
+    const iconSrc = getProviderIcon(provider);
+    if (iconSrc) {
+      const img = document.createElement('img');
+      img.src = iconSrc;
+      img.alt = provider;
+      img.width = 16;
+      img.height = 16;
+      icon.appendChild(img);
+    }
   }
   item.appendChild(icon);
 

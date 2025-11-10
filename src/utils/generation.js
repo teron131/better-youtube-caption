@@ -70,7 +70,8 @@ async function generateSummary(elements, showSettingsView) {
       STORAGE_KEYS.SUMMARIZER_CUSTOM_MODEL,
       STORAGE_KEYS.REFINER_RECOMMENDED_MODEL,
       STORAGE_KEYS.REFINER_CUSTOM_MODEL,
-      STORAGE_KEYS.TARGET_LANGUAGE,
+      STORAGE_KEYS.TARGET_LANGUAGE_RECOMMENDED,
+      STORAGE_KEYS.TARGET_LANGUAGE_CUSTOM,
     ],
     async (result) => {
       // Validate API keys
@@ -79,7 +80,7 @@ async function generateSummary(elements, showSettingsView) {
       }
 
       const summarizerModel = getSummarizerModel(result);
-      const targetLanguage = result[STORAGE_KEYS.TARGET_LANGUAGE] || DEFAULTS.TARGET_LANGUAGE;
+      const targetLanguage = getTargetLanguage(result);
 
       // Show loading state
       elements.status.textContent = 'Generating summary...';

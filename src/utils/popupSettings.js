@@ -30,7 +30,8 @@ function loadSettings(elements) {
       STORAGE_KEYS.REFINER_CUSTOM_MODEL,
       STORAGE_KEYS.AUTO_GENERATE,
       STORAGE_KEYS.SHOW_SUBTITLES,
-      STORAGE_KEYS.TARGET_LANGUAGE,
+      STORAGE_KEYS.TARGET_LANGUAGE_RECOMMENDED,
+      STORAGE_KEYS.TARGET_LANGUAGE_CUSTOM,
     ],
     (result) => {
       // API Keys
@@ -74,9 +75,13 @@ function loadSettings(elements) {
       }
 
       // Target Language
-      const targetLanguageValue = result[STORAGE_KEYS.TARGET_LANGUAGE] || DEFAULTS.TARGET_LANGUAGE;
-      if (elements.targetLanguage) {
-        elements.targetLanguage.value = targetLanguageValue;
+      const targetLanguageRec = result[STORAGE_KEYS.TARGET_LANGUAGE_RECOMMENDED];
+      if (elements.targetLanguageRecommended) {
+        elements.targetLanguageRecommended.value = targetLanguageRec || DEFAULTS.TARGET_LANGUAGE_RECOMMENDED;
+      }
+      if (result[STORAGE_KEYS.TARGET_LANGUAGE_CUSTOM] && elements.targetLanguageCustom) {
+        const trimmed = result[STORAGE_KEYS.TARGET_LANGUAGE_CUSTOM].trim();
+        elements.targetLanguageCustom.value = trimmed || '';
       }
 
       // Update select dropdowns
@@ -85,6 +90,9 @@ function loadSettings(elements) {
 
       const refinerValue = refinerRec || DEFAULTS.MODEL_REFINER;
       setSelectValue('refiner', refinerValue);
+
+      const targetLanguageValue = targetLanguageRec || DEFAULTS.TARGET_LANGUAGE_RECOMMENDED;
+      setSelectValue('targetLanguage', targetLanguageValue);
     }
   );
 }
@@ -159,9 +167,9 @@ function setupSettingsListeners(elements) {
   }
 
   // Target Language
-  if (elements.targetLanguage) {
-    elements.targetLanguage.addEventListener('change', function() {
-      saveSetting(STORAGE_KEYS.TARGET_LANGUAGE, this.value);
+  if (elements.targetLanguageCustom) {
+    elements.targetLanguageCustom.addEventListener('input', function() {
+      saveSetting(STORAGE_KEYS.TARGET_LANGUAGE_CUSTOM, this.value.trim());
     });
   }
 }
@@ -186,4 +194,15 @@ function getRefinerModel(result) {
   const customModel = result[STORAGE_KEYS.REFINER_CUSTOM_MODEL]?.trim();
   const recommendedModel = result[STORAGE_KEYS.REFINER_RECOMMENDED_MODEL]?.trim();
   return customModel || recommendedModel || DEFAULTS.MODEL_REFINER;
+}
+
+/**
+ * Get current target language selection
+ * @param {Object} result - Storage result object
+ * @returns {string} Selected target language
+ */
+function getTargetLanguage(result) {
+  const customLanguage = result[STORAGE_KEYS.TARGET_LANGUAGE_CUSTOM]?.trim();
+  const recommendedLanguage = result[STORAGE_KEYS.TARGET_LANGUAGE_RECOMMENDED]?.trim();
+  return customLanguage || recommendedLanguage || DEFAULTS.TARGET_LANGUAGE_RECOMMENDED;
 }

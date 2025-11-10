@@ -12,7 +12,8 @@ const STORAGE_KEYS = {
   SHOW_SUBTITLES: "showSubtitles",
   CAPTION_FONT_SIZE: "captionFontSize",
   SUMMARY_FONT_SIZE: "summaryFontSize",
-  TARGET_LANGUAGE: "targetLanguage",
+  TARGET_LANGUAGE_RECOMMENDED: "targetLanguageRecommended",
+  TARGET_LANGUAGE_CUSTOM: "targetLanguageCustom",
 };
 
 // Timing constants
@@ -62,7 +63,8 @@ const DEFAULTS = {
   SHOW_SUBTITLES: true, // Subtitles shown by default
   CAPTION_FONT_SIZE: "M", // Medium
   SUMMARY_FONT_SIZE: "M", // Medium
-  TARGET_LANGUAGE: "auto", // Auto-detect language
+  TARGET_LANGUAGE_RECOMMENDED: "auto", // Auto-detect language
+  TARGET_LANGUAGE_CUSTOM: "", // Custom language code
 };
 
 // Font size mappings

@@ -16,12 +16,21 @@ function initializeCustomSelects() {
     
     if (!itemsContainer || !hiddenInput) return;
     
-    const modelList = type === 'summarizer' 
-      ? RECOMMENDED_SUMMARIZER_MODELS 
-      : RECOMMENDED_REFINER_MODELS;
-    const defaultModel = type === 'summarizer' 
-      ? DEFAULTS.MODEL_SUMMARIZER 
-      : DEFAULTS.MODEL_REFINER;
+    let modelList;
+    let defaultModel;
+    
+    if (type === 'summarizer') {
+      modelList = RECOMMENDED_SUMMARIZER_MODELS;
+      defaultModel = DEFAULTS.MODEL_SUMMARIZER;
+    } else if (type === 'refiner') {
+      modelList = RECOMMENDED_REFINER_MODELS;
+      defaultModel = DEFAULTS.MODEL_REFINER;
+    } else if (type === 'targetLanguage') {
+      modelList = TARGET_LANGUAGES;
+      defaultModel = DEFAULTS.TARGET_LANGUAGE_RECOMMENDED;
+    } else {
+      return; // Unknown type
+    }
 
     // Populate options
     itemsContainer.innerHTML = '';
@@ -93,19 +102,26 @@ function setupSelectListeners(select, hiddenInput) {
 
     const value = item.dataset.value;
     const labelText = item.querySelector('.item-label').textContent;
-    const provider = value.split('/')[0];
-    const iconSrc = getProviderIcon(provider);
+    const modelType = select.dataset.modelType;
 
     // Update selected display
     const iconSpan = selected.querySelector('.select-icon');
     iconSpan.innerHTML = '';
-    if (iconSrc) {
-      const img = document.createElement('img');
-      img.src = iconSrc;
-      img.alt = provider;
-      img.width = 16;
-      img.height = 16;
-      iconSpan.appendChild(img);
+    
+    if (modelType === 'targetLanguage') {
+      // For language select, no provider icon needed
+    } else {
+      // For model selects, show provider icon
+      const provider = value.split('/')[0];
+      const iconSrc = getProviderIcon(provider);
+      if (iconSrc) {
+        const img = document.createElement('img');
+        img.src = iconSrc;
+        img.alt = provider;
+        img.width = 16;
+        img.height = 16;
+        iconSpan.appendChild(img);
+      }
     }
     
     const labelElement = selected.querySelector('.select-label');
@@ -150,32 +166,53 @@ function setSelectValue(modelType, value) {
   const matchingItem = items.querySelector(`[data-value="${value}"]`);
   
   // Update display
-  const provider = value.split('/')[0];
-  const iconSrc = getProviderIcon(provider);
-  const iconSpan = selected.querySelector('.select-icon');
-  
-  iconSpan.innerHTML = '';
-  if (iconSrc) {
-    const img = document.createElement('img');
-    img.src = iconSrc;
-    img.alt = provider;
-    img.width = 16;
-    img.height = 16;
-    iconSpan.appendChild(img);
-  }
-  
-  let labelText = value.split('/')[1] || value;
-  if (matchingItem) {
-    labelText = matchingItem.querySelector('.item-label').textContent;
-    matchingItem.classList.add('selected');
-    items.querySelectorAll('.select-item').forEach(i => {
-      if (i !== matchingItem) i.classList.remove('selected');
-    });
-  }
-  
-  const labelElement = selected.querySelector('.select-label');
-  if (labelElement) {
-    labelElement.textContent = labelText;
+  if (modelType === 'targetLanguage') {
+    // For language select, no provider icon needed
+    const iconSpan = selected.querySelector('.select-icon');
+    iconSpan.innerHTML = '';
+    
+    let labelText = value;
+    if (matchingItem) {
+      labelText = matchingItem.querySelector('.item-label').textContent;
+      matchingItem.classList.add('selected');
+      items.querySelectorAll('.select-item').forEach(i => {
+        if (i !== matchingItem) i.classList.remove('selected');
+      });
+    }
+    
+    const labelElement = selected.querySelector('.select-label');
+    if (labelElement) {
+      labelElement.textContent = labelText;
+    }
+  } else {
+    // For model selects, show provider icon
+    const provider = value.split('/')[0];
+    const iconSrc = getProviderIcon(provider);
+    const iconSpan = selected.querySelector('.select-icon');
+    
+    iconSpan.innerHTML = '';
+    if (iconSrc) {
+      const img = document.createElement('img');
+      img.src = iconSrc;
+      img.alt = provider;
+      img.width = 16;
+      img.height = 16;
+      iconSpan.appendChild(img);
+    }
+    
+    let labelText = value.split('/')[1] || value;
+    if (matchingItem) {
+      labelText = matchingItem.querySelector('.item-label').textContent;
+      matchingItem.classList.add('selected');
+      items.querySelectorAll('.select-item').forEach(i => {
+        if (i !== matchingItem) i.classList.remove('selected');
+      });
+    }
+    
+    const labelElement = selected.querySelector('.select-label');
+    if (labelElement) {
+      labelElement.textContent = labelText;
+    }
   }
 }
 
