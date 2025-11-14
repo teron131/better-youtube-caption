@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', function() {
     backBtn: document.getElementById('backBtn'),
     generateSummaryBtn: document.getElementById('generateSummaryBtn'),
     generateCaptionBtn: document.getElementById('generateCaptionBtn'),
+    copyCaptionBtn: document.getElementById('copyCaptionBtn'),
     
     // Content
     summaryContent: document.getElementById('summaryContent'),
@@ -49,6 +50,106 @@ document.addEventListener('DOMContentLoaded', function() {
     elements.backBtn.addEventListener('click', showMainView);
   }
 
+  /**
+   * Check if refined captions exist for current video and update copy button state
+   */
+  async function checkRefinedCaptionsAvailability() {
+    try {
+      const currentTab = await new Promise((resolve) => {
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          resolve(tabs[0]);
+        });
+      });
+
+      if (!currentTab || !currentTab.url || !currentTab.url.includes('youtube.com/watch')) {
+        if (elements.copyCaptionBtn) {
+          elements.copyCaptionBtn.disabled = true;
+        }
+        return;
+      }
+
+      const videoId = extractVideoId(currentTab.url);
+      if (!videoId) {
+        if (elements.copyCaptionBtn) {
+          elements.copyCaptionBtn.disabled = true;
+        }
+        return;
+      }
+
+      const subtitles = await getStoredSubtitles(videoId);
+      if (elements.copyCaptionBtn) {
+        elements.copyCaptionBtn.disabled = !subtitles || !Array.isArray(subtitles) || subtitles.length === 0;
+      }
+    } catch (error) {
+      console.error('Error checking refined captions:', error);
+      if (elements.copyCaptionBtn) {
+        elements.copyCaptionBtn.disabled = true;
+      }
+    }
+  }
+
+  // Expose check function globally so it can be called from message handler
+  window.checkRefinedCaptionsAvailability = checkRefinedCaptionsAvailability;
+
+  /**
+   * Copy refined caption to clipboard
+   */
+  async function copyRefinedCaption() {
+    if (elements.copyCaptionBtn?.disabled) {
+      return;
+    }
+
+    try {
+      const currentTab = await new Promise((resolve) => {
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          resolve(tabs[0]);
+        });
+      });
+
+      if (!currentTab || !currentTab.url || !currentTab.url.includes('youtube.com/watch')) {
+        elements.status.textContent = 'Not a YouTube video page';
+        elements.status.className = 'status error';
+        return;
+      }
+
+      const videoId = extractVideoId(currentTab.url);
+      if (!videoId) {
+        elements.status.textContent = 'Could not extract video ID';
+        elements.status.className = 'status error';
+        return;
+      }
+
+      const subtitles = await getStoredSubtitles(videoId);
+      if (!subtitles || !Array.isArray(subtitles) || subtitles.length === 0) {
+        elements.status.textContent = 'No refined captions available';
+        elements.status.className = 'status error';
+        return;
+      }
+
+      // Join all segment texts with spaces (replacing newlines)
+      const captionText = subtitles
+        .map((segment) => (segment.text || '').replace(/\n/g, ' ').trim())
+        .filter((text) => text.length > 0)
+        .join(' ');
+
+      // Copy to clipboard
+      await navigator.clipboard.writeText(captionText);
+      
+      // Show success message
+      elements.status.textContent = 'Refined caption copied to clipboard!';
+      elements.status.className = 'status success';
+      
+      setTimeout(() => {
+        elements.status.textContent = '';
+        elements.status.className = 'status';
+      }, 2000);
+    } catch (error) {
+      console.error('Error copying refined caption:', error);
+      elements.status.textContent = 'Failed to copy caption';
+      elements.status.className = 'status error';
+    }
+  }
+
   // Initialize components
   initializeCustomSelects();
   initializeComboboxes();
@@ -58,6 +159,7 @@ document.addEventListener('DOMContentLoaded', function() {
   initializeTooltips();
   setupMessageListener(elements);
   loadExistingSummary(elements);
+  checkRefinedCaptionsAvailability();
 
   // Setup generation buttons
   if (elements.generateSummaryBtn) {
@@ -70,5 +172,10 @@ document.addEventListener('DOMContentLoaded', function() {
     elements.generateCaptionBtn.addEventListener('click', () => {
       generateCaptions(elements, showSettingsView);
     });
+  }
+
+  // Setup copy button
+  if (elements.copyCaptionBtn) {
+    elements.copyCaptionBtn.addEventListener('click', copyRefinedCaption);
   }
 });

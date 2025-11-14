@@ -129,8 +129,21 @@ function setupMessageListener(elements) {
         elements.status.className = 'status success';
         elements.generateSummaryBtn.disabled = false;
         elements.generateCaptionBtn.disabled = false;
+        // Check if refined captions are now available (for copy button)
+        if (window.checkRefinedCaptionsAvailability) {
+          window.checkRefinedCaptionsAvailability();
+        }
       } else {
         elements.status.textContent = message.text;
+        // Also check when status updates (captions might have been generated)
+        if (message.text && (message.text.includes('ready') || message.text.includes('complete') || message.text.includes('success'))) {
+          if (window.checkRefinedCaptionsAvailability) {
+            // Small delay to ensure storage is updated
+            setTimeout(() => {
+              window.checkRefinedCaptionsAvailability();
+            }, 500);
+          }
+        }
       }
     } else if (message.action === 'SUMMARY_GENERATED') {
       if (message.summary) {
