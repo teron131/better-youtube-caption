@@ -173,6 +173,15 @@ async function handleGenerateSummary(message, tabId, sendResponse) {
 
     // Fetch transcript
     const transcriptData = await fetchYouTubeTranscript(urlForApi, scrapeCreatorsKey);
+    
+    // Skip if no transcript available
+    if (!transcriptData || !transcriptData.segments || transcriptData.segments.length === 0) {
+      console.log('No transcript available, skipping summary generation');
+      sendStatusUpdate(tabId, 'No transcript available for this video', false, true);
+      runningSummaryGenerations.delete(videoId);
+      return;
+    }
+    
     console.log(`Fetched ${transcriptData.segments.length} transcript segments for summary`);
 
     sendStatusUpdate(tabId, 'Generating summary with AI...');
@@ -329,6 +338,14 @@ async function processNewSubtitles(
 
     // Fetch transcript
     const transcriptData = await fetchYouTubeTranscript(urlForApi, scrapeCreatorsKey);
+    
+    // Skip if no transcript available
+    if (!transcriptData || !transcriptData.segments || transcriptData.segments.length === 0) {
+      console.log('No transcript available, skipping subtitle generation');
+      sendStatusUpdate(tabId, 'No transcript available for this video', false, true);
+      return;
+    }
+    
     console.log(`Fetched ${transcriptData.segments.length} transcript segments`);
     console.log(`Video title: ${transcriptData.title}`);
     

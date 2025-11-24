@@ -18,20 +18,17 @@ async function fetchYouTubeTranscript(videoUrl, apiKey) {
   });
 
   if (!response.ok) {
-    let errorMessage = `API request failed with status ${response.status}`;
-    try {
-      const errorData = await response.json();
-      errorMessage = errorData?.error?.message || errorMessage;
-    } catch {
-      errorMessage = (await response.text()) || errorMessage;
-    }
-    throw new Error(`Scrape Creators API error: ${errorMessage}`);
+    // Don't throw error, just return null if API fails
+    console.warn(`Scrape Creators API request failed with status ${response.status}`);
+    return null;
   }
 
   const data = await response.json();
 
   if (!data.transcript?.length) {
-    throw new Error("No transcript available for this video");
+    // No transcript available, return null instead of throwing
+    console.warn("No transcript available for this video");
+    return null;
   }
 
   // Convert to internal format
@@ -55,7 +52,9 @@ async function fetchYouTubeTranscript(videoUrl, apiKey) {
     .filter(Boolean);
 
   if (!segments.length) {
-    throw new Error("No valid transcript segments found");
+    // No valid segments found, return null instead of throwing
+    console.warn("No valid transcript segments found");
+    return null;
   }
 
   console.log(`Fetched ${segments.length} transcript segments from Scrape Creators API`);
