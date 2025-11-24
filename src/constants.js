@@ -34,18 +34,20 @@ const STORAGE = {
 
 // New separate lists for summarizer and refiner
 const RECOMMENDED_SUMMARIZER_MODELS = [
-  { value: "x-ai/grok-4-fast", label: "Grok 4 Fast" },
-  { value: "x-ai/grok-code-fast-1", label: "Grok Code Fast 1" },
+  { value: "x-ai/grok-4.1-fast", label: "Grok 4.1 Fast" },
   { value: "x-ai/grok-4", label: "Grok 4" },
   { value: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash" },
-  { value: "google/gemini-2.5-pro", label: "Gemini 2.5 Pro" },
-  { value: "openai/gpt-5", label: "GPT-5" },
+  { value: "google/gemini-3-pro-preview", label: "Gemini 3 Pro" },
+  { value: "openai/gpt-5-mini", label: "GPT-5 Mini" },
+  { value: "openai/gpt-5.1", label: "GPT-5.1" },
+  { value: "anthropic/claude-haiku-4.5", label: "Claude Haiku 4.5" },
   { value: "anthropic/claude-sonnet-4.5", label: "Claude Sonnet 4.5" },
 ];
 
 const RECOMMENDED_REFINER_MODELS = [
   { value: "google/gemini-2.5-flash-lite-preview-09-2025", label: "Gemini 2.5 Flash Lite" },
-  { value: "x-ai/grok-4-fast", label: "Grok 4 Fast" },
+  { value: "x-ai/grok-4.1-fast", label: "Grok 4.1 Fast" },
+  { value: "openai/gpt-5-nano", label: "GPT-5 Nano" },
 ];
 
 // Target language options for summarization
@@ -57,8 +59,8 @@ const TARGET_LANGUAGES = [
 
 // Default values
 const DEFAULTS = {
-  MODEL_SUMMARIZER: "x-ai/grok-4-fast",
-  MODEL_REFINER: "google/gemini-2.5-flash-lite-preview-09-2025",
+  MODEL_SUMMARIZER: "x-ai/grok-4.1-fast",
+  MODEL_REFINER: "openai/gpt-5-nano",
   AUTO_GENERATE: false,
   SHOW_SUBTITLES: true, // Subtitles shown by default
   CAPTION_FONT_SIZE: "M", // Medium
