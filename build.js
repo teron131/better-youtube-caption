@@ -83,29 +83,6 @@ const openccBuildOptions = {
   },
   minify: !isWatch,
   sourcemap: !isWatch,
-  // Export functions to global scope for importScripts
-  banner: {
-    js: `
-      // Export functions to global scope
-      (function() {
-        const module = {};
-        const exports = module.exports = {};
-    `,
-  },
-  footer: {
-    js: `
-        // Make functions available globally
-        if (typeof globalThis !== 'undefined') {
-          globalThis.convertS2T = convertS2T;
-          globalThis.convertSegmentsS2T = convertSegmentsS2T;
-        }
-        if (typeof self !== 'undefined') {
-          self.convertS2T = convertS2T;
-          self.convertSegmentsS2T = convertSegmentsS2T;
-        }
-      })();
-    `,
-  },
 };
 
 async function buildAll() {

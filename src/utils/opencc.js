@@ -111,3 +111,16 @@ function convertSegmentsS2T(segments) {
   
   return result;
 }
+
+// Export functions for use in service worker (via importScripts)
+export { convertS2T, convertSegmentsS2T };
+
+// Also assign to global scope for service worker compatibility
+if (typeof globalThis !== 'undefined') {
+  globalThis.convertS2T = convertS2T;
+  globalThis.convertSegmentsS2T = convertSegmentsS2T;
+}
+if (typeof self !== 'undefined') {
+  self.convertS2T = convertS2T;
+  self.convertSegmentsS2T = convertSegmentsS2T;
+}
