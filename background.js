@@ -13,6 +13,7 @@ importScripts('dist/captionRefiner.bundle.js');
 importScripts('src/transcript.js');
 importScripts('dist/captionSummarizer.bundle.js');
 importScripts('config.js');
+importScripts('dist/opencc.bundle.js');
 importScripts('src/utils/backgroundHandlers.js');
 
 /**

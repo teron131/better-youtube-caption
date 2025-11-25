@@ -206,12 +206,22 @@ async function handleGenerateSummary(message, tabId, sendResponse) {
       progressCallback
     );
 
-    const summary = workflowResult.summary_text;
+    let summary = workflowResult.summary_text;
     
     console.log(
       `Summary workflow completed: ${workflowResult.iteration_count} iterations, ` +
       `quality score: ${workflowResult.quality_score}%`
     );
+
+    // Convert Simplified Chinese to Traditional Chinese using OpenCC
+    // Note: convertS2T is loaded via importScripts in background.js
+    if (typeof convertS2T === 'function') {
+      try {
+        summary = convertS2T(summary);
+      } catch (error) {
+        console.warn('OpenCC conversion failed for summary, using original:', error);
+      }
+    }
 
     // Save summary to storage
     chrome.storage.local.set({ [`summary_${videoId}`]: summary });
@@ -410,6 +420,16 @@ async function processNewSubtitles(
       }
     } else {
       console.log('OpenRouter API key not found, skipping refinement');
+    }
+
+    // Convert Simplified Chinese to Traditional Chinese using OpenCC
+    // Note: convertSegmentsS2T is loaded via importScripts in background.js
+    if (typeof convertSegmentsS2T === 'function') {
+      try {
+        subtitles = convertSegmentsS2T(subtitles);
+      } catch (error) {
+        console.warn('OpenCC conversion failed for subtitles, using original:', error);
+      }
     }
 
     // Send subtitles to content script

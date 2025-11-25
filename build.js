@@ -1,5 +1,5 @@
 /**
- * Build script for bundling LangChain/LangGraph dependencies
+ * Build script for bundling LangChain/LangGraph dependencies and OpenCC
  * Uses esbuild to create bundled versions for Chrome extension
  * 
  * IMPORTANT: This script reads from src/ and writes to dist/
@@ -15,6 +15,7 @@ const isWatch = process.argv.includes("--watch");
 const SOURCE_FILES = {
   summarizer: "src/captionSummarizer.js",
   refiner: "src/captionRefiner.js",
+  opencc: "src/utils/opencc.js",
 };
 
 // Output directory (where bundles are written)
@@ -51,7 +52,8 @@ if (OUTPUT_DIR.startsWith("src/") || OUTPUT_DIR === "src") {
   process.exit(1);
 }
 
-const buildOptions = {
+// Build options for LangChain bundles
+const langchainBuildOptions = {
   entryPoints: [SOURCE_FILES.summarizer, SOURCE_FILES.refiner],
   bundle: true,
   format: "iife",
@@ -67,17 +69,73 @@ const buildOptions = {
   sourcemap: !isWatch,
 };
 
-if (isWatch) {
-  const ctx = await esbuild.context(buildOptions);
-  await ctx.watch();
-  console.log(`\n👀 Watching for changes in ${SOURCE_FILES.summarizer} and ${SOURCE_FILES.refiner}`);
-  console.log(`📦 Bundles will be written to ${OUTPUT_DIR}/`);
-  console.log("⚠️  Source files in src/ are never modified.\n");
-} else {
+// Build options for OpenCC bundle
+const openccBuildOptions = {
+  entryPoints: [SOURCE_FILES.opencc],
+  bundle: true,
+  format: "iife",
+  outfile: `${OUTPUT_DIR}/opencc.bundle.js`,
+  platform: "browser",
+  target: "es2020",
+  external: [], // Bundle everything
+  define: {
+    "process.env.NODE_ENV": '"production"',
+  },
+  minify: !isWatch,
+  sourcemap: !isWatch,
+  // Export functions to global scope for importScripts
+  banner: {
+    js: `
+      // Export functions to global scope
+      (function() {
+        const module = {};
+        const exports = module.exports = {};
+    `,
+  },
+  footer: {
+    js: `
+        // Make functions available globally
+        if (typeof globalThis !== 'undefined') {
+          globalThis.convertS2T = convertS2T;
+          globalThis.convertSegmentsS2T = convertSegmentsS2T;
+        }
+        if (typeof self !== 'undefined') {
+          self.convertS2T = convertS2T;
+          self.convertSegmentsS2T = convertSegmentsS2T;
+        }
+      })();
+    `,
+  },
+};
+
+async function buildAll() {
   console.log(`\n🔨 Building bundles...`);
-  await esbuild.build(buildOptions);
+  
+  // Build LangChain bundles
+  await esbuild.build(langchainBuildOptions);
   console.log(`✅ Built ${OUTPUT_DIR}/captionSummarizer.bundle.js`);
   console.log(`✅ Built ${OUTPUT_DIR}/captionRefiner.bundle.js`);
+  
+  // Build OpenCC bundle
+  await esbuild.build(openccBuildOptions);
+  console.log(`✅ Built ${OUTPUT_DIR}/opencc.bundle.js`);
+  
   console.log(`\n💡 Source files in src/ remain unchanged.\n`);
 }
 
+if (isWatch) {
+  const langchainCtx = await esbuild.context(langchainBuildOptions);
+  const openccCtx = await esbuild.context(openccBuildOptions);
+  
+  await langchainCtx.watch();
+  await openccCtx.watch();
+  
+  console.log(`\n👀 Watching for changes in:`);
+  console.log(`   - ${SOURCE_FILES.summarizer}`);
+  console.log(`   - ${SOURCE_FILES.refiner}`);
+  console.log(`   - ${SOURCE_FILES.opencc}`);
+  console.log(`📦 Bundles will be written to ${OUTPUT_DIR}/`);
+  console.log("⚠️  Source files in src/ are never modified.\n");
+} else {
+  await buildAll();
+}
