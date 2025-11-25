@@ -1,16 +1,22 @@
 /**
  * OpenCC Conversion Utility
- * Converts Simplified Chinese to Traditional Chinese (s2t)
- * Uses opencc-js library (bundled)
+ * 
+ * Converts Simplified Chinese to Traditional Chinese (s2t).
+ * Uses the opencc-js library bundled for Chrome extension service worker.
+ * 
+ * The conversion is always enabled and applied automatically to:
+ * - Generated summaries
+ * - Refined subtitle segments
  */
 
 import { Converter } from 'opencc-js/cn2t';
 
+// Lazy-loaded converter instance
 let openccConverter = null;
 
 /**
- * Initialize OpenCC converter (lazy load)
- * @returns {Object} OpenCC converter instance
+ * Initialize OpenCC converter (lazy load, singleton pattern)
+ * @returns {Function|null} OpenCC converter function, or null if initialization fails
  */
 function getOpenCCConverter() {
   if (openccConverter) {
@@ -18,9 +24,8 @@ function getOpenCCConverter() {
   }
 
   try {
-    // Use the pre-configured Converter from cn2t preset
-    // Call Converter with options to get the actual converter function
-    // cn2t = Simplified Chinese (cn) to Traditional Chinese (tw)
+    // Use the cn2t preset (Simplified Chinese to Traditional Chinese)
+    // Converter is a factory function that returns the actual converter
     openccConverter = Converter({ from: 'cn', to: 'tw' });
     return openccConverter;
   } catch (error) {
@@ -31,11 +36,15 @@ function getOpenCCConverter() {
 
 /**
  * Convert Simplified Chinese to Traditional Chinese
- * Safe to call on any text - non-Chinese text will remain unchanged
+ * 
+ * Safe to call on any text - non-Chinese text will remain unchanged.
+ * Returns the original text if conversion fails or converter is unavailable.
+ * 
  * @param {string} text - Text to convert
- * @returns {string} Converted text
+ * @returns {string} Converted text (or original if conversion fails)
  */
 function convertS2T(text) {
+  // Early return for invalid input
   if (!text || typeof text !== 'string') {
     return text;
   }
@@ -43,11 +52,9 @@ function convertS2T(text) {
   try {
     const converter = getOpenCCConverter();
     if (!converter) {
-      // If converter failed to load, return original text
       return text;
     }
     
-    // Convert text (s2t) - converter is a function
     const converted = converter(text);
     return converted || text;
   } catch (error) {
@@ -57,13 +64,19 @@ function convertS2T(text) {
 }
 
 /**
- * Convert array of segments (for captions)
- * Optimized: Converts all text at once as a large string, then splits back
- * This is much faster than converting many small strings individually
- * @param {Array} segments - Array of segment objects with text property
- * @returns {Array} Segments with converted text
+ * Convert array of subtitle segments from Simplified to Traditional Chinese
+ * 
+ * Optimized batch conversion: Joins all segment texts into a single large string,
+ * converts it once, then splits back. This is significantly faster than converting
+ * many small strings individually, reducing latency.
+ * 
+ * Preserves all segment properties (start, end, etc.) and only modifies the text.
+ * 
+ * @param {Array<Object>} segments - Array of segment objects with text property
+ * @returns {Array<Object>} Segments with converted text (or original if conversion fails)
  */
 function convertSegmentsS2T(segments) {
+  // Early return for invalid input
   if (!Array.isArray(segments) || segments.length === 0) {
     return segments;
   }
@@ -74,49 +87,52 @@ function convertSegmentsS2T(segments) {
   }
 
   // Use a unique delimiter that won't appear in text
-  // Using a combination that's extremely unlikely in Chinese/English text
+  // Control characters that are extremely unlikely in Chinese/English text
   const DELIMITER = '\u0001\u0002\u0003\u0004\u0005';
   
-  // Extract texts and build mapping (index in segments -> index in texts array)
+  // Extract texts and build mapping (segment index -> text array index)
   const texts = [];
   const segmentToTextIndex = new Map();
   
   for (let i = 0; i < segments.length; i++) {
     const segment = segments[i];
-    if (segment.text && typeof segment.text === 'string') {
+    if (segment?.text && typeof segment.text === 'string') {
       segmentToTextIndex.set(i, texts.length);
       texts.push(segment.text);
     }
   }
   
+  // Early return if no valid texts found
   if (texts.length === 0) {
     return segments;
   }
   
-  // Join all texts with delimiter and convert as one large string
-  // This is much faster than converting many small strings individually
-  const joinedText = texts.join(DELIMITER);
-  const convertedJoinedText = converter(joinedText);
-  
-  // Split back and assign to segments
-  const convertedTexts = convertedJoinedText.split(DELIMITER);
-  
-  // Create result array with converted texts
-  const result = segments.map((segment, index) => {
-    const textIndex = segmentToTextIndex.get(index);
-    if (textIndex !== undefined && convertedTexts[textIndex] !== undefined) {
-      return { ...segment, text: convertedTexts[textIndex] };
-    }
-    return segment;
-  });
-  
-  return result;
+  try {
+    // Batch conversion: join all texts, convert once, then split
+    const joinedText = texts.join(DELIMITER);
+    const convertedJoinedText = converter(joinedText);
+    const convertedTexts = convertedJoinedText.split(DELIMITER);
+    
+    // Map converted texts back to segments while preserving all properties
+    return segments.map((segment, index) => {
+      const textIndex = segmentToTextIndex.get(index);
+      if (textIndex !== undefined && convertedTexts[textIndex] !== undefined) {
+        return { ...segment, text: convertedTexts[textIndex] };
+      }
+      return segment;
+    });
+  } catch (error) {
+    console.warn('OpenCC batch conversion error, returning original segments:', error);
+    return segments;
+  }
 }
 
-// Export functions for use in service worker (via importScripts)
+// Export functions for ES modules
 export { convertS2T, convertSegmentsS2T };
 
-// Also assign to global scope for service worker compatibility
+// Also expose to global scope for service worker compatibility
+// Service workers use importScripts which doesn't support ES modules,
+// so we need to assign functions to global scope
 if (typeof globalThis !== 'undefined') {
   globalThis.convertS2T = convertS2T;
   globalThis.convertSegmentsS2T = convertSegmentsS2T;

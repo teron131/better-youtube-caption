@@ -51,6 +51,40 @@ function sendError(tabId, errorMessage) {
 }
 
 /**
+ * Safely convert Simplified Chinese to Traditional Chinese using OpenCC
+ * Functions are loaded via importScripts in background.js
+ * @param {string} text - Text to convert
+ * @returns {string} Converted text (or original if conversion fails)
+ */
+function safeConvertS2T(text) {
+  if (typeof convertS2T === 'function') {
+    try {
+      return convertS2T(text);
+    } catch (error) {
+      console.warn('OpenCC conversion failed for text, using original:', error);
+    }
+  }
+  return text;
+}
+
+/**
+ * Safely convert subtitle segments from Simplified to Traditional Chinese
+ * Functions are loaded via importScripts in background.js
+ * @param {Array} segments - Array of segment objects with text property
+ * @returns {Array} Converted segments (or original if conversion fails)
+ */
+function safeConvertSegmentsS2T(segments) {
+  if (typeof convertSegmentsS2T === 'function') {
+    try {
+      return convertSegmentsS2T(segments);
+    } catch (error) {
+      console.warn('OpenCC conversion failed for segments, using original:', error);
+    }
+  }
+  return segments;
+}
+
+/**
  * Extract and format error message
  * @param {Error|Object} error - Error object
  * @returns {string} Formatted error message
@@ -214,14 +248,7 @@ async function handleGenerateSummary(message, tabId, sendResponse) {
     );
 
     // Convert Simplified Chinese to Traditional Chinese using OpenCC
-    // Note: convertS2T is loaded via importScripts in background.js
-    if (typeof convertS2T === 'function') {
-      try {
-        summary = convertS2T(summary);
-      } catch (error) {
-        console.warn('OpenCC conversion failed for summary, using original:', error);
-      }
-    }
+    summary = safeConvertS2T(summary);
 
     // Save summary to storage
     chrome.storage.local.set({ [`summary_${videoId}`]: summary });
@@ -423,14 +450,7 @@ async function processNewSubtitles(
     }
 
     // Convert Simplified Chinese to Traditional Chinese using OpenCC
-    // Note: convertSegmentsS2T is loaded via importScripts in background.js
-    if (typeof convertSegmentsS2T === 'function') {
-      try {
-        subtitles = convertSegmentsS2T(subtitles);
-      } catch (error) {
-        console.warn('OpenCC conversion failed for subtitles, using original:', error);
-      }
-    }
+    subtitles = safeConvertSegmentsS2T(subtitles);
 
     // Send subtitles to content script
     if (tabId) {
