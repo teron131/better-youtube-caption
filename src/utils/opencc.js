@@ -4,7 +4,7 @@
  * Uses opencc-js library (bundled)
  */
 
-import { ConverterFactory } from 'opencc-js';
+import { Converter } from 'opencc-js/cn2t';
 
 let openccConverter = null;
 
@@ -18,9 +18,10 @@ function getOpenCCConverter() {
   }
 
   try {
-    // Create converter using ConverterFactory with s2t config
-    // s2t = Simplified Chinese to Traditional Chinese
-    openccConverter = ConverterFactory({ from: 'cn', to: 'tw' });
+    // Use the pre-configured Converter from cn2t preset
+    // Call Converter with options to get the actual converter function
+    // cn2t = Simplified Chinese (cn) to Traditional Chinese (tw)
+    openccConverter = Converter({ from: 'cn', to: 'tw' });
     return openccConverter;
   } catch (error) {
     console.warn('Failed to initialize OpenCC converter:', error);
