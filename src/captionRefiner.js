@@ -15,7 +15,8 @@ import {
 // ============================================================================
 
 const REFINER_CONFIG = {
-  MAX_SEGMENTS_PER_CHUNK: 50,
+  // Smaller batch size keeps individual requests lighter, reducing latency on slower models
+  MAX_SEGMENTS_PER_CHUNK: 30,
   CHUNK_SENTINEL: "<<<__CHUNK_END__>>>",
   MODEL: "google/gemini-2.5-flash-lite-preview-09-2025",
 };
@@ -222,4 +223,3 @@ if (typeof globalThis !== "undefined") {
 
 // ES module exports for Node.js testing
 export { REFINER_CONFIG, refineTranscriptWithLLM };
-

@@ -47,7 +47,6 @@ const RECOMMENDED_SUMMARIZER_MODELS = [
 const RECOMMENDED_REFINER_MODELS = [
   { value: "google/gemini-2.5-flash-lite-preview-09-2025", label: "Gemini 2.5 Flash Lite" },
   { value: "x-ai/grok-4.1-fast", label: "Grok 4.1 Fast" },
-  { value: "openai/gpt-5-nano", label: "GPT-5 Nano" },
 ];
 
 // Target language options for summarization
@@ -60,7 +59,7 @@ const TARGET_LANGUAGES = [
 // Default values
 const DEFAULTS = {
   MODEL_SUMMARIZER: "x-ai/grok-4.1-fast",
-  MODEL_REFINER: "openai/gpt-5-nano",
+  MODEL_REFINER: "google/gemini-2.5-flash-lite-preview-09-2025",
   AUTO_GENERATE: false,
   SHOW_SUBTITLES: true, // Subtitles shown by default
   CAPTION_FONT_SIZE: "M", // Medium

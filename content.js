@@ -14,6 +14,7 @@ let initAttempts = 0;
 let currentUrl = window.location.href;
 let autoGenerationTriggered = new Set(); // Track which videos have had auto-generation triggered
 let showSubtitlesEnabled = true; // Whether subtitles should be displayed
+let urlMonitorInterval = null; // Polling-based URL monitor as fallback for SPA navigation
 
 /**
  * Check if extension context is valid
@@ -266,6 +267,24 @@ function monitorUrlChanges() {
   });
 
   observer.observe(document.body, { childList: true, subtree: true });
+
+  // Fallback: poll for URL changes in case MutationObserver misses SPA updates
+  if (!urlMonitorInterval) {
+    urlMonitorInterval = setInterval(() => {
+      if (currentUrl !== window.location.href) {
+        console.log('Better YouTube Caption: URL changed (polling fallback).');
+        const oldVideoId = extractVideoId(currentUrl);
+        currentUrl = window.location.href;
+        const newVideoId = extractVideoId(currentUrl);
+
+        if (oldVideoId !== newVideoId) {
+          autoGenerationTriggered.delete(oldVideoId);
+        }
+
+        onUrlChange();
+      }
+    }, 800); // mild interval to avoid overhead while catching missed SPA transitions
+  }
 }
 
 /**
