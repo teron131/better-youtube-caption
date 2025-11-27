@@ -169,6 +169,6 @@ export function setupMessageListener(elements) {
  * @param {string} summaryText - Summary text (markdown)
  * @param {HTMLElement} summaryElement - Summary content element
  */
-export function displaySummary(summaryText, summaryElement) {
+function displaySummary(summaryText, summaryElement) {
   summaryElement.innerHTML = convertMarkdownToHTML(summaryText);
 }

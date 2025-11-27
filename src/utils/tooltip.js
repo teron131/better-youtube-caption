@@ -40,7 +40,7 @@ export function initializeTooltips() {
  * @param {Object} state - Tooltip state object
  */
 function setupTooltipListeners(icon, state) {
-  const { tooltip, hideTimeout } = state;
+  const { tooltip } = state;
 
   icon.addEventListener('mouseenter', function() {
     // Clear any pending hide timeout

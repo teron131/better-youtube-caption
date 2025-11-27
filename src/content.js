@@ -4,13 +4,13 @@
  */
 
 import {
-    DEFAULTS,
-    ELEMENT_IDS,
-    FONT_SIZES,
-    MESSAGE_ACTIONS,
-    STORAGE_KEYS,
-    TIMING,
-    YOUTUBE,
+  DEFAULTS,
+  ELEMENT_IDS,
+  FONT_SIZES,
+  MESSAGE_ACTIONS,
+  STORAGE_KEYS,
+  TIMING,
+  YOUTUBE,
 } from "./constants.js";
 import { extractVideoId } from "./url.js";
 import { log as debugLog, error as logError, warn as logWarn } from "./utils/logger.js";
@@ -27,6 +27,7 @@ let currentUrl = window.location.href;
 let autoGenerationTriggered = new Set(); // Track which videos have had auto-generation triggered
 let showSubtitlesEnabled = true; // Whether subtitles should be displayed
 let urlMonitorInterval = null; // Polling-based URL monitor as fallback for SPA navigation
+let urlObserver = null; // MutationObserver for URL changes
 
 /**
  * Check if extension context is valid
@@ -140,7 +141,7 @@ function checkAndTriggerAutoGeneration(videoId, storageResult, checkCaptionsEnab
   if (withDelay) {
     setTimeout(() => {
       if (!isExtensionContextValid()) {
-        logWarn("Context invalidated before auto-generation.");
+        debugLog("Context invalidated before auto-generation, aborting.");
         autoGenerationTriggered.delete(videoId);
         return;
       }
@@ -269,7 +270,22 @@ function triggerAutoGeneration(videoId, scrapeCreatorsApiKey, openRouterApiKey, 
  * Monitor URL changes on YouTube (SPA behavior)
  */
 function monitorUrlChanges() {
-  const observer = new MutationObserver(() => {
+  // Disconnect existing observer if any
+  if (urlObserver) {
+    urlObserver.disconnect();
+    urlObserver = null;
+  }
+
+  urlObserver = new MutationObserver(() => {
+    // Stop monitoring if extension context is invalidated
+    if (!isExtensionContextValid()) {
+      if (urlObserver) {
+        urlObserver.disconnect();
+        urlObserver = null;
+      }
+      return;
+    }
+
     if (currentUrl !== window.location.href) {
       debugLog("URL changed (mutation).");
       const oldVideoId = extractVideoId(currentUrl);
@@ -285,7 +301,7 @@ function monitorUrlChanges() {
     }
   });
 
-  observer.observe(document.body, { childList: true, subtree: true });
+  urlObserver.observe(document.body, { childList: true, subtree: true });
 }
 
 /**

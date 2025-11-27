@@ -11,7 +11,6 @@ import { checkRefinedCaptionsAvailability, generateCaptions, generateSummary } f
 import { loadExistingSummary } from "./utils/loadSummary.js";
 import { setupMessageListener } from "./utils/messageHandler.js";
 import { loadSettings, setupSettingsListeners } from "./utils/popupSettings.js";
-import { initializeCustomSelects } from "./utils/select.js";
 import { initializeTooltips } from "./utils/tooltip.js";
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -121,7 +120,6 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // Initialize components
-  initializeCustomSelects();
   initializeComboboxes();
   loadSettings(elements);
   setupSettingsListeners(elements);
