@@ -124,7 +124,8 @@ async function refineTranscriptSegments(
     title,
     description,
     openRouterApiKey,
-    progressAdapter
+    progressAdapter,
+    model
   );
 
   // Convert back to internal format

@@ -497,10 +497,41 @@ function handleSubtitlesGenerated(message, sendResponse) {
  * Load and apply caption font size from storage
  */
 function loadCaptionFontSize() {
-  chrome.storage.local.get([STORAGE_KEYS.CAPTION_FONT_SIZE], (result) => {
-    const fontSize = result[STORAGE_KEYS.CAPTION_FONT_SIZE] || DEFAULTS.CAPTION_FONT_SIZE;
-    applyCaptionFontSize(fontSize);
-  });
+  try {
+    if (!isExtensionContextValid()) {
+      console.debug('Content Script: Context invalidated, skipping font size load.');
+      return;
+    }
+
+    chrome.storage.local.get([STORAGE_KEYS.CAPTION_FONT_SIZE], (result) => {
+      try {
+        if (chrome.runtime.lastError) {
+          const errorMsg = chrome.runtime.lastError.message || '';
+          if (errorMsg.includes('Extension context invalidated')) {
+            console.debug('Content Script: Font size load aborted - extension context invalidated.');
+            return;
+          }
+          console.warn('Content Script: Error loading caption font size:', errorMsg);
+          return;
+        }
+
+        const fontSize = result?.[STORAGE_KEYS.CAPTION_FONT_SIZE] || DEFAULTS.CAPTION_FONT_SIZE;
+        applyCaptionFontSize(fontSize);
+      } catch (error) {
+        if (error?.message?.includes('Extension context invalidated')) {
+          console.debug('Content Script: Font size load aborted (callback) - extension context invalidated.');
+          return;
+        }
+        console.error('Content Script: Error applying caption font size:', error);
+      }
+    });
+  } catch (error) {
+    if (error?.message?.includes('Extension context invalidated')) {
+      console.debug('Content Script: Font size load aborted (outer) - extension context invalidated.');
+      return;
+    }
+    console.error('Content Script: Error in loadCaptionFontSize:', error);
+  }
 }
 
 /**
