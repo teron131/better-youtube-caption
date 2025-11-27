@@ -129,15 +129,3 @@ function convertSegmentsS2T(segments) {
 
 // Export functions for ES modules
 export { convertS2T, convertSegmentsS2T };
-
-// Also expose to global scope for service worker compatibility
-// Service workers use importScripts which doesn't support ES modules,
-// so we need to assign functions to global scope
-if (typeof globalThis !== 'undefined') {
-  globalThis.convertS2T = convertS2T;
-  globalThis.convertSegmentsS2T = convertSegmentsS2T;
-}
-if (typeof self !== 'undefined') {
-  self.convertS2T = convertS2T;
-  self.convertSegmentsS2T = convertSegmentsS2T;
-}

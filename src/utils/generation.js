@@ -3,11 +3,16 @@
  * Handles summary and caption generation requests
  */
 
+import { MESSAGE_ACTIONS, STORAGE_KEYS } from "../constants.js";
+import { getStoredSubtitles } from "../storage.js";
+import { extractVideoId } from "../url.js";
+import { getRefinerModel, getSummarizerModel, getTargetLanguage } from "./popupSettings.js";
+
 /**
  * Get current YouTube video tab
  * @returns {Promise<chrome.tabs.Tab>} Current tab or null
  */
-async function getCurrentVideoTab() {
+export async function getCurrentVideoTab() {
   return new Promise((resolve) => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       const currentTab = tabs[0];
@@ -18,6 +23,35 @@ async function getCurrentVideoTab() {
       }
     });
   });
+}
+
+/**
+ * Check if refined captions exist for current video and update copy button state
+ * @param {HTMLElement} copyCaptionBtn - Copy button element
+ */
+export async function checkRefinedCaptionsAvailability(copyCaptionBtn) {
+  if (!copyCaptionBtn) return;
+
+  try {
+    const currentTab = await getCurrentVideoTab();
+
+    if (!currentTab) {
+      copyCaptionBtn.disabled = true;
+      return;
+    }
+
+    const videoId = extractVideoId(currentTab.url);
+    if (!videoId) {
+      copyCaptionBtn.disabled = true;
+      return;
+    }
+
+    const subtitles = await getStoredSubtitles(videoId);
+    copyCaptionBtn.disabled = !subtitles || !Array.isArray(subtitles) || subtitles.length === 0;
+  } catch (error) {
+    console.error('Error checking refined captions:', error);
+    copyCaptionBtn.disabled = true;
+  }
 }
 
 /**
@@ -53,7 +87,7 @@ function validateApiKeys(result, statusElement, showSettingsView) {
  * @param {Object} elements - DOM elements
  * @param {Function} showSettingsView - Function to show settings view
  */
-async function generateSummary(elements, showSettingsView) {
+export async function generateSummary(elements, showSettingsView) {
   if (elements.generateSummaryBtn.disabled || elements.generateCaptionBtn.disabled) {
     return;
   }
@@ -149,9 +183,9 @@ async function generateSummary(elements, showSettingsView) {
 /**
  * Generate captions for current video
  * @param {Object} elements - DOM elements
- * @param {Function} e - Event object
+ * @param {Function} showSettingsView - Function to show settings view
  */
-async function generateCaptions(elements, showSettingsView) {
+export async function generateCaptions(elements, showSettingsView) {
   if (elements.generateSummaryBtn.disabled || elements.generateCaptionBtn.disabled) {
     return;
   }

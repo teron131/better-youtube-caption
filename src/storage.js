@@ -3,10 +3,13 @@
  * Uses video IDs as storage keys for better robustness
  */
 
+import { STORAGE, YOUTUBE } from "./constants.js";
+import { log } from "./utils/logger.js";
+
 /**
  * Get subtitles for a video from local storage
  */
-function getStoredSubtitles(videoId) {
+export function getStoredSubtitles(videoId) {
   return new Promise((resolve) => {
     chrome.storage.local.get([videoId], (result) => {
       resolve(result[videoId] || null);
@@ -17,7 +20,7 @@ function getStoredSubtitles(videoId) {
 /**
  * Save subtitles for a video to local storage with quota management
  */
-function saveSubtitles(videoId, subtitles) {
+export function saveSubtitles(videoId, subtitles) {
   return new Promise((resolve, reject) => {
     chrome.storage.local.set({ [videoId]: subtitles }, () => {
       if (chrome.runtime.lastError) {
@@ -49,7 +52,7 @@ function saveSubtitles(videoId, subtitles) {
 /**
  * Get storage usage information
  */
-function getStorageUsage() {
+export function getStorageUsage() {
   return new Promise((resolve) => {
     chrome.storage.local.getBytesInUse(null, (bytesInUse) => {
       resolve({
@@ -64,7 +67,7 @@ function getStorageUsage() {
 /**
  * Clean up old subtitles when storage is full
  */
-async function cleanupOldSubtitles(countToRemove = 10) {
+export async function cleanupOldSubtitles(countToRemove = 10) {
   return new Promise((resolve, reject) => {
     chrome.storage.local.get(null, (allItems) => {
       if (chrome.runtime.lastError) {
@@ -97,7 +100,7 @@ async function cleanupOldSubtitles(countToRemove = 10) {
 /**
  * Proactively check and clean storage if needed
  */
-async function ensureStorageSpace() {
+export async function ensureStorageSpace() {
   const usage = await getStorageUsage();
 
   if (usage.bytesUsed > STORAGE.MAX_STORAGE_BYTES) {
@@ -112,7 +115,7 @@ async function ensureStorageSpace() {
 /**
  * Get API key from storage
  */
-function getApiKeyFromStorage(keyName) {
+export function getApiKeyFromStorage(keyName) {
   return new Promise((resolve) => {
     chrome.storage.local.get([keyName], (result) => {
       resolve(result[keyName] || null);
@@ -123,7 +126,7 @@ function getApiKeyFromStorage(keyName) {
 /**
  * Save API key to storage
  */
-function saveApiKey(keyName, apiKey) {
+export function saveApiKey(keyName, apiKey) {
   return new Promise((resolve, reject) => {
     chrome.storage.local.set({ [keyName]: apiKey }, () => {
       if (chrome.runtime.lastError) {
@@ -132,5 +135,17 @@ function saveApiKey(keyName, apiKey) {
         resolve();
       }
     });
+  });
+}
+
+/**
+ * Save a setting to storage
+ * @param {string} key - Storage key
+ * @param {*} value - Value to save
+ */
+export function saveSetting(key, value) {
+  const settings = { [key]: value };
+  chrome.storage.local.set(settings, () => {
+    log('Auto-saved:', key, value);
   });
 }

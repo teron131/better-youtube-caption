@@ -3,26 +3,16 @@
  * Handles loading and saving settings in the popup UI
  */
 
-/**
- * Save a setting to storage
- * @param {string} key - Storage key
- * @param {*} value - Value to save
- */
-(function () {
-  const logDebug = (typeof BYC_LOGGER !== 'undefined' && BYC_LOGGER?.log) || (() => {});
-
-function saveSetting(key, value) {
-  const settings = { [key]: value };
-  chrome.storage.local.set(settings, () => {
-    logDebug('Auto-saved:', key, value);
-  });
-}
+import { DEFAULTS, MESSAGE_ACTIONS, STORAGE_KEYS } from "../constants.js";
+import { saveSetting } from "../storage.js";
+import { setComboboxValue } from "./combobox.js";
+import { log as logDebug } from "./logger.js";
 
 /**
  * Load all settings and populate UI
  * @param {Object} elements - DOM elements for settings inputs
  */
-function loadSettings(elements) {
+export function loadSettings(elements) {
   chrome.storage.local.get(
     [
       STORAGE_KEYS.SCRAPE_CREATORS_API_KEY,
@@ -83,7 +73,7 @@ function loadSettings(elements) {
  * Setup settings event listeners
  * @param {Object} elements - DOM elements for settings inputs
  */
-function setupSettingsListeners(elements) {
+export function setupSettingsListeners(elements) {
   // API Keys
   if (elements.scrapeApiKey) {
     elements.scrapeApiKey.addEventListener('input', function() {
@@ -142,7 +132,7 @@ function setupSettingsListeners(elements) {
  * @param {Object} result - Storage result object
  * @returns {string} Selected model
  */
-function getSummarizerModel(result) {
+export function getSummarizerModel(result) {
   const customModel = result[STORAGE_KEYS.SUMMARIZER_CUSTOM_MODEL]?.trim();
   const recommendedModel = result[STORAGE_KEYS.SUMMARIZER_RECOMMENDED_MODEL]?.trim();
   return customModel || recommendedModel || DEFAULTS.MODEL_SUMMARIZER;
@@ -153,7 +143,7 @@ function getSummarizerModel(result) {
  * @param {Object} result - Storage result object
  * @returns {string} Selected model
  */
-function getRefinerModel(result) {
+export function getRefinerModel(result) {
   const customModel = result[STORAGE_KEYS.REFINER_CUSTOM_MODEL]?.trim();
   const recommendedModel = result[STORAGE_KEYS.REFINER_RECOMMENDED_MODEL]?.trim();
   return customModel || recommendedModel || DEFAULTS.MODEL_REFINER;
@@ -164,18 +154,8 @@ function getRefinerModel(result) {
  * @param {Object} result - Storage result object
  * @returns {string} Selected target language
  */
-function getTargetLanguage(result) {
+export function getTargetLanguage(result) {
   const customLanguage = result[STORAGE_KEYS.TARGET_LANGUAGE_CUSTOM]?.trim();
   const recommendedLanguage = result[STORAGE_KEYS.TARGET_LANGUAGE_RECOMMENDED]?.trim();
   return customLanguage || recommendedLanguage || DEFAULTS.TARGET_LANGUAGE_RECOMMENDED;
 }
-
-  // Expose globally
-  window.saveSetting = saveSetting;
-  window.loadSettings = loadSettings;
-  window.setupSettingsListeners = setupSettingsListeners;
-  window.getSummarizerModel = getSummarizerModel;
-  window.getRefinerModel = getRefinerModel;
-  window.getTargetLanguage = getTargetLanguage;
-})();
-const logDebug = (typeof BYC_LOGGER !== 'undefined' && BYC_LOGGER?.log) || (() => {});

@@ -2,10 +2,14 @@
  * YouTube Transcript Fetching and Refinement
  */
 
+import { refineTranscriptWithLLM } from "./captionRefiner.js";
+import { API_ENDPOINTS, DEFAULTS } from "./constants.js";
+import { cleanYouTubeUrl } from "./url.js";
+
 /**
  * Fetch YouTube transcript and metadata using Scrape Creators API
  */
-async function fetchYouTubeTranscript(videoUrl, apiKey) {
+export async function fetchYouTubeTranscript(videoUrl, apiKey) {
   if (!apiKey) throw new Error("Scrape Creators API key is required");
 
   const apiUrl = `${API_ENDPOINTS.SCRAPE_CREATORS}?url=${encodeURIComponent(
@@ -70,7 +74,7 @@ async function fetchYouTubeTranscript(videoUrl, apiKey) {
 /**
  * Format transcript segments as text with timestamps
  */
-function formatTranscriptSegments(segments) {
+export function formatTranscriptSegments(segments) {
   return segments
     .map((seg) => {
       const text = seg.text.split(/\s+/).join(" ");
@@ -83,7 +87,7 @@ function formatTranscriptSegments(segments) {
 /**
  * Format timestamp in milliseconds to M:SS
  */
-function formatTimestamp(ms) {
+export function formatTimestamp(ms) {
   const totalSeconds = Math.floor(ms / 1000);
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
@@ -93,7 +97,7 @@ function formatTimestamp(ms) {
 /**
  * Refine transcript segments using AI
  */
-async function refineTranscriptSegments(
+export async function refineTranscriptSegments(
   segments,
   title,
   description,

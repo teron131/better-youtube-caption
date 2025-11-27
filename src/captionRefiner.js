@@ -214,12 +214,5 @@ had been had, you missed out big time. I`;
   return refinedSegments;
 }
 
-// Export for use in background.js (service worker context)
-// In bundled version, this will be available as refineTranscriptWithLLM
-if (typeof globalThis !== "undefined") {
-  globalThis.refineTranscriptWithLLM = refineTranscriptWithLLM;
-  globalThis.REFINER_CONFIG = REFINER_CONFIG;
-}
-
 // ES module exports for Node.js testing
 export { REFINER_CONFIG, refineTranscriptWithLLM };

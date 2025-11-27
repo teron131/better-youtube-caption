@@ -820,16 +820,5 @@ function formatAnalysisAsMarkdown(analysis) {
   return parts.join("\n");
 }
 
-// Export for use in background.js (service worker context)
-// In bundled version, this will be available as SummaryWorkflow.executeSummarizationWorkflow
-if (typeof globalThis !== "undefined") {
-  globalThis.executeSummarizationWorkflow = executeSummarizationWorkflow;
-  globalThis.SummaryWorkflow = {
-    executeSummarizationWorkflow,
-    PromptBuilder,
-    QualityUtils,
-  };
-}
-
 // ES module exports for Node.js testing
 export { executeSummarizationWorkflow, PromptBuilder, QualityUtils };

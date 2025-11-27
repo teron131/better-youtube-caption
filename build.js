@@ -1,9 +1,6 @@
 /**
- * Build script for bundling LangChain/LangGraph dependencies and OpenCC
+ * Build script for bundling extension files
  * Uses esbuild to create bundled versions for Chrome extension
- * 
- * IMPORTANT: This script reads from src/ and writes to dist/
- * Source files in src/ are NEVER modified or overwritten.
  */
 
 import * as esbuild from "esbuild";
@@ -11,17 +8,18 @@ import { existsSync } from "fs";
 
 const isWatch = process.argv.includes("--watch");
 
-// Source files (read-only - never modified)
+// Source files
 const SOURCE_FILES = {
-  summarizer: "src/captionSummarizer.js",
-  refiner: "src/captionRefiner.js",
+  background: "src/background.js",
+  content: "src/content.js",
+  popup: "src/popup.js",
   opencc: "src/utils/opencc.js",
 };
 
-// Output directory (where bundles are written)
+// Output directory
 const OUTPUT_DIR = "dist";
 
-// Verify source files exist before building
+// Verify source files exist
 function verifySourceFiles() {
   const missing = [];
   for (const [name, path] of Object.entries(SOURCE_FILES)) {
@@ -36,48 +34,21 @@ function verifySourceFiles() {
     process.exit(1);
   }
   
-  console.log("✅ Source files verified:");
-  Object.entries(SOURCE_FILES).forEach(([name, path]) => {
-    console.log(`   - ${name}: ${path}`);
-  });
+  console.log("✅ Source files verified");
 }
 
-// Verify source files before building
 verifySourceFiles();
 
-// Safety check: Ensure output directory is NOT in src/
-if (OUTPUT_DIR.startsWith("src/") || OUTPUT_DIR === "src") {
-  console.error(`❌ Error: Output directory '${OUTPUT_DIR}' cannot be in src/`);
-  console.error("   This would risk overwriting source files!");
-  process.exit(1);
-}
-
-// Build options for LangChain bundles
-const langchainBuildOptions = {
-  entryPoints: [SOURCE_FILES.summarizer, SOURCE_FILES.refiner],
+// Main build options
+const buildOptions = {
+  entryPoints: [SOURCE_FILES.background, SOURCE_FILES.content, SOURCE_FILES.popup, SOURCE_FILES.opencc],
   bundle: true,
-  format: "iife",
+  format: "iife", // Standard for extension scripts
   outdir: OUTPUT_DIR,
-  entryNames: "[name].bundle",
-  allowOverwrite: true, // Only overwrites files in dist/, never src/
-  platform: "browser", // Chrome extension service worker
-  target: "es2020",
-  define: {
-    "process.env.NODE_ENV": '"production"',
-  },
-  minify: !isWatch,
-  sourcemap: !isWatch,
-};
-
-// Build options for OpenCC bundle
-const openccBuildOptions = {
-  entryPoints: [SOURCE_FILES.opencc],
-  bundle: true,
-  format: "iife",
-  outfile: `${OUTPUT_DIR}/opencc.bundle.js`,
+  entryNames: "[name].bundle", // Will produce background.bundle.js, etc.
+  allowOverwrite: true,
   platform: "browser",
   target: "es2020",
-  external: [], // Bundle everything
   define: {
     "process.env.NODE_ENV": '"production"',
   },
@@ -86,33 +57,21 @@ const openccBuildOptions = {
 };
 
 async function buildAll() {
-  console.log(`\n🔨 Building bundles...`);
+  console.log(`\n🔨 Building extension bundles...`);
   
-  // Build LangChain bundles
-  await esbuild.build(langchainBuildOptions);
-  console.log(`✅ Built ${OUTPUT_DIR}/captionSummarizer.bundle.js`);
-  console.log(`✅ Built ${OUTPUT_DIR}/captionRefiner.bundle.js`);
+  await esbuild.build(buildOptions);
   
-  // Build OpenCC bundle
-  await esbuild.build(openccBuildOptions);
-  console.log(`✅ Built ${OUTPUT_DIR}/opencc.bundle.js`);
-  
-  console.log(`\n💡 Source files in src/ remain unchanged.\n`);
+  console.log(`✅ Built background.bundle.js`);
+  console.log(`✅ Built content.bundle.js`);
+  console.log(`✅ Built popup.bundle.js`);
+  console.log(`✅ Built opencc.bundle.js`);
+  console.log(`\n📦 Bundles written to ${OUTPUT_DIR}/`);
 }
 
 if (isWatch) {
-  const langchainCtx = await esbuild.context(langchainBuildOptions);
-  const openccCtx = await esbuild.context(openccBuildOptions);
-  
-  await langchainCtx.watch();
-  await openccCtx.watch();
-  
-  console.log(`\n👀 Watching for changes in:`);
-  console.log(`   - ${SOURCE_FILES.summarizer}`);
-  console.log(`   - ${SOURCE_FILES.refiner}`);
-  console.log(`   - ${SOURCE_FILES.opencc}`);
-  console.log(`📦 Bundles will be written to ${OUTPUT_DIR}/`);
-  console.log("⚠️  Source files in src/ are never modified.\n");
+  const ctx = await esbuild.context(buildOptions);
+  await ctx.watch();
+  console.log(`\n👀 Watching for changes...`);
 } else {
   await buildAll();
 }

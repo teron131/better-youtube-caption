@@ -320,18 +320,6 @@ function parseRefinedSegments(refinedText, originalSegments, chunkSentinel, maxS
   }
 }
 
-// Export functions for both CommonJS and ES modules
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = {
-    parseRefinedSegments,
-    dpAlignSegments,
-    computeLineSimilarity,
-    normalizeLineToText,
-    chunkSegmentsByCount,
-    SEGMENT_PARSER_CONFIG,
-  };
-}
-
 // ES module exports
 export {
   chunkSegmentsByCount, computeLineSimilarity, dpAlignSegments, normalizeLineToText, parseRefinedSegments, SEGMENT_PARSER_CONFIG

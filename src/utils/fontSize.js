@@ -2,8 +2,10 @@
  * Font Size Management
  * Handles font size settings for captions and summary
  */
-(function () {
-  const logDebug = (typeof BYC_LOGGER !== 'undefined' && BYC_LOGGER?.log) || (() => {});
+
+import { DEFAULTS, FONT_SIZES, MESSAGE_ACTIONS, STORAGE_KEYS } from "../constants.js";
+import { saveSetting } from "../storage.js";
+import { log as logDebug } from "./logger.js";
 
 /**
  * Apply summary font size to summary content
@@ -22,9 +24,8 @@ function applySummaryFontSize(size) {
 
 /**
  * Initialize font size selectors
- * @param {Object} elements - DOM elements
  */
-function initializeFontSizeSelectors(elements) {
+export function initializeFontSizeSelectors() {
   // Load saved font sizes
   chrome.storage.local.get(
     [STORAGE_KEYS.CAPTION_FONT_SIZE, STORAGE_KEYS.SUMMARY_FONT_SIZE],
@@ -94,7 +95,3 @@ function initializeFontSizeSelectors(elements) {
     });
   });
 }
-
-  // Expose to global
-  window.initializeFontSizeSelectors = initializeFontSizeSelectors;
-})();

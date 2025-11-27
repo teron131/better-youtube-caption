@@ -3,10 +3,14 @@
  * Combines text input with dropdown for selecting or typing values
  */
 
+import { DEFAULTS, RECOMMENDED_REFINER_MODELS, RECOMMENDED_SUMMARIZER_MODELS, STORAGE_KEYS, TARGET_LANGUAGES } from "../constants.js";
+import { saveSetting } from "../storage.js";
+import { getProviderIcon } from "./ui.js";
+
 /**
  * Initialize comboboxes
  */
-function initializeComboboxes() {
+export function initializeComboboxes() {
   const comboboxes = document.querySelectorAll('.combobox[data-combobox-type]');
   
   comboboxes.forEach(combobox => {
@@ -281,7 +285,7 @@ function updateComboboxModelIcon(combobox, value) {
 /**
  * Update combobox display from storage
  */
-function updateComboboxDisplay(combobox) {
+export function updateComboboxDisplay(combobox) {
   const input = combobox.querySelector('.combobox-input');
   if (!input) return;
   
@@ -313,7 +317,7 @@ function updateComboboxDisplay(combobox) {
 /**
  * Set combobox value programmatically
  */
-function setComboboxValue(comboboxType, value) {
+export function setComboboxValue(comboboxType, value) {
   const combobox = document.querySelector(`[data-combobox-type="${comboboxType}"]`);
   if (!combobox) return;
   
@@ -341,4 +345,3 @@ function setComboboxValue(comboboxType, value) {
     }
   }
 }
-

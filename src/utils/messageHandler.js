@@ -3,6 +3,10 @@
  * Handles messages from background and content scripts
  */
 
+import { MESSAGE_ACTIONS, STORAGE_KEYS } from "../constants.js";
+import { checkRefinedCaptionsAvailability } from "./generation.js";
+import { convertMarkdownToHTML } from "./ui.js";
+
 /**
  * Handle model error by clearing invalid custom models
  * @param {Object} elements - DOM elements
@@ -88,7 +92,7 @@ function isModelError(error) {
  * Setup message listener for popup
  * @param {Object} elements - DOM elements
  */
-function setupMessageListener(elements) {
+export function setupMessageListener(elements) {
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === MESSAGE_ACTIONS.SHOW_ERROR) {
       elements.status.className = 'status error';
@@ -130,19 +134,15 @@ function setupMessageListener(elements) {
         elements.generateSummaryBtn.disabled = false;
         elements.generateCaptionBtn.disabled = false;
         // Check if refined captions are now available (for copy button)
-        if (window.checkRefinedCaptionsAvailability) {
-          window.checkRefinedCaptionsAvailability();
-        }
+        checkRefinedCaptionsAvailability(elements.copyCaptionBtn);
       } else {
         elements.status.textContent = message.text;
         // Also check when status updates (captions might have been generated)
         if (message.text && (message.text.includes('ready') || message.text.includes('complete') || message.text.includes('success'))) {
-          if (window.checkRefinedCaptionsAvailability) {
-            // Small delay to ensure storage is updated
-            setTimeout(() => {
-              window.checkRefinedCaptionsAvailability();
-            }, 500);
-          }
+          // Small delay to ensure storage is updated
+          setTimeout(() => {
+            checkRefinedCaptionsAvailability(elements.copyCaptionBtn);
+          }, 500);
         }
       }
     } else if (message.action === 'SUMMARY_GENERATED') {
@@ -169,7 +169,6 @@ function setupMessageListener(elements) {
  * @param {string} summaryText - Summary text (markdown)
  * @param {HTMLElement} summaryElement - Summary content element
  */
-function displaySummary(summaryText, summaryElement) {
+export function displaySummary(summaryText, summaryElement) {
   summaryElement.innerHTML = convertMarkdownToHTML(summaryText);
 }
-

@@ -1,7 +1,7 @@
 // Constants for Better YouTube Caption Extension
 
 // Storage keys
-const STORAGE_KEYS = {
+export const STORAGE_KEYS = {
   SCRAPE_CREATORS_API_KEY: "scrapeCreatorsApiKey",
   OPENROUTER_API_KEY: "openRouterApiKey",
   SUMMARIZER_RECOMMENDED_MODEL: "summarizerRecommendedModel",
@@ -17,7 +17,7 @@ const STORAGE_KEYS = {
 };
 
 // Timing constants
-const TIMING = {
+export const TIMING = {
   AUTO_GENERATION_DELAY_MS: 2000, // 2 seconds delay before auto-generation
   INIT_RETRY_DELAY_MS: 500, // Delay between initialization retries
   SUBTITLE_UPDATE_INTERVAL_MS: 100, // How often to update subtitle display
@@ -25,7 +25,7 @@ const TIMING = {
 };
 
 // Storage constants
-const STORAGE = {
+export const STORAGE = {
   QUOTA_BYTES: 10 * 1024 * 1024, // 10MB Chrome storage limit
   MAX_STORAGE_BYTES: 9.5 * 1024 * 1024, // 9.5MB - leave 0.5MB buffer
   ESTIMATED_VIDEO_SIZE_BYTES: 30 * 1024, // Estimated ~30KB per video transcript
@@ -33,7 +33,7 @@ const STORAGE = {
 };
 
 // New separate lists for summarizer and refiner
-const RECOMMENDED_SUMMARIZER_MODELS = [
+export const RECOMMENDED_SUMMARIZER_MODELS = [
   { value: "x-ai/grok-4.1-fast", label: "Grok 4.1 Fast" },
   { value: "x-ai/grok-4", label: "Grok 4" },
   { value: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash" },
@@ -44,20 +44,20 @@ const RECOMMENDED_SUMMARIZER_MODELS = [
   { value: "anthropic/claude-sonnet-4.5", label: "Claude Sonnet 4.5" },
 ];
 
-const RECOMMENDED_REFINER_MODELS = [
+export const RECOMMENDED_REFINER_MODELS = [
   { value: "google/gemini-2.5-flash-lite-preview-09-2025", label: "Gemini 2.5 Flash Lite" },
   { value: "x-ai/grok-4.1-fast", label: "Grok 4.1 Fast" },
 ];
 
 // Target language options for summarization
-const TARGET_LANGUAGES = [
+export const TARGET_LANGUAGES = [
   { value: "auto", label: "🌐 Auto" },
   { value: "en", label: "🇺🇸 English" },
   { value: "zh-TW", label: "🇭🇰 Chinese" },
 ];
 
 // Default values
-const DEFAULTS = {
+export const DEFAULTS = {
   MODEL_SUMMARIZER: "x-ai/grok-4.1-fast",
   MODEL_REFINER: "google/gemini-2.5-flash-lite-preview-09-2025",
   AUTO_GENERATE: false,
@@ -69,7 +69,7 @@ const DEFAULTS = {
 };
 
 // Font size mappings
-const FONT_SIZES = {
+export const FONT_SIZES = {
   CAPTION: {
     S: { base: "1.4vw", max: "22px", min: "12px", fullscreen: "1.7vw", fullscreenMax: "28px" },
     M: { base: "1.8vw", max: "28px", min: "14px", fullscreen: "2.2vw", fullscreenMax: "36px" },
@@ -83,13 +83,13 @@ const FONT_SIZES = {
 };
 
 // API endpoints
-const API_ENDPOINTS = {
+export const API_ENDPOINTS = {
   SCRAPE_CREATORS: "https://api.scrapecreators.com/v1/youtube/video",
   OPENROUTER: "https://openrouter.ai/api/v1/chat/completions",
 };
 
 // YouTube-specific constants
-const YOUTUBE = {
+export const YOUTUBE = {
   VIDEO_ID_LENGTH: 11, // Standard YouTube video ID length
   SELECTORS: {
     VIDEO_PLAYER: "video.html5-main-video",
@@ -99,7 +99,7 @@ const YOUTUBE = {
 };
 
 // Message actions
-const MESSAGE_ACTIONS = {
+export const MESSAGE_ACTIONS = {
   FETCH_SUBTITLES: "fetchSubtitles",
   GENERATE_SUBTITLES: "generateSubtitles",
   GENERATE_SUMMARY: "generateSummary",
@@ -113,8 +113,7 @@ const MESSAGE_ACTIONS = {
 };
 
 // Element IDs
-const ELEMENT_IDS = {
+export const ELEMENT_IDS = {
   SUBTITLE_CONTAINER: "youtube-gemini-subtitles-container",
   SUBTITLE_TEXT: "youtube-gemini-subtitles-text",
 };
-

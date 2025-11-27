@@ -3,8 +3,33 @@
  * Handles messages from content and popup scripts
  */
 
+import { executeSummarizationWorkflow } from "../captionSummarizer.js";
+import { getConfig } from "../config.js";
+import { DEFAULTS, MESSAGE_ACTIONS, STORAGE_KEYS } from "../constants.js";
+import { ensureStorageSpace, getApiKeyFromStorage, getStoredSubtitles, saveSubtitles } from "../storage.js";
+import { fetchYouTubeTranscript, formatTimestamp, refineTranscriptSegments } from "../transcript.js";
+import { convertS2T, convertSegmentsS2T } from "./opencc.js";
+
 // Track running summary generations to prevent concurrent runs
 const runningSummaryGenerations = new Set();
+
+/**
+ * Get API key with fallback to test config
+ * @param {string} keyName - Key name
+ * @returns {Promise<string>} API key
+ */
+async function getApiKeyWithFallback(keyName) {
+  const testConfig = getConfig();
+  
+  // If test config is enabled and has a value, use it
+  if (testConfig.useTestConfig && testConfig[keyName]) {
+    console.log(`Using test config for ${keyName}`);
+    return testConfig[keyName];
+  }
+
+  // Otherwise, get from browser storage
+  return await getApiKeyFromStorage(keyName);
+}
 
 /**
  * Send status update to popup
@@ -52,7 +77,6 @@ function sendError(tabId, errorMessage) {
 
 /**
  * Safely convert Simplified Chinese to Traditional Chinese using OpenCC
- * Functions are loaded via importScripts in background.js
  * @param {string} text - Text to convert
  * @returns {string} Converted text (or original if conversion fails)
  */
@@ -69,7 +93,6 @@ function safeConvertS2T(text) {
 
 /**
  * Safely convert subtitle segments from Simplified to Traditional Chinese
- * Functions are loaded via importScripts in background.js
  * @param {Array} segments - Array of segment objects with text property
  * @returns {Array} Converted segments (or original if conversion fails)
  */
@@ -147,7 +170,7 @@ function getModelSelection(messageModelSelection, customModel, recommendedModel,
  * @param {number|null} tabId - Tab ID
  * @param {Function} sendResponse - Response callback
  */
-async function handleGenerateSummary(message, tabId, sendResponse) {
+export async function handleGenerateSummary(message, tabId, sendResponse) {
   const {
     videoId,
     scrapeCreatorsApiKey: messageScrapeCreatorsKey,
@@ -292,7 +315,7 @@ async function handleGenerateSummary(message, tabId, sendResponse) {
  * @param {number|null} tabId - Tab ID
  * @param {Function} sendResponse - Response callback
  */
-async function handleFetchSubtitles(message, tabId, sendResponse) {
+export async function handleFetchSubtitles(message, tabId, sendResponse) {
   const {
     videoId,
     scrapeCreatorsApiKey: messageScrapeCreatorsKey,

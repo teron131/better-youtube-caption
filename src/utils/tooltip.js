@@ -6,7 +6,7 @@
 /**
  * Initialize tooltips for all info icons
  */
-function initializeTooltips() {
+export function initializeTooltips() {
   const infoIcons = document.querySelectorAll('.info-icon');
   const iconTooltips = new Map(); // Track icon -> tooltip element
   
@@ -82,4 +82,3 @@ function setupTooltipListeners(icon, state) {
     }, 500);
   });
 }
-

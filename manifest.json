@@ -18,7 +18,7 @@
     }
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "dist/background.bundle.js"
   },
   "content_scripts": [
     {
@@ -26,10 +26,7 @@
         "https://*.youtube.com/*"
       ],
       "js": [
-        "src/constants.js",
-        "src/url.js",
-        "src/utils/logger.js",
-        "content.js"
+        "dist/content.bundle.js"
       ],
       "css": ["subtitles.css"],
       "run_at": "document_end"

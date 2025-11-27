@@ -8,7 +8,7 @@
  * @param {string} provider - Provider name (e.g., 'google', 'openai')
  * @returns {string} Icon path or empty string
  */
-function getProviderIcon(provider) {
+export function getProviderIcon(provider) {
   const icons = {
     anthropic: 'images/anthropic.svg',
     google: 'images/google.svg',
@@ -24,7 +24,7 @@ function getProviderIcon(provider) {
  * @param {string} type - Model type ('summarizer' or 'refiner')
  * @returns {HTMLElement} Option element
  */
-function createOptionElement(model, type) {
+export function createOptionElement(model, type) {
   const item = document.createElement('div');
   item.className = 'select-item';
   item.dataset.value = model.value;
@@ -82,7 +82,7 @@ function createOptionElement(model, type) {
  * @param {string} value - Selected value
  * @param {string} labelText - Display label
  */
-function updateSelectDisplay(selectElement, value, labelText) {
+export function updateSelectDisplay(selectElement, value, labelText) {
   const selected = selectElement.querySelector('.select-selected');
   if (!selected) return;
 
@@ -111,7 +111,7 @@ function updateSelectDisplay(selectElement, value, labelText) {
  * @param {string} title - Raw title
  * @returns {string} Sanitized title
  */
-function sanitizeTitle(title) {
+export function sanitizeTitle(title) {
   if (typeof title !== 'string') {
     return '';
   }
@@ -127,7 +127,7 @@ function sanitizeTitle(title) {
  * @param {string} text - Text to escape
  * @returns {string} Escaped HTML
  */
-function escapeHTML(text) {
+export function escapeHTML(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
@@ -138,7 +138,7 @@ function escapeHTML(text) {
  * @param {string} text - Text with markdown
  * @returns {string} HTML formatted text
  */
-function formatInlineMarkdown(text) {
+export function formatInlineMarkdown(text) {
   // Process markdown patterns before escaping
   // Bold (**text** or __text__)
   text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
@@ -170,7 +170,7 @@ function formatInlineMarkdown(text) {
  * @param {string} markdown - Markdown text
  * @returns {string} HTML string
  */
-function convertMarkdownToHTML(markdown) {
+export function convertMarkdownToHTML(markdown) {
   if (!markdown || typeof markdown !== 'string') {
     return '<div class="summary-placeholder">No summary available</div>';
   }
@@ -271,3 +271,11 @@ function convertMarkdownToHTML(markdown) {
   return result.join('');
 }
 
+/**
+ * Display summary in the UI
+ * @param {string} summaryText - Summary text (markdown)
+ * @param {HTMLElement} summaryElement - Summary content element
+ */
+export function displaySummary(summaryText, summaryElement) {
+  summaryElement.innerHTML = convertMarkdownToHTML(summaryText);
+}

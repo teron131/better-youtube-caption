@@ -7,7 +7,7 @@
  * Convert time string to milliseconds
  * Supports HH:MM:SS,ms and MM:SS,ms formats
  */
-function timeStringToMs(timeStr) {
+export function timeStringToMs(timeStr) {
   if (!timeStr) return 0;
 
   const trimmed = timeStr.trim();
@@ -33,7 +33,7 @@ function timeStringToMs(timeStr) {
 /**
  * Parse SRT text into subtitle objects
  */
-function parseSrt(srtText) {
+export function parseSrt(srtText) {
   if (!srtText || typeof srtText !== "string") {
     console.error("Invalid SRT text input:", srtText);
     return [];
@@ -66,9 +66,4 @@ function parseSrt(srtText) {
 
   console.log("Parsed subtitles count:", subtitles.length);
   return subtitles;
-}
-
-// Export
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = { timeStringToMs, parseSrt };
 }

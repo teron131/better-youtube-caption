@@ -3,10 +3,14 @@
  * Handles initialization and interaction for custom select elements
  */
 
+import { DEFAULTS, RECOMMENDED_REFINER_MODELS, RECOMMENDED_SUMMARIZER_MODELS, TARGET_LANGUAGES } from "../constants.js";
+import { saveSetting } from "../storage.js";
+import { createOptionElement, getProviderIcon } from "./ui.js";
+
 /**
  * Initialize custom select dropdowns
  */
-function initializeCustomSelects() {
+export function initializeCustomSelects() {
   const customSelects = document.querySelectorAll('.custom-select');
   
   customSelects.forEach(select => {
@@ -158,7 +162,7 @@ function setupSelectListeners(select, hiddenInput) {
  * @param {string} modelType - Model type ('summarizer' or 'refiner')
  * @param {string} value - Model value to select
  */
-function setSelectValue(modelType, value) {
+export function setSelectValue(modelType, value) {
   const select = document.querySelector(`[data-model-type="${modelType}"]`);
   if (!select) return;
 
@@ -248,4 +252,3 @@ function setSelectValue(modelType, value) {
     }
   }
 }
-

@@ -5,7 +5,7 @@
 /**
  * Clean YouTube URL to extract only video ID and essential parameters
  */
-function cleanYouTubeUrl(originalUrl) {
+export function cleanYouTubeUrl(originalUrl) {
   try {
     const url = new URL(originalUrl);
     const videoId = url.searchParams.get("v");
@@ -21,7 +21,7 @@ function cleanYouTubeUrl(originalUrl) {
 /**
  * Extract video ID from YouTube URL
  */
-function extractVideoId(url) {
+export function extractVideoId(url) {
   try {
     const urlObj = new URL(url);
     return urlObj.searchParams.get("v");
