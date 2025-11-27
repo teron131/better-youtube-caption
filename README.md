@@ -44,11 +44,11 @@ If you want to modify the code or rebuild bundles:
    ```bash
    npm install
    ```
-2. **Build bundles** (if you modify `src/captionRefiner.js` or `src/captionSummarizer.js`):
+2. **Build bundles** (if you modify any source files in `src/`):
    ```bash
    npm run build
    ```
-   This regenerates `dist/captionSummarizer.bundle.js` and `dist/captionRefiner.bundle.js`.
+   This regenerates the bundles in `dist/` (`background.bundle.js`, `content.bundle.js`, `popup.bundle.js`).
 
 **Development**: Use `npm run build:watch` for auto-rebuild during development.
 
@@ -66,7 +66,7 @@ If you want to modify the code or rebuild bundles:
    - Enter your Scrape Creators API key (required)
    - Enter your OpenRouter API key (required for refinement and summarization)
    - Select your preferred AI models:
-     - **Summarizer Model** (default: `x-ai/grok-4-fast`) - for generating summaries
+     - **Summarizer Model** (default: `x-ai/grok-4.1-fast`) - for generating summaries
      - **Refiner Model** (default: `google/gemini-2.5-flash-lite-preview-09-2025`) - for refining captions
    - Adjust font sizes for captions and summaries (S/M/L)
    - Click **Save Settings**
@@ -146,7 +146,7 @@ Algorithm highlights:
 - Tail guard protects boundary items near the end of a processed block: if the refined line’s length deviates by more than 10%, we fall back to the original text for stability.
 - Works even when the LLM slightly reorders or merges lines; no need for fragile mega-JSON outputs.
 
-Important knobs (see `SEGMENT_PARSER_CONFIG`):
+Internal config knobs (in `segmentParser.js`):
 
 - `GAP_PENALTY`: controls willingness to insert gaps (handle merges/splits).
 - `TAIL_GUARD_SIZE`: number of trailing items guarded per block.
