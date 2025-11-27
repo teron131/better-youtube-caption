@@ -28,6 +28,7 @@
       "js": [
         "src/constants.js",
         "src/url.js",
+        "src/utils/logger.js",
         "content.js"
       ],
       "css": ["subtitles.css"],

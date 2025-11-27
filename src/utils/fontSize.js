@@ -2,6 +2,8 @@
  * Font Size Management
  * Handles font size settings for captions and summary
  */
+(function () {
+  const logDebug = (typeof BYC_LOGGER !== 'undefined' && BYC_LOGGER?.log) || (() => {});
 
 /**
  * Apply summary font size to summary content
@@ -81,7 +83,7 @@ function initializeFontSizeSelectors(elements) {
               fontSize: size,
             }, () => {
               if (chrome.runtime.lastError) {
-                console.debug('Popup: Unable to update caption font size:', chrome.runtime.lastError.message);
+                logDebug('Popup: Unable to update caption font size:', chrome.runtime.lastError.message);
               }
             });
           }
@@ -93,3 +95,6 @@ function initializeFontSizeSelectors(elements) {
   });
 }
 
+  // Expose to global
+  window.initializeFontSizeSelectors = initializeFontSizeSelectors;
+})();

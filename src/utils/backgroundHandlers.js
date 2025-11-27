@@ -298,6 +298,7 @@ async function handleFetchSubtitles(message, tabId, sendResponse) {
     scrapeCreatorsApiKey: messageScrapeCreatorsKey,
     openRouterApiKey: messageOpenRouterKey,
     modelSelection: messageModelSelection,
+    forceRegenerate = false,
   } = message;
 
   console.log('Background Script: Received fetchSubtitles request for Video ID:', videoId);
@@ -313,36 +314,42 @@ async function handleFetchSubtitles(message, tabId, sendResponse) {
   // Send immediate acknowledgment
   sendResponse({ status: 'processing', message: 'Request received, processing...' });
 
-  // Check if subtitles are cached
-  getStoredSubtitles(videoId)
-    .then((cachedSubtitles) => {
-      if (cachedSubtitles) {
-        console.log('Subtitles found in local storage for this video.');
-        if (tabId) {
-          chrome.tabs.sendMessage(
-            tabId,
-            {
-              action: MESSAGE_ACTIONS.SUBTITLES_GENERATED,
-              subtitles: cachedSubtitles,
-              videoId: videoId,
-            },
-            () => {
-              if (chrome.runtime.lastError) {
-                console.log(
-                  'Could not send message to tab (tab may be closed):',
-                  chrome.runtime.lastError.message
-                );
+  if (!forceRegenerate) {
+    // Check if subtitles are cached
+    getStoredSubtitles(videoId)
+      .then((cachedSubtitles) => {
+        if (cachedSubtitles) {
+          console.log('Subtitles found in local storage for this video.');
+          if (tabId) {
+            chrome.tabs.sendMessage(
+              tabId,
+              {
+                action: MESSAGE_ACTIONS.SUBTITLES_GENERATED,
+                subtitles: cachedSubtitles,
+                videoId: videoId,
+              },
+              () => {
+                if (chrome.runtime.lastError) {
+                  console.log(
+                    'Could not send message to tab (tab may be closed):',
+                    chrome.runtime.lastError.message
+                  );
+                }
               }
-            }
-          );
+            );
+          }
+          return;
         }
-      } else {
         processNewSubtitles(urlForApi, videoId, messageScrapeCreatorsKey, messageOpenRouterKey, messageModelSelection, tabId);
-      }
-    })
-    .catch((error) => {
-      console.error('Error checking storage:', error);
-    });
+      })
+      .catch((error) => {
+        console.error('Error checking storage:', error);
+        processNewSubtitles(urlForApi, videoId, messageScrapeCreatorsKey, messageOpenRouterKey, messageModelSelection, tabId);
+      });
+  } else {
+    console.log('Force regenerate subtitles requested, bypassing cache.');
+    processNewSubtitles(urlForApi, videoId, messageScrapeCreatorsKey, messageOpenRouterKey, messageModelSelection, tabId);
+  }
 }
 
 /**
@@ -488,4 +495,3 @@ async function processNewSubtitles(
     sendStatusUpdate(tabId, errorMessage, false, true);
   }
 }
-

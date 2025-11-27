@@ -207,6 +207,7 @@ async function generateCaptions(elements, showSettingsView) {
           scrapeCreatorsApiKey: result[STORAGE_KEYS.SCRAPE_CREATORS_API_KEY],
           openRouterApiKey: result[STORAGE_KEYS.OPENROUTER_API_KEY],
           modelSelection: refinerModel,
+          forceRegenerate: true,
         },
         (response) => {
           if (chrome.runtime.lastError) {
@@ -227,4 +228,3 @@ async function generateCaptions(elements, showSettingsView) {
     }
   );
 }
-

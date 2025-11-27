@@ -7,6 +7,7 @@
 importScripts('src/constants.js');
 importScripts('src/timestampParser.js');
 importScripts('src/url.js');
+importScripts('src/utils/logger.js');
 importScripts('src/storage.js');
 // Note: segmentParser.js is included in captionRefiner.bundle.js, no need to load separately
 importScripts('dist/captionRefiner.bundle.js');

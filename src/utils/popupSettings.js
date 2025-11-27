@@ -8,10 +8,13 @@
  * @param {string} key - Storage key
  * @param {*} value - Value to save
  */
+(function () {
+  const logDebug = (typeof BYC_LOGGER !== 'undefined' && BYC_LOGGER?.log) || (() => {});
+
 function saveSetting(key, value) {
   const settings = { [key]: value };
   chrome.storage.local.set(settings, () => {
-    console.debug('Auto-saved:', key, value);
+    logDebug('Auto-saved:', key, value);
   });
 }
 
@@ -122,10 +125,7 @@ function setupSettingsListeners(elements) {
             },
             () => {
               if (chrome.runtime.lastError) {
-                console.debug(
-                  'Popup: Unable to toggle subtitles:',
-                  chrome.runtime.lastError.message
-                );
+                logDebug('Popup: Unable to toggle subtitles:', chrome.runtime.lastError.message);
               }
             }
           );
@@ -169,3 +169,13 @@ function getTargetLanguage(result) {
   const recommendedLanguage = result[STORAGE_KEYS.TARGET_LANGUAGE_RECOMMENDED]?.trim();
   return customLanguage || recommendedLanguage || DEFAULTS.TARGET_LANGUAGE_RECOMMENDED;
 }
+
+  // Expose globally
+  window.saveSetting = saveSetting;
+  window.loadSettings = loadSettings;
+  window.setupSettingsListeners = setupSettingsListeners;
+  window.getSummarizerModel = getSummarizerModel;
+  window.getRefinerModel = getRefinerModel;
+  window.getTargetLanguage = getTargetLanguage;
+})();
+const logDebug = (typeof BYC_LOGGER !== 'undefined' && BYC_LOGGER?.log) || (() => {});
