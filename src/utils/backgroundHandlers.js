@@ -81,37 +81,18 @@ function sendError(tabId, errorMessage) {
  * @returns {string} Formatted error message
  */
 function extractErrorMessage(error) {
-  // Handle Error objects
   if (error instanceof Error) {
-    let errorMessage = error.message || 'Unknown error';
-    if (error.message && error.message.includes('is not a valid model ID')) {
-      const match = error.message.match(/OpenRouter API error: (.+)/);
-      errorMessage = match ? match[1] : error.message;
-    }
-    return errorMessage;
+    const msg = error.message || 'Unknown error';
+    // Extract cleaner message for OpenRouter API errors
+    const match = msg.match(/OpenRouter API error: (.+)/);
+    return match ? match[1] : msg;
   }
   
-  // Handle objects with message property
   if (typeof error === 'object' && error !== null) {
-    if (error.message) {
-      return String(error.message);
-    }
-    // Handle parsing errors with structured data
-    if (error.name === 'OutputParserException' || error.message?.includes('OUTPUT_PARSING_FAILURE')) {
-      // Try to extract meaningful parsing error info
-      if (error.issues && Array.isArray(error.issues)) {
-        const issues = error.issues.map(issue => {
-          const path = issue.path ? issue.path.join('.') : 'unknown';
-          return `${path}: ${issue.message || 'Invalid format'}`;
-        }).join('; ');
-        return `Parsing error: ${issues}`;
-      }
-    }
-    // Fallback: stringify the object
+    if (error.message) return String(error.message);
     return JSON.stringify(error);
   }
   
-  // Handle strings and primitives
   return String(error);
 }
 

@@ -3,7 +3,7 @@
  * Combines text input with dropdown for selecting or typing values
  */
 
-import { DEFAULTS, RECOMMENDED_REFINER_MODELS, RECOMMENDED_SUMMARIZER_MODELS, STORAGE_KEYS, TARGET_LANGUAGES } from "../constants.js";
+import { RECOMMENDED_REFINER_MODELS, RECOMMENDED_SUMMARIZER_MODELS, STORAGE_KEYS, TARGET_LANGUAGES } from "../constants.js";
 import { saveSetting } from "../storage.js";
 import { getProviderIcon } from "./ui.js";
 
@@ -280,38 +280,6 @@ function updateComboboxModelIcon(combobox, value) {
       icon.appendChild(img);
     }
   }
-}
-
-/**
- * Update combobox display from storage
- */
-export function updateComboboxDisplay(combobox) {
-  const input = combobox.querySelector('.combobox-input');
-  if (!input) return;
-  
-  // Get current value (custom takes priority)
-  chrome.storage.local.get([
-    STORAGE_KEYS.TARGET_LANGUAGE_CUSTOM,
-    STORAGE_KEYS.TARGET_LANGUAGE_RECOMMENDED
-  ], (result) => {
-    const custom = result[STORAGE_KEYS.TARGET_LANGUAGE_CUSTOM]?.trim();
-    const recommended = result[STORAGE_KEYS.TARGET_LANGUAGE_RECOMMENDED] || DEFAULTS.TARGET_LANGUAGE_RECOMMENDED;
-    
-    const value = custom || recommended;
-    input.value = value;
-    updateComboboxIcon(combobox, value);
-    
-    // Mark selected item in dropdown
-    const dropdown = combobox.querySelector('.combobox-dropdown');
-    if (dropdown) {
-      dropdown.querySelectorAll('.combobox-item').forEach(item => {
-        item.classList.remove('selected');
-        if (item.dataset.value === value) {
-          item.classList.add('selected');
-        }
-      });
-    }
-  });
 }
 
 /**

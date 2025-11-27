@@ -5,7 +5,7 @@
 
 import { MESSAGE_ACTIONS, STORAGE_KEYS } from "../constants.js";
 import { checkRefinedCaptionsAvailability } from "./generation.js";
-import { convertMarkdownToHTML } from "./ui.js";
+import { displaySummary } from "./ui.js";
 
 /**
  * Handle model error by clearing invalid custom models
@@ -164,11 +164,3 @@ export function setupMessageListener(elements) {
   });
 }
 
-/**
- * Display summary in the UI
- * @param {string} summaryText - Summary text (markdown)
- * @param {HTMLElement} summaryElement - Summary content element
- */
-function displaySummary(summaryText, summaryElement) {
-  summaryElement.innerHTML = convertMarkdownToHTML(summaryText);
-}

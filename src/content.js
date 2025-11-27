@@ -26,7 +26,6 @@ let initAttempts = 0;
 let currentUrl = window.location.href;
 let autoGenerationTriggered = new Set(); // Track which videos have had auto-generation triggered
 let showSubtitlesEnabled = true; // Whether subtitles should be displayed
-let urlMonitorInterval = null; // Polling-based URL monitor as fallback for SPA navigation
 let urlObserver = null; // MutationObserver for URL changes
 
 /**

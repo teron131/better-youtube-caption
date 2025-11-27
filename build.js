@@ -13,7 +13,6 @@ const SOURCE_FILES = {
   background: "src/background.js",
   content: "src/content.js",
   popup: "src/popup.js",
-  opencc: "src/utils/opencc.js",
 };
 
 // Output directory
@@ -41,7 +40,7 @@ verifySourceFiles();
 
 // Main build options
 const buildOptions = {
-  entryPoints: [SOURCE_FILES.background, SOURCE_FILES.content, SOURCE_FILES.popup, SOURCE_FILES.opencc],
+  entryPoints: [SOURCE_FILES.background, SOURCE_FILES.content, SOURCE_FILES.popup],
   bundle: true,
   format: "iife", // Standard for extension scripts
   outdir: OUTPUT_DIR,
@@ -64,7 +63,6 @@ async function buildAll() {
   console.log(`✅ Built background.bundle.js`);
   console.log(`✅ Built content.bundle.js`);
   console.log(`✅ Built popup.bundle.js`);
-  console.log(`✅ Built opencc.bundle.js`);
   console.log(`\n📦 Bundles written to ${OUTPUT_DIR}/`);
 }
 

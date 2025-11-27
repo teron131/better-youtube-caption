@@ -72,19 +72,6 @@ export async function fetchYouTubeTranscript(videoUrl, apiKey) {
 }
 
 /**
- * Format transcript segments as text with timestamps
- */
-export function formatTranscriptSegments(segments) {
-  return segments
-    .map((seg) => {
-      const text = seg.text.split(/\s+/).join(" ");
-      const timestamp = seg.startTimeText || formatTimestamp(seg.startTime);
-      return `[${timestamp}] ${text}`;
-    })
-    .join("\n");
-}
-
-/**
  * Format timestamp in milliseconds to M:SS
  */
 export function formatTimestamp(ms) {

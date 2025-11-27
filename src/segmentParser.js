@@ -321,7 +321,5 @@ function parseRefinedSegments(refinedText, originalSegments, chunkSentinel, maxS
 }
 
 // ES module exports
-export {
-  chunkSegmentsByCount, computeLineSimilarity, dpAlignSegments, normalizeLineToText, parseRefinedSegments, SEGMENT_PARSER_CONFIG
-};
+export { chunkSegmentsByCount, parseRefinedSegments };
 
