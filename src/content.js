@@ -5,23 +5,23 @@
 
 import {
   DEFAULTS,
-  ELEMENT_IDS,
-  FONT_SIZES,
   MESSAGE_ACTIONS,
   STORAGE_KEYS,
   TIMING,
-  YOUTUBE,
 } from "./constants.js";
 import { extractVideoId } from "./url.js";
 import { log as debugLog, error as logError, warn as logWarn } from "./utils/logger.js";
+import {
+  applyCaptionFontSize,
+  clearRenderer,
+  createSubtitleElements,
+  findVideoElements,
+  startSubtitleDisplay,
+  stopSubtitleDisplay
+} from "./utils/subtitleRenderer.js";
 
 // Global state
 let currentSubtitles = [];
-let subtitleContainer = null;
-let subtitleText = null;
-let videoPlayer = null;
-let videoContainer = null;
-let checkInterval = null;
 let initAttempts = 0;
 let currentUrl = window.location.href;
 let autoGenerationTriggered = new Set(); // Track which videos have had auto-generation triggered
@@ -209,7 +209,7 @@ function loadStoredSubtitles() {
           debugLog("Found stored subtitles for this video.");
           currentSubtitles = result[videoId];
           if (showSubtitlesEnabled) {
-            startSubtitleDisplay();
+            startSubtitleDisplay(currentSubtitles);
           }
         } else {
           debugLog("No stored subtitles found for this video.");
@@ -315,23 +315,6 @@ function onUrlChange() {
 }
 
 /**
- * Find video elements on the YouTube page
- * @returns {boolean} True if video elements found
- */
-function findVideoElements() {
-  videoPlayer = document.querySelector(YOUTUBE.SELECTORS.VIDEO_PLAYER);
-  if (!videoPlayer) return false;
-
-  // Try finding a standard container, fallback to player's parent
-  videoContainer =
-    document.querySelector(YOUTUBE.SELECTORS.MOVIE_PLAYER) ||
-    document.querySelector(YOUTUBE.SELECTORS.VIDEO_CONTAINER) ||
-    videoPlayer.parentElement;
-
-  return !!videoContainer;
-}
-
-/**
  * Initialize the content script
  */
 function initialize() {
@@ -354,8 +337,7 @@ function initialize() {
     return;
   }
 
-  debugLog("Video player found.", videoPlayer);
-  debugLog("Video container found.", videoContainer);
+  debugLog("Video player found.");
 
   createSubtitleElements();
   loadStoredSubtitles();
@@ -499,7 +481,7 @@ function handleSubtitlesGenerated(message, sendResponse) {
 
   if (currentSubtitles.length > 0) {
     if (showSubtitlesEnabled) {
-      startSubtitleDisplay();
+      startSubtitleDisplay(currentSubtitles);
     }
 
     // Store the subtitles locally
@@ -571,26 +553,6 @@ function loadCaptionFontSize() {
 }
 
 /**
- * Apply caption font size
- * @param {string} size - Size key (S, M, L)
- */
-function applyCaptionFontSize(size) {
-  const sizeConfig = FONT_SIZES.CAPTION[size] || FONT_SIZES.CAPTION.M;
-  
-  // Update CSS custom properties for consistency
-  document.documentElement.style.setProperty("--caption-font-size-base", sizeConfig.base);
-  document.documentElement.style.setProperty("--caption-font-size-max", sizeConfig.max);
-  document.documentElement.style.setProperty("--caption-font-size-min", sizeConfig.min);
-  document.documentElement.style.setProperty("--caption-font-size-fullscreen", sizeConfig.fullscreen);
-  document.documentElement.style.setProperty("--caption-font-size-fullscreen-max", sizeConfig.fullscreenMax);
-
-  // Apply to element directly if it exists, using clamp for responsiveness
-  if (subtitleText) {
-    subtitleText.style.fontSize = `clamp(${sizeConfig.min}, ${sizeConfig.base}, ${sizeConfig.max})`;
-  }
-}
-
-/**
  * Handle update caption font size message
  * @param {Object} message - Message object
  * @param {Function} sendResponse - Response callback
@@ -620,10 +582,10 @@ function handleToggleSubtitles(message, sendResponse) {
   chrome.storage.local.set({ [STORAGE_KEYS.SHOW_SUBTITLES]: showSubtitlesEnabled });
 
   if (showSubtitlesEnabled && currentSubtitles.length > 0) {
-    startSubtitleDisplay();
+    startSubtitleDisplay(currentSubtitles);
   } else {
     stopSubtitleDisplay();
-    hideCurrentSubtitle();
+    clearRenderer();
   }
 
   // If captions were just turned on and there are no subtitles, check for auto-generation
@@ -644,7 +606,7 @@ function handleToggleSubtitles(message, sendResponse) {
           if (result[videoId] && result[videoId].length > 0) {
             debugLog("Subtitles already exist for this video, loading them...");
             currentSubtitles = result[videoId];
-            startSubtitleDisplay();
+            startSubtitleDisplay(currentSubtitles);
             return;
           }
 
@@ -659,116 +621,12 @@ function handleToggleSubtitles(message, sendResponse) {
 }
 
 /**
- * Create subtitle elements and append them to the video container
- */
-function createSubtitleElements() {
-  if (document.getElementById(ELEMENT_IDS.SUBTITLE_CONTAINER)) return;
-
-  subtitleContainer = document.createElement("div");
-  subtitleContainer.id = ELEMENT_IDS.SUBTITLE_CONTAINER;
-  subtitleContainer.style.position = "absolute";
-  subtitleContainer.style.zIndex = "9999";
-  subtitleContainer.style.pointerEvents = "none";
-  subtitleContainer.style.display = "none";
-
-  subtitleText = document.createElement("div");
-  subtitleText.id = ELEMENT_IDS.SUBTITLE_TEXT;
-  subtitleContainer.appendChild(subtitleText);
-
-  if (videoContainer) {
-    if (getComputedStyle(videoContainer).position === "static") {
-      videoContainer.style.position = "relative";
-    }
-    videoContainer.appendChild(subtitleContainer);
-    debugLog("Subtitle container added to video container.");
-  } else {
-    logError("Cannot add subtitle container, video container not found.");
-  }
-}
-
-/**
- * Start displaying subtitles
- */
-function startSubtitleDisplay() {
-  if (!videoPlayer || !subtitleContainer) {
-    logWarn("Cannot start subtitle display: Player or container missing.");
-    return;
-  }
-
-  stopSubtitleDisplay();
-
-  debugLog("Starting subtitle display interval.");
-  checkInterval = setInterval(updateSubtitles, TIMING.SUBTITLE_UPDATE_INTERVAL_MS);
-
-  videoPlayer.addEventListener("play", updateSubtitles);
-  videoPlayer.addEventListener("seeked", updateSubtitles);
-}
-
-/**
- * Stop displaying subtitles
- */
-function stopSubtitleDisplay() {
-  if (checkInterval) {
-    clearInterval(checkInterval);
-    checkInterval = null;
-    debugLog("Stopped subtitle display interval.");
-  }
-  if (videoPlayer) {
-    videoPlayer.removeEventListener("play", updateSubtitles);
-    videoPlayer.removeEventListener("seeked", updateSubtitles);
-  }
-}
-
-/**
  * Clear subtitles and stop display
  */
 function clearSubtitles() {
   currentSubtitles = [];
-  stopSubtitleDisplay();
-  hideCurrentSubtitle();
+  clearRenderer();
   debugLog("Subtitles cleared.");
-}
-
-/**
- * Hide the current subtitle
- */
-function hideCurrentSubtitle() {
-  if (subtitleContainer) {
-    subtitleContainer.style.display = "none";
-  }
-  if (subtitleText) {
-    subtitleText.textContent = "";
-  }
-}
-
-/**
- * Update subtitles based on the current video time
- */
-function updateSubtitles() {
-  if (!videoPlayer || !subtitleText || !subtitleContainer) {
-    return;
-  }
-
-  if (isNaN(videoPlayer.currentTime)) return;
-
-  const currentTime = videoPlayer.currentTime * 1000; // Convert to ms
-  let foundSubtitle = null;
-
-  for (const subtitle of currentSubtitles) {
-    if (currentTime >= subtitle.startTime && currentTime <= subtitle.endTime) {
-      foundSubtitle = subtitle;
-      break;
-    }
-  }
-
-  if (foundSubtitle) {
-    if (subtitleText.textContent !== foundSubtitle.text) {
-      subtitleText.textContent = foundSubtitle.text;
-    }
-    subtitleContainer.style.display = "block";
-  } else {
-    hideCurrentSubtitle();
-  }
 }
 
 // Initialize immediately since we're using document_end in manifest
@@ -787,4 +645,3 @@ function updateSubtitles() {
     setTimeout(startInitialization, 500);
   }
 })();
-

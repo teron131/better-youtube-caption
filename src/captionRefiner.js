@@ -5,21 +5,11 @@
 
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { ChatOpenAI } from "@langchain/openai";
+import { DEFAULTS, REFINER_CONFIG } from "./constants.js";
 import {
   chunkSegmentsByCount,
   parseRefinedSegments,
 } from "./segmentParser.js";
-
-// ============================================================================
-// Configuration
-// ============================================================================
-
-const REFINER_CONFIG = {
-  // Smaller batch size keeps individual requests lighter, reducing latency on slower models
-  MAX_SEGMENTS_PER_CHUNK: 30,
-  CHUNK_SENTINEL: "<<<__CHUNK_END__>>>",
-  MODEL: "google/gemini-2.5-flash-lite-preview-09-2025",
-};
 
 // ============================================================================
 // Utility Functions
@@ -51,16 +41,16 @@ function formatTranscriptSegments(segments) {
  * @param {string} description - Video description
  * @param {string} apiKey - OpenRouter API key
  * @param {Function} progressCallback - Optional progress callback (chunkIdx, totalChunks)
- * @param {string} model - Optional model name (defaults to REFINER_CONFIG.MODEL)
+ * @param {string} model - Optional model name (defaults to DEFAULTS.MODEL_REFINER)
  * @returns {Promise<Array>} Refined segments with same structure as input
  */
-async function refineTranscriptWithLLM(
+export async function refineTranscriptWithLLM(
   segments,
   title,
   description,
   apiKey,
   progressCallback = null,
-  model = REFINER_CONFIG.MODEL
+  model = DEFAULTS.MODEL_REFINER
 ) {
   if (!segments || segments.length === 0) {
     return [];
@@ -213,6 +203,3 @@ had been had, you missed out big time. I`;
 
   return refinedSegments;
 }
-
-// ES module exports for Node.js testing
-export { REFINER_CONFIG, refineTranscriptWithLLM };

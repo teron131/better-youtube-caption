@@ -117,3 +117,8 @@ export const ELEMENT_IDS = {
   SUBTITLE_CONTAINER: "youtube-gemini-subtitles-container",
   SUBTITLE_TEXT: "youtube-gemini-subtitles-text",
 };
+
+export const REFINER_CONFIG = {
+  MAX_SEGMENTS_PER_CHUNK: 30,
+  CHUNK_SENTINEL: "<<<__CHUNK_END__>>>",
+};

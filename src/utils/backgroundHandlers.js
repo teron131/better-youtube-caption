@@ -76,38 +76,6 @@ function sendError(tabId, errorMessage) {
 }
 
 /**
- * Safely convert Simplified Chinese to Traditional Chinese using OpenCC
- * @param {string} text - Text to convert
- * @returns {string} Converted text (or original if conversion fails)
- */
-function safeConvertS2T(text) {
-  if (typeof convertS2T === 'function') {
-    try {
-      return convertS2T(text);
-    } catch (error) {
-      console.warn('OpenCC conversion failed for text, using original:', error);
-    }
-  }
-  return text;
-}
-
-/**
- * Safely convert subtitle segments from Simplified to Traditional Chinese
- * @param {Array} segments - Array of segment objects with text property
- * @returns {Array} Converted segments (or original if conversion fails)
- */
-function safeConvertSegmentsS2T(segments) {
-  if (typeof convertSegmentsS2T === 'function') {
-    try {
-      return convertSegmentsS2T(segments);
-    } catch (error) {
-      console.warn('OpenCC conversion failed for segments, using original:', error);
-    }
-  }
-  return segments;
-}
-
-/**
  * Extract and format error message
  * @param {Error|Object} error - Error object
  * @returns {string} Formatted error message
@@ -271,7 +239,7 @@ export async function handleGenerateSummary(message, tabId, sendResponse) {
     );
 
     // Convert Simplified Chinese to Traditional Chinese using OpenCC
-    summary = safeConvertS2T(summary);
+    summary = convertS2T(summary);
 
     // Save summary to storage
     chrome.storage.local.set({ [`summary_${videoId}`]: summary });
@@ -480,7 +448,7 @@ async function processNewSubtitles(
     }
 
     // Convert Simplified Chinese to Traditional Chinese using OpenCC
-    subtitles = safeConvertSegmentsS2T(subtitles);
+    subtitles = convertSegmentsS2T(subtitles);
 
     // Send subtitles to content script
     if (tabId) {
