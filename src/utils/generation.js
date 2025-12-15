@@ -7,7 +7,9 @@ import { MESSAGE_ACTIONS, STORAGE_KEYS } from "../constants.js";
 import { getStoredSubtitles } from "../storage.js";
 import { extractVideoId } from "../url.js";
 import { validateApiKeys } from "./apiValidation.js";
+import { EXAMPLE_ANALYSIS } from "./exampleData.js";
 import { getRefinerModelFromStorage, getSummarizerModelFromStorage, getTargetLanguageFromStorage } from "./modelSelection.js";
+import { displaySummary } from "./ui.js";
 import { getCurrentVideoTab, getVideoIdFromCurrentTab, validateVideoId } from "./videoUtils.js";
 
 /**
@@ -145,6 +147,17 @@ function handleSummaryResponse(elements, response) {
  */
 export async function generateSummary(elements, showSettingsView) {
   if (!initGeneration(elements)) {
+    return;
+  }
+
+  // Check if we have a valid video first. If not, show example data (Demo Mode).
+  const videoId = await getVideoIdFromCurrentTab();
+  
+  if (!videoId) {
+    // Not a valid YouTube video page - show example
+    displaySummary(EXAMPLE_ANALYSIS, elements.summaryContent);
+    elements.status.textContent = "Not a YouTube video page. Showing example.";
+    elements.status.className = "status success";
     return;
   }
 

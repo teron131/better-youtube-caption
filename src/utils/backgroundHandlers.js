@@ -15,7 +15,7 @@ import { getApiKeys } from "./apiValidation.js";
 import { extractErrorMessage } from "./errorHandling.js";
 import { sendError, sendStatusUpdate, sendSubtitlesGenerated, sendSummaryGenerated } from "./messageUtils.js";
 import { getRefinerModelFromStorage, getSummarizerModelFromStorage, getTargetLanguageFromStorage } from "./modelSelection.js";
-import { convertS2T, convertSegmentsS2T } from "./opencc.js";
+import { convertAnalysisS2T, convertSegmentsS2T } from "./opencc.js";
 import { validateVideoId } from "./videoUtils.js";
 
 // Track running summary generations to prevent concurrent runs
@@ -219,21 +219,20 @@ export async function handleGenerateSummary(message, tabId, sendResponse) {
       tabId
     );
 
-    let summary = workflowResult.summary_text;
-
     console.log(
       `Summary workflow completed: ${workflowResult.iteration_count} iterations, ` +
         `quality score: ${workflowResult.quality_score}%`
     );
 
-    // Convert Simplified Chinese to Traditional Chinese
-    summary = convertS2T(summary);
+    // Get analysis object and convert Simplified Chinese to Traditional Chinese
+    let analysis = workflowResult.analysis;
+    analysis = convertAnalysisS2T(analysis);
 
     // Save summary to storage
-    chrome.storage.local.set({ [`summary_${videoId}`]: summary });
+    chrome.storage.local.set({ [`summary_${videoId}`]: analysis });
 
     // Send summary to content script/sidepanel
-    sendSummaryGenerated(tabId, summary, videoId);
+    sendSummaryGenerated(tabId, analysis, videoId);
 
     sendStatusUpdate(tabId, "Summary generated successfully!", true);
     sendResponse({ status: "completed" });

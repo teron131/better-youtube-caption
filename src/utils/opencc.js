@@ -127,5 +127,33 @@ function convertSegmentsS2T(segments) {
   }
 }
 
+/**
+ * Convert analysis object from Simplified to Traditional Chinese
+ * @param {Object} analysis - Analysis object
+ * @returns {Object} Converted analysis object
+ */
+function convertAnalysisS2T(analysis) {
+  if (!analysis || typeof analysis !== 'object') {
+    return analysis;
+  }
+
+  const converted = { ...analysis };
+
+  if (converted.summary) {
+    converted.summary = convertS2T(converted.summary);
+  }
+
+  if (Array.isArray(converted.takeaways)) {
+    converted.takeaways = converted.takeaways.map(convertS2T);
+  }
+
+  if (Array.isArray(converted.key_facts)) {
+    converted.key_facts = converted.key_facts.map(convertS2T);
+  }
+
+  return converted;
+}
+
 // Export functions for ES modules
-export { convertS2T, convertSegmentsS2T };
+export { convertAnalysisS2T, convertS2T, convertSegmentsS2T };
+
