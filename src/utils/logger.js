@@ -1,5 +1,5 @@
 /**
- * Lightweight logger shared by content/popup/background.
+ * Lightweight logger shared by content/sidepanel/background.
  * Prefixes logs and can be toggled via DEBUG flag.
  */
 

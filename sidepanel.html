@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Better YouTube Caption</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      :root {
+        --bg-gradient: linear-gradient(
+          150deg,
+          rgba(255, 0, 0, 0.18) 0%,
+          rgba(20, 20, 20, 0.92) 52%,
+          #050505 100%
+        );
+        --surface-primary: rgba(18, 18, 18, 0.94);
+        --surface-secondary: rgba(28, 28, 28, 0.94);
+        --text-primary: #f5f5f5;
+        --text-secondary: #c8c8c8;
+        --border: rgba(255, 255, 255, 0.06);
+        --border-strong: rgba(255, 0, 0, 0.4);
+        --primary: #ff0000;
+        --primary-soft: #ff4d4d;
+        --primary-dark: #cc0000;
+        --success: #3ad369;
+        --error: #ff6b6b;
+        --radius-lg: 22px;
+        --radius-md: 16px;
+        --radius-sm: 12px;
+        --shadow-card: 0 28px 60px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.02);
+        --shadow-button: 0 24px 48px rgba(255, 0, 0, 0.45);
+      }
+
+      * {
+        box-sizing: border-box;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      body {
+        width: 100%;
+        min-height: 100vh;
+        margin: 0;
+        padding: 16px 12px;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: var(--bg-gradient), #030303;
+        color: var(--text-primary);
+        display: flex;
+        justify-content: center;
+        overflow-y: auto;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      .app-wrapper {
+        width: 100%;
+        max-width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .view {
+        display: none;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .view.active {
+        display: flex;
+      }
+
+      .page-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .header-right {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+
+      .header-toggle {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .header-toggle-label {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        white-space: nowrap;
+      }
+
+      .header-left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex: 1;
+        min-width: 0;
+      }
+
+      .logo-badge {
+        width: 40px;
+        height: 40px;
+        border-radius: 14px;
+        background: linear-gradient(140deg, var(--primary), var(--primary-soft));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 10px 24px rgba(255, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.24);
+        position: relative;
+        flex-shrink: 0;
+      }
+
+      .logo-play {
+        width: 0;
+        height: 0;
+        border-left: 12px solid #ffffff;
+        border-top: 8px solid transparent;
+        border-bottom: 8px solid transparent;
+        margin-left: 3px;
+      }
+
+      .logo-play.small {
+        border-left-width: 10px;
+        border-top-width: 6px;
+        border-bottom-width: 6px;
+      }
+
+      .header-text {
+        min-width: 0;
+        flex: 1;
+      }
+
+      .header-text h1 {
+        font-size: 16px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        line-height: 1.3;
+      }
+
+      .header-text p {
+        font-size: 11px;
+        color: var(--text-secondary);
+        margin-top: 2px;
+        line-height: 1.4;
+      }
+
+      .icon-button {
+        width: 32px;
+        height: 32px;
+        border-radius: 10px;
+        border: 1px solid transparent;
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        backdrop-filter: blur(6px);
+        flex-shrink: 0;
+      }
+
+      .icon-button:hover:not(:disabled) {
+        border-color: var(--border-strong);
+        background: rgba(255, 0, 0, 0.14);
+      }
+
+      .icon-button:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      .icon-button svg {
+        width: 18px;
+        height: 18px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+      }
+
+      .icon-button.back-button {
+        width: 36px;
+        height: 36px;
+        margin-right: 2px;
+      }
+
+      .card {
+        background: var(--surface-primary);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 16px;
+        box-shadow: var(--shadow-card);
+        backdrop-filter: blur(12px);
+      }
+
+      .card-label {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: rgba(255, 255, 255, 0.52);
+        margin-bottom: 14px;
+      }
+
+      .video-row {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+
+      .media-badge {
+        width: 44px;
+        height: 44px;
+        border-radius: 14px;
+        background: rgba(255, 0, 0, 0.16);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(255, 0, 0, 0.42);
+      }
+
+      .video-title {
+        font-size: 15px;
+        font-weight: 500;
+        color: var(--text-primary);
+        line-height: 1.4;
+      }
+
+      .primary-action {
+        width: 100%;
+        border: none;
+        border-radius: var(--radius-md);
+        padding: 12px 16px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        color: #ffffff;
+        background: linear-gradient(125deg, var(--primary), var(--primary));
+        box-shadow: 0 0 0 rgba(255, 0, 0, 0.28), 0 12px 24px rgba(255, 0, 0, 0.16);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+      }
+
+      .primary-action .action-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.18);
+      }
+
+      .primary-action svg {
+        width: 16px;
+        height: 16px;
+        fill: none;
+        stroke: #ffffff;
+        stroke-width: 1.8;
+      }
+
+      .primary-action:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 22px 45px rgba(255, 0, 0, 0.22);
+      }
+
+      .primary-action:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        box-shadow: none;
+        background: linear-gradient(125deg, rgba(120, 120, 120, 0.24), rgba(120, 120, 120, 0.2));
+      }
+
+      .generate-btn {
+        position: relative;
+        overflow: hidden;
+      }
+
+      .generate-btn::after {
+        content: '';
+        position: absolute;
+        inset: -120% -40% auto;
+        height: 220%;
+        background: radial-gradient(circle, rgba(255, 255, 255, 0.35) 0%, transparent 60%);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+
+      .generate-btn:hover::after {
+        opacity: 0.35;
+      }
+
+      .status {
+        font-size: 12px;
+        text-align: center;
+        color: var(--text-secondary);
+        min-height: 16px;
+        line-height: 1.4;
+      }
+
+      .status:not(:empty) {
+        padding: 10px 12px;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.04);
+      }
+
+      .status.success {
+        color: var(--success);
+        border-color: rgba(58, 211, 105, 0.32);
+        background: rgba(58, 211, 105, 0.12);
+      }
+
+      .status.error {
+        color: var(--error);
+        border-color: rgba(255, 0, 0, 0.38);
+        background: rgba(255, 0, 0, 0.14);
+      }
+
+      .summary-card {
+        position: relative;
+        overflow: hidden;
+      }
+
+      .summary-card::before {
+        content: '';
+        position: absolute;
+        inset: -40% auto auto -40%;
+        width: 260px;
+        height: 260px;
+        background: radial-gradient(circle, rgba(255, 0, 0, 0.24) 0%, transparent 70%);
+        opacity: 0.6;
+        pointer-events: none;
+      }
+
+
+      .summary-content {
+        position: relative;
+        font-size: var(--summary-font-size-base, 15px);
+        line-height: 1.8;
+        color: #f5f5f5;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+        letter-spacing: 0.01em;
+      }
+
+      .summary-content h2 {
+        font-size: var(--summary-font-size-h2, 20px);
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 28px 0 18px;
+        line-height: 1.4;
+        letter-spacing: -0.01em;
+      }
+
+      .summary-content h2:first-child {
+        margin-top: 0;
+      }
+
+      .summary-content h3 {
+        font-size: var(--summary-font-size-h3, 17px);
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 24px 0 14px;
+        line-height: 1.4;
+        letter-spacing: -0.005em;
+      }
+
+      .summary-content ul {
+        list-style: none;
+        padding: 0;
+        margin: 18px 0;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .summary-content li {
+        position: relative;
+        padding-left: 20px;
+        line-height: 1.8;
+      }
+
+      .summary-content li::before {
+        content: '•';
+        position: absolute;
+        left: 0;
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 18px;
+        line-height: 1.8;
+        font-weight: 300;
+      }
+
+      .summary-content p {
+        margin: 14px 0;
+        line-height: 1.8;
+        color: #f5f5f5;
+      }
+
+      .summary-content p:first-child {
+        margin-top: 0;
+      }
+
+      .summary-content p:last-child {
+        margin-bottom: 0;
+      }
+
+      .summary-content strong {
+        color: var(--text-primary);
+        font-weight: 600;
+        letter-spacing: 0.01em;
+      }
+
+      .summary-content code {
+        background: rgba(255, 255, 255, 0.08);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-family: 'Monaco', 'Courier New', monospace;
+        font-size: 13px;
+        color: var(--text-primary);
+      }
+
+      .summary-content em {
+        font-style: italic;
+        color: #f0f0f0;
+      }
+
+      .summary-placeholder {
+        padding: 40px 24px;
+        text-align: center;
+        border-radius: var(--radius-md);
+        border: 1px dashed rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.02);
+        color: var(--text-secondary);
+        font-style: italic;
+      }
+
+      #settingsView .page-header {
+        align-items: flex-start;
+      }
+
+      .logo-badge.is-settings {
+        background: linear-gradient(140deg, rgba(255, 0, 0, 0.36), rgba(80, 0, 0, 0.65));
+        border: 1px solid rgba(255, 0, 0, 0.42);
+        box-shadow: 0 14px 32px rgba(255, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+      }
+
+      .logo-badge.is-settings svg {
+        width: 22px;
+        height: 22px;
+        stroke: #ffffff;
+        stroke-width: 1.6;
+        fill: none;
+      }
+
+      .settings-card {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .form-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .section-heading {
+        font-size: 14px;
+        font-weight: 600;
+        padding-top: 2px;
+      }
+
+      .form-group label {
+        display: block;
+        font-size: 12px;
+        font-weight: 500;
+        margin-bottom: 6px;
+        color: var(--text-primary);
+        line-height: 1.4;
+      }
+
+      .form-group input,
+      .form-group select {
+        width: 100%;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--border);
+        background: var(--surface-secondary);
+        color: var(--text-primary);
+        padding: 10px 12px;
+        font-size: 13px;
+        transition: border 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .form-group input::placeholder {
+        color: rgba(255, 255, 255, 0.38);
+        font-size: 12px;
+      }
+
+      .form-group input:focus,
+      .form-group select:focus {
+        outline: none;
+        border-color: rgba(255, 0, 0, 0.55);
+        box-shadow: 0 0 0 3px rgba(255, 0, 0, 0.15);
+      }
+
+      .form-hint {
+        font-size: 11px;
+        color: var(--text-secondary);
+        margin-top: 4px;
+        line-height: 1.4;
+      }
+
+      .model-row {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .model-row .form-group {
+        flex: 1;
+      }
+
+      .form-divider {
+        height: 1px;
+        background: rgba(255, 255, 255, 0.05);
+        margin: 2px 0;
+      }
+
+      .toggle-card {
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.02);
+        padding: 12px 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .toggle-card.compact {
+        margin-top: -4px;
+        padding: 10px 14px;
+        background: rgba(255, 255, 255, 0.03);
+      }
+
+      .toggle-card.compact .toggle-info h3 {
+        font-size: 13px;
+      }
+
+      .toggle-card.compact .toggle-info p {
+        font-size: 11px;
+      }
+
+      .toggle-info h3 {
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 4px;
+        line-height: 1.3;
+      }
+
+      .toggle-info p {
+        font-size: 11px;
+        color: var(--text-secondary);
+        line-height: 1.4;
+      }
+
+      .toggle-switch {
+        position: relative;
+        width: 48px;
+        height: 26px;
+        flex-shrink: 0;
+      }
+
+      .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+        position: absolute;
+      }
+
+      .toggle-slider {
+        position: absolute;
+        inset: 0;
+        border-radius: 999px;
+        background: rgba(120, 120, 120, 0.25);
+        border: 1px solid rgba(120, 120, 120, 0.25);
+        transition: all 0.25s ease;
+      }
+
+      .toggle-slider::before {
+        content: '';
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        left: 3px;
+        top: 2px;
+        border-radius: 50%;
+        background: #ffffff;
+        transition: transform 0.25s ease;
+        box-shadow: 0 3px 12px rgba(0, 0, 0, 0.3);
+      }
+
+      .toggle-switch input:checked + .toggle-slider {
+        background: var(--primary);
+        border-color: rgba(255, 0, 0, 0.45);
+      }
+
+      .toggle-switch input:checked + .toggle-slider::before {
+        transform: translateX(21px);
+      }
+
+      .save-btn {
+        margin-top: 8px;
+      }
+
+      #settingsStatus {
+        margin-top: -4px;
+      }
+
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+
+      .custom-select {
+        position: relative;
+        width: 100%;
+      }
+
+      .select-selected {
+        background: var(--surface-secondary);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 12px 14px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--text-primary);
+        font-size: 14px;
+        min-height: 20px;
+        transition: border-color 0.2s ease;
+      }
+
+      .select-selected:hover {
+        border-color: rgba(255, 0, 0, 0.55);
+      }
+
+      .select-selected:focus-within {
+        outline: none;
+        border-color: rgba(255, 0, 0, 0.55);
+        box-shadow: 0 0 0 4px rgba(255, 0, 0, 0.2);
+      }
+
+      .select-icon, .item-icon {
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+      }
+
+      .select-items {
+        position: absolute;
+        top: calc(100% + 2px);
+        left: 0;
+        right: 0;
+        background: #121212; /* Solid dark background */
+        border: 1px solid var(--border);
+        border-top: none;
+        border-radius: 0 0 var(--radius-md) var(--radius-md);
+        max-height: 200px;
+        overflow-y: auto;
+        z-index: 1000;
+        display: none;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        opacity: 1;
+      }
+
+      .select-items.show {
+        display: block;
+      }
+
+      .select-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        cursor: pointer;
+        border-bottom: 1px solid var(--border);
+        transition: background 0.2s ease;
+        color: var(--text-primary);
+        background: transparent; /* Ensure no transparency */
+      }
+
+      .select-item:hover {
+        background: rgba(255, 0, 0, 0.1);
+      }
+
+      .select-item:last-child {
+        border-bottom: none;
+      }
+
+      .select-item.selected {
+        background: rgba(255, 0, 0, 0.15);
+        font-weight: 500;
+      }
+
+      .select-arrow {
+        margin-left: auto;
+        font-size: 12px;
+        transition: transform 0.2s ease;
+      }
+
+      .select-selected.open .select-arrow {
+        transform: rotate(180deg);
+      }
+
+      /* Combobox styles (combines input + dropdown) */
+      .combobox {
+        position: relative;
+        width: 100%;
+      }
+
+      .combobox-input-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--surface-secondary);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        padding: 0 12px;
+        min-height: 38px;
+        outline: none;
+      }
+
+      .combobox-input-wrapper:focus-within {
+        border-color: rgba(255, 0, 0, 0.55);
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(255, 0, 0, 0.15);
+      }
+
+      .combobox-icon {
+        width: 14px;
+        height: 14px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        line-height: 14px;
+      }
+
+      .combobox-input {
+        flex: 1;
+        border: none !important;
+        background: transparent;
+        color: var(--text-primary);
+        font-size: 13px;
+        padding: 10px 0;
+        outline: none !important;
+        min-width: 0;
+        box-shadow: none !important;
+      }
+
+      .combobox-input:focus,
+      .combobox-input:focus-visible,
+      .combobox-input:active {
+        outline: none !important;
+        border: none !important;
+        box-shadow: none !important;
+        background: transparent;
+      }
+
+      .combobox-input::placeholder {
+        color: var(--text-secondary);
+        font-size: 12px;
+      }
+
+      .combobox-arrow {
+        background: transparent;
+        border: none;
+        color: var(--text-secondary);
+        font-size: 10px;
+        cursor: pointer;
+        padding: 3px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.2s ease, color 0.2s ease;
+        flex-shrink: 0;
+      }
+
+      .combobox-arrow:hover {
+        color: var(--text-primary);
+      }
+
+      .combobox.open .combobox-arrow {
+        transform: rotate(180deg);
+      }
+
+      .combobox-dropdown {
+        position: absolute;
+        top: calc(100% + 2px);
+        left: 0;
+        right: 0;
+        background: #121212;
+        border: 1px solid var(--border);
+        border-top: none;
+        border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+        max-height: 180px;
+        overflow-y: auto;
+        z-index: 1000;
+        display: none;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+      }
+
+      .combobox-dropdown.show {
+        display: block;
+      }
+
+      .combobox-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 12px;
+        cursor: pointer;
+        border-bottom: 1px solid var(--border);
+        transition: background 0.2s ease;
+        color: var(--text-primary);
+        background: transparent;
+        font-size: 13px;
+      }
+
+      .combobox-item:hover {
+        background: rgba(255, 0, 0, 0.1);
+      }
+
+      .combobox-item:last-child {
+        border-bottom: none;
+      }
+
+      .combobox-item.selected {
+        background: rgba(255, 0, 0, 0.15);
+        font-weight: 500;
+      }
+
+      .combobox-item-icon {
+        width: 14px;
+        height: 14px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        line-height: 14px;
+      }
+
+      .combobox-item-label {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .info-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: rgba(255, 0, 0, 0.2);
+        color: var(--primary);
+        font-size: 12px;
+        font-weight: bold;
+        margin-left: 8px;
+        transition: background 0.2s ease;
+        border: 1px solid rgba(255, 0, 0, 0.3);
+        position: relative;
+        cursor: help;
+      }
+
+
+      .info-icon:hover {
+        background: rgba(255, 0, 0, 0.3);
+      }
+
+      .info-icon-wrapper {
+        position: relative;
+        display: inline-block;
+        vertical-align: middle;
+      }
+
+      .info-icon-wrapper .info-tooltip {
+        position: absolute;
+        bottom: calc(100% + 8px);
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.95);
+        color: white;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 12px;
+        max-width: 650px;
+        min-width: 200px;
+        white-space: normal;
+        word-wrap: break-word;
+        z-index: 10000;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.15s ease 0.1s, visibility 0.15s ease 0.1s;
+        pointer-events: auto;
+        user-select: text;
+        -webkit-user-select: text;
+        -moz-user-select: text;
+        -ms-user-select: text;
+        cursor: text;
+        line-height: 1.5;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      }
+
+      .info-icon-wrapper .info-tooltip.show {
+        opacity: 1;
+        visibility: visible;
+        transition: opacity 0.15s ease 0.1s, visibility 0.15s ease 0.1s;
+      }
+
+      .info-icon-wrapper .info-tooltip.hide {
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.5s ease, visibility 0.5s ease;
+      }
+
+      .info-icon-wrapper .info-tooltip::after {
+        content: '';
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        border: 6px solid transparent;
+        border-top-color: rgba(0, 0, 0, 0.95);
+      }
+
+      .header-right {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .save-btn-small {
+        padding: 8px 12px;
+        font-size: 13px;
+        border-radius: var(--radius-sm);
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-primary);
+        border: 1px solid var(--border);
+        transition: all 0.2s;
+        width: auto;
+        min-width: auto;
+        flex-shrink: 0;
+      }
+
+      .save-btn-small:hover {
+        background: rgba(255, 0, 0, 0.14);
+        border-color: var(--border-strong);
+      }
+
+      #settingsStatus {
+        font-size: 12px;
+        padding: 4px 8px;
+        border-radius: var(--radius-sm);
+        max-width: 300px;
+        text-align: center;
+        margin: 0;
+        flex: 1;
+      }
+
+      .settings-header-status {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--border);
+      }
+
+      .settings-header-status.success {
+        color: var(--success);
+        border-color: rgba(58, 211, 105, 0.3);
+        background: rgba(58, 211, 105, 0.08);
+      }
+
+      .settings-header-status.error {
+        color: var(--error);
+        border-color: rgba(255, 0, 0, 0.3);
+        background: rgba(255, 0, 0, 0.08);
+      }
+
+      .settings-header-status:empty {
+        display: none;
+        min-height: 0;
+        padding: 0;
+        border: none;
+      }
+
+      .button-row {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        width: 100%;
+      }
+
+      .font-size-selector {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+
+      .font-size-button {
+        flex: 1;
+        padding: 8px 10px;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--border);
+        background: var(--surface-secondary);
+        color: var(--text-primary);
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-align: center;
+        min-width: 0;
+      }
+
+      .font-size-button:hover {
+        border-color: rgba(255, 0, 0, 0.4);
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .font-size-button.active {
+        background: var(--primary);
+        border-color: var(--primary);
+        color: #ffffff;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-wrapper">
+      <div class="view active" id="mainView">
+        <div class="page-header">
+          <div class="header-left">
+            <div class="logo-badge">
+              <span class="logo-play"></span>
+            </div>
+            <div class="header-text">
+              <h1>Better YouTube Caption</h1>
+              <p>Polished video summaries in markdown</p>
+            </div>
+          </div>
+          <div class="header-right">
+            <div class="header-toggle">
+              <span class="header-toggle-label">Caption</span>
+              <label class="toggle-switch">
+                <input type="checkbox" id="showSubtitlesToggle" />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <button
+              class="icon-button"
+              id="copyCaptionBtn"
+              type="button"
+              aria-label="Copy refined caption"
+              disabled
+            >
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M8 16H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2m-6 12h8a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2z"
+                ></path>
+              </svg>
+            </button>
+            <button
+              class="icon-button"
+              id="settingsBtn"
+              type="button"
+              aria-label="Open settings"
+            >
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                ></path>
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"
+                ></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="button-row">
+          <button class="primary-action generate-btn" id="generateCaptionBtn" type="button" style="flex: 1;">
+            <span class="action-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-3.227-1.591 1.591M5.25 12H3m3.227-4.773L4.636 5.636M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"
+                ></path>
+              </svg>
+            </span>
+            <span>Generate Caption</span>
+          </button>
+          <button class="primary-action generate-btn" id="generateSummaryBtn" type="button" style="flex: 1;">
+            <span class="action-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-3.227-1.591 1.591M5.25 12H3m3.227-4.773L4.636 5.636M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"
+                ></path>
+              </svg>
+            </span>
+            <span>Generate Summary</span>
+          </button>
+        </div>
+
+        <div class="status" id="status"></div>
+
+        <div class="card summary-card">
+          <div class="summary-content" id="summaryContent">
+            <div class="summary-placeholder">
+              Click "Generate Summary" to create a summary for this video
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="view" id="settingsView">
+        <div class="page-header">
+          <div class="header-left">
+            <button
+              class="icon-button back-button"
+              id="backBtn"
+              type="button"
+              aria-label="Back to main view"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M15.75 19.5 8.25 12l7.5-7.5"
+                ></path>
+              </svg>
+            </button>
+            <div class="logo-badge is-settings">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                ></path>
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"
+                ></path>
+              </svg>
+            </div>
+            <div class="header-text">
+              <h1>Settings</h1>
+              <p>Configure your YouTube caption experience</p>
+            </div>
+          </div>
+          <div class="header-right">
+            <div class="status settings-header-status" id="settingsStatus"></div>
+          </div>
+        </div>
+
+        <div class="card settings-card">
+          <div class="form-stack">
+            <div class="form-group">
+              <label for="scrapeApiKey">Scrape Creators API Key <span class="info-icon" data-tooltip="Get your API key from https://scrapecreators.com" title="Get your API key from https://scrapecreators.com">?</span></label>
+              <input
+                type="password"
+                id="scrapeApiKey"
+                placeholder="Enter your Scrape Creators API key"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="openrouterApiKey">OpenRouter API Key <span class="info-icon" data-tooltip="Create API Key at https://openrouter.ai/settings/keys" title="Create API Key at https://openrouter.ai/settings/keys">?</span></label>
+              <input
+                type="password"
+                id="openrouterApiKey"
+                placeholder="Enter your OpenRouter API key"
+              />
+            </div>
+
+            <div class="form-divider"></div>
+
+            <h2 class="section-heading">Recommended Models</h2>
+
+            <div class="model-row">
+              <div class="form-group">
+                <label for="summarizerInput">Summarizer <span class="info-icon" data-tooltip="Reasoning Effort: Medium. Summarization is usually not a complex task unless the video is very long. Select from dropdown or type a custom model (e.g., provider/model)" title="Reasoning Effort: Medium. Summarization is usually not a complex task unless the video is very long. Select from dropdown or type a custom model (e.g., provider/model)">?</span></label>
+                <div class="combobox" data-combobox-type="summarizer">
+                  <div class="combobox-input-wrapper">
+                    <span class="combobox-icon"></span>
+                    <input 
+                      type="text" 
+                      id="summarizerInput" 
+                      class="combobox-input" 
+                      placeholder="Select or type model (e.g., x-ai/grok-4-fast)"
+                      autocomplete="off"
+                    />
+                    <button type="button" class="combobox-arrow" aria-label="Open model options">▼</button>
+                  </div>
+                  <div class="combobox-dropdown">
+                    <!-- Options populated by JS -->
+                  </div>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="refinerInput">Refiner <span class="info-icon" data-tooltip="Reasoning Effort: Minimal. Most models are good enough so cost and speed are prioritized. Select from dropdown or type a custom model (e.g., provider/model)" title="Reasoning Effort: Minimal. Most models are good enough so cost and speed are prioritized. Select from dropdown or type a custom model (e.g., provider/model)">?</span></label>
+                <div class="combobox" data-combobox-type="refiner">
+                  <div class="combobox-input-wrapper">
+                    <span class="combobox-icon"></span>
+                    <input 
+                      type="text" 
+                      id="refinerInput" 
+                      class="combobox-input" 
+                      placeholder="Select or type model (e.g., google/gemini-2.5-flash-lite)"
+                      autocomplete="off"
+                    />
+                    <button type="button" class="combobox-arrow" aria-label="Open model options">▼</button>
+                  </div>
+                  <div class="combobox-dropdown">
+                    <!-- Options populated by JS -->
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-divider"></div>
+
+            <h2 class="section-heading">Generation Settings</h2>
+
+            <div class="form-group">
+              <label for="targetLanguageInput">Target Language <span class="info-icon" data-tooltip="Language for summarization output. Select from dropdown or type a custom language code (e.g., ja, fr, es)" title="Language for summarization output. Select from dropdown or type a custom language code (e.g., ja, fr, es)">?</span></label>
+              <div class="combobox" data-combobox-type="targetLanguage">
+                <div class="combobox-input-wrapper">
+                  <span class="combobox-icon"></span>
+                  <input 
+                    type="text" 
+                    id="targetLanguageInput" 
+                    class="combobox-input" 
+                    placeholder="Select or type language code (e.g., auto, en, zh-TW, ja)"
+                    autocomplete="off"
+                  />
+                  <button type="button" class="combobox-arrow" aria-label="Open language options">▼</button>
+                </div>
+                <div class="combobox-dropdown">
+                  <!-- Options populated by JS -->
+                </div>
+              </div>
+              <div class="form-hint">Only applies to summarization</div>
+            </div>
+
+            <div class="toggle-card">
+              <div class="toggle-info">
+                <h3>Auto Generate Captions</h3>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="autoGenerateToggle" />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="form-divider"></div>
+
+            <h2 class="section-heading">Display Settings</h2>
+
+            <div class="form-group">
+              <label>Caption Font Size</label>
+              <div class="font-size-selector">
+                <button type="button" class="font-size-button" data-size="S" data-type="caption">S</button>
+                <button type="button" class="font-size-button" data-size="M" data-type="caption">M</button>
+                <button type="button" class="font-size-button" data-size="L" data-type="caption">L</button>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Summary Font Size</label>
+              <div class="font-size-selector">
+                <button type="button" class="font-size-button" data-size="S" data-type="summary">S</button>
+                <button type="button" class="font-size-button" data-size="M" data-type="summary">M</button>
+                <button type="button" class="font-size-button" data-size="L" data-type="summary">L</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="dist/sidepanel.bundle.js"></script>
+  </body>
+</html>
+

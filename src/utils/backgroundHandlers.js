@@ -1,6 +1,6 @@
 /**
  * Background Script Message Handlers
- * Handles messages from content and popup scripts
+ * Handles messages from content and sidepanel scripts
  */
 
 import { executeSummarizationWorkflow } from "../captionSummarizer.js";
@@ -32,7 +32,7 @@ async function getApiKeyWithFallback(keyName) {
 }
 
 /**
- * Send status update to popup
+ * Send status update to sidepanel
  * @param {number|null} tabId - Tab ID
  * @param {string} text - Status text
  * @param {boolean} success - Success flag
@@ -49,14 +49,14 @@ function sendStatusUpdate(tabId, text, success = false, error = false) {
     },
     () => {
       if (chrome.runtime.lastError) {
-        // Popup might be closed, ignore
+        // Sidepanel might be closed, ignore
       }
     }
   );
 }
 
 /**
- * Send error to popup
+ * Send error to sidepanel
  * @param {number|null} tabId - Tab ID
  * @param {string} errorMessage - Error message
  */
@@ -69,7 +69,7 @@ function sendError(tabId, errorMessage) {
     },
     () => {
       if (chrome.runtime.lastError) {
-        // Popup might be closed, ignore
+        // Sidepanel might be closed, ignore
       }
     }
   );
@@ -225,7 +225,7 @@ export async function handleGenerateSummary(message, tabId, sendResponse) {
     // Save summary to storage
     chrome.storage.local.set({ [`summary_${videoId}`]: summary });
 
-    // Send summary to content script/popup
+    // Send summary to content script/sidepanel
     if (tabId) {
       chrome.tabs.sendMessage(tabId, {
         action: 'SUMMARY_GENERATED',
@@ -349,7 +349,7 @@ async function processNewSubtitles(
     // Get Scrape Creators API key
     const scrapeCreatorsKey = messageScrapeCreatorsKey || (await getApiKeyWithFallback('scrapeCreatorsApiKey'));
     if (!scrapeCreatorsKey) {
-      throw new Error('Scrape Creators API key not found. Please set it in config.js or popup.');
+      throw new Error('Scrape Creators API key not found. Please set it in settings.');
     }
 
     // Fetch transcript

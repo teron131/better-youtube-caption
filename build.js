@@ -12,7 +12,7 @@ const isWatch = process.argv.includes("--watch");
 const SOURCE_FILES = {
   background: "src/background.js",
   content: "src/content.js",
-  popup: "src/popup.js",
+  sidepanel: "src/sidepanel.js",
 };
 
 // Output directory
@@ -40,7 +40,7 @@ verifySourceFiles();
 
 // Main build options
 const buildOptions = {
-  entryPoints: [SOURCE_FILES.background, SOURCE_FILES.content, SOURCE_FILES.popup],
+  entryPoints: [SOURCE_FILES.background, SOURCE_FILES.content, SOURCE_FILES.sidepanel],
   bundle: true,
   format: "iife", // Standard for extension scripts
   outdir: OUTPUT_DIR,
@@ -62,7 +62,7 @@ async function buildAll() {
   
   console.log(`✅ Built background.bundle.js`);
   console.log(`✅ Built content.bundle.js`);
-  console.log(`✅ Built popup.bundle.js`);
+  console.log(`✅ Built sidepanel.bundle.js`);
   console.log(`\n📦 Bundles written to ${OUTPUT_DIR}/`);
 }
 

@@ -48,7 +48,7 @@ If you want to modify the code or rebuild bundles:
    ```bash
    npm run build
    ```
-   This regenerates the bundles in `dist/` (`background.bundle.js`, `content.bundle.js`, `popup.bundle.js`).
+   This regenerates the bundles in `dist/` (`background.bundle.js`, `content.bundle.js`, `sidepanel.bundle.js`).
 
 **Development**: Use `npm run build:watch` for auto-rebuild during development.
 
@@ -61,7 +61,7 @@ If you want to modify the code or rebuild bundles:
    - [OpenRouter API](https://openrouter.ai/) - For AI-powered caption refinement
 
 2. **Configure the Extension**:
-   - Click the extension icon in your Chrome toolbar
+   - Click the extension icon in your Chrome toolbar to open the Side Panel
    - Go to **Settings** tab
    - Enter your Scrape Creators API key (required)
    - Enter your OpenRouter API key (required for refinement and summarization)
@@ -89,7 +89,7 @@ If you want to modify the code or rebuild bundles:
 2. Click the extension icon
 3. Click **Generate Summary**
 4. Wait for processing (transcript fetching + AI summarization)
-5. Summary appears in popup (no reload needed)
+5. Summary appears in side panel (no reload needed)
 
 ### Toggle Display
 - Use the **Show subtitles on video** toggle to show/hide captions
@@ -97,7 +97,7 @@ If you want to modify the code or rebuild bundles:
 
 ### Font Size Controls
 - Adjust caption font size (S/M/L) in Settings - changes apply immediately to video captions
-- Adjust summary font size (S/M/L) in Settings - changes apply to summary display in popup
+- Adjust summary font size (S/M/L) in Settings - changes apply to summary display in side panel
 
 ## Segment Parser Algorithm
 

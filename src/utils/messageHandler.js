@@ -1,5 +1,5 @@
 /**
- * Message Handler for Popup
+ * Message Handler for Side Panel
  * Handles messages from background and content scripts
  */
 
@@ -30,7 +30,7 @@ function handleModelError(elements, errorMessage) {
 
   if (Object.keys(clears).length > 0) {
     chrome.storage.local.set(clears, () => {
-      console.log('Popup: Cleared invalid custom models');
+      console.log('Sidepanel: Cleared invalid custom models');
     });
     
     alert(
@@ -89,7 +89,7 @@ function isModelError(error) {
 }
 
 /**
- * Setup message listener for popup
+ * Setup message listener for side panel
  * @param {Object} elements - DOM elements
  */
 export function setupMessageListener(elements) {

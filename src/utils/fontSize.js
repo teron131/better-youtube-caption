@@ -84,7 +84,7 @@ export function initializeFontSizeSelectors() {
               fontSize: size,
             }, () => {
               if (chrome.runtime.lastError) {
-                logDebug('Popup: Unable to update caption font size:', chrome.runtime.lastError.message);
+                logDebug('Sidepanel: Unable to update caption font size:', chrome.runtime.lastError.message);
               }
             });
           }

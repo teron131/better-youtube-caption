@@ -6,7 +6,7 @@
 import { MESSAGE_ACTIONS, STORAGE_KEYS } from "../constants.js";
 import { getStoredSubtitles } from "../storage.js";
 import { extractVideoId } from "../url.js";
-import { getRefinerModel, getSummarizerModel, getTargetLanguage } from "./popupSettings.js";
+import { getRefinerModel, getSummarizerModel, getTargetLanguage } from "./sidepanelSettings.js";
 
 /**
  * Get current YouTube video tab

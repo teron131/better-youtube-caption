@@ -28,11 +28,11 @@ export async function loadExistingSummary(elements) {
     // Check for existing summary
     chrome.storage.local.get([`summary_${videoId}`], (result) => {
       if (result[`summary_${videoId}`] && elements.summaryContent) {
-        logDebug('Popup: Found existing summary for video:', videoId);
+        logDebug('Sidepanel: Found existing summary for video:', videoId);
         displaySummary(result[`summary_${videoId}`], elements.summaryContent);
       }
     });
   } catch (error) {
-    logDebug('Popup: Error loading existing summary:', error);
+    logDebug('Sidepanel: Error loading existing summary:', error);
   }
 }
