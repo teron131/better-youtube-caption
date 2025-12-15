@@ -4,43 +4,34 @@
  */
 
 import {
-  DEFAULTS,
-  MESSAGE_ACTIONS,
-  STORAGE_KEYS,
-  TIMING,
+    DEFAULTS,
+    MESSAGE_ACTIONS,
+    STORAGE_KEYS,
+    TIMING,
 } from "./constants.js";
 import { extractVideoId } from "./url.js";
+import {
+    clearAutoGenerationTrigger,
+    scheduleAutoGeneration,
+    validateAutoGenerationConditions,
+} from "./utils/autoGeneration.js";
+import { isContextInvalidated, isExtensionContextValid } from "./utils/contextValidation.js";
 import { log as debugLog, error as logError, warn as logWarn } from "./utils/logger.js";
 import {
-  applyCaptionFontSize,
-  clearRenderer,
-  createSubtitleElements,
-  findVideoElements,
-  startSubtitleDisplay,
-  stopSubtitleDisplay
+    applyCaptionFontSize,
+    clearRenderer,
+    createSubtitleElements,
+    findVideoElements,
+    startSubtitleDisplay,
+    stopSubtitleDisplay,
 } from "./utils/subtitleRenderer.js";
 
 // Global state
 let currentSubtitles = [];
 let initAttempts = 0;
 let currentUrl = window.location.href;
-let autoGenerationTriggered = new Set(); // Track which videos have had auto-generation triggered
 let showSubtitlesEnabled = true; // Whether subtitles should be displayed
 let urlObserver = null; // MutationObserver for URL changes
-
-/**
- * Check if extension context is valid
- * @returns {boolean} True if context is valid
- */
-function isExtensionContextValid() {
-  return (
-    typeof chrome !== "undefined" &&
-    !!chrome.runtime &&
-    typeof chrome.runtime.id === "string" &&
-    !!chrome.storage &&
-    !!chrome.storage.local
-  );
-}
 
 /**
  * Get refiner model selection from storage result
@@ -66,91 +57,28 @@ function getRefinerModelSelection(result) {
  * @param {boolean} withDelay - Whether to add a delay before triggering (for initial page load)
  */
 function checkAndTriggerAutoGeneration(videoId, storageResult, checkCaptionsEnabled = true, withDelay = false) {
-  // Check if auto-generation is enabled
-  if (storageResult[STORAGE_KEYS.AUTO_GENERATE] !== true) {
-    debugLog("Auto-gen skipped: setting disabled");
-    return false;
-  }
-
-  // Check if captions are enabled (if required)
-  if (checkCaptionsEnabled && !showSubtitlesEnabled) {
-    debugLog("Auto-gen skipped: captions disabled");
-    return false;
-  }
-
-  // Check if API key is available
-  if (!storageResult[STORAGE_KEYS.SCRAPE_CREATORS_API_KEY]) {
-    debugLog("Auto-gen skipped: missing Scrape Creators key");
-    return false;
-  }
-
-  // Check if already triggered for this video
-  if (autoGenerationTriggered.has(videoId)) {
-    debugLog("Auto-gen skipped: already triggered for video", videoId);
-    return false;
-  }
-
-  // Mark as triggered
-  autoGenerationTriggered.add(videoId);
-  debugLog(
-    "Auto-gen enabled,",
-    withDelay ? "waiting for page to load..." : "triggering immediately...",
-    "videoId:",
-    videoId
+  const validation = validateAutoGenerationConditions(
+    videoId,
+    storageResult,
+    showSubtitlesEnabled,
+    checkCaptionsEnabled
   );
 
-  const trigger = () => {
-    const executeTrigger = () => {
-      // Double-check video ID hasn't changed
-      const currentVideoId = extractVideoId(window.location.href);
-      if (currentVideoId !== videoId) {
-        debugLog("Auto-gen cancel: video ID changed", videoId, "->", currentVideoId);
-        autoGenerationTriggered.delete(videoId);
-        return;
-      }
-
-      const modelSelection = getRefinerModelSelection(storageResult);
-      triggerAutoGeneration(
-        videoId,
-        storageResult[STORAGE_KEYS.SCRAPE_CREATORS_API_KEY],
-        storageResult[STORAGE_KEYS.OPENROUTER_API_KEY],
-        modelSelection
-      );
-    };
-
-    // Double-check captions are still enabled if required
-    if (checkCaptionsEnabled) {
-      chrome.storage.local.get([STORAGE_KEYS.SHOW_SUBTITLES], (checkResult) => {
-        const captionsStillEnabled = checkResult[STORAGE_KEYS.SHOW_SUBTITLES] !== false;
-
-        if (!captionsStillEnabled) {
-          debugLog("Auto-gen cancel: captions disabled");
-          autoGenerationTriggered.delete(videoId);
-          return;
-        }
-
-        executeTrigger();
-      });
-    } else {
-      // No caption check needed, trigger directly
-      executeTrigger();
-    }
-  };
-
-  if (withDelay) {
-    setTimeout(() => {
-      if (!isExtensionContextValid()) {
-        debugLog("Context invalidated before auto-generation, aborting.");
-        autoGenerationTriggered.delete(videoId);
-        return;
-      }
-      debugLog("Auto-gen delay elapsed; triggering now for", videoId);
-      trigger();
-    }, TIMING.AUTO_GENERATION_DELAY_MS);
-  } else {
-    trigger();
+  if (!validation.isValid) {
+    return false;
   }
 
+  const modelSelection = getRefinerModelSelection(storageResult);
+  const triggerFn = () => {
+    triggerAutoGeneration(
+      videoId,
+      storageResult[STORAGE_KEYS.SCRAPE_CREATORS_API_KEY],
+      storageResult[STORAGE_KEYS.OPENROUTER_API_KEY],
+      modelSelection
+    );
+  };
+
+  scheduleAutoGeneration(videoId, storageResult, triggerFn, checkCaptionsEnabled, withDelay);
   return true;
 }
 
@@ -190,10 +118,7 @@ function loadStoredSubtitles() {
     chrome.storage.local.get(keysToFetch, (result) => {
       try {
         if (chrome.runtime.lastError) {
-          if (
-            chrome.runtime.lastError.message &&
-            chrome.runtime.lastError.message.includes("Extension context invalidated")
-          ) {
+          if (isContextInvalidated(chrome.runtime.lastError)) {
             debugLog("Subtitle load aborted - extension context invalidated.");
             return;
           }
@@ -220,7 +145,7 @@ function loadStoredSubtitles() {
       }
     });
   } catch (error) {
-    if (error && error.message && error.message.includes("Extension context invalidated")) {
+    if (error?.message?.includes("Extension context invalidated")) {
       debugLog("Subtitle load aborted - extension context invalidated (outer).");
       return;
     }
@@ -257,7 +182,7 @@ function triggerAutoGeneration(videoId, scrapeCreatorsApiKey, openRouterApiKey, 
     (response) => {
       if (chrome.runtime.lastError) {
         logError("Error triggering auto-generation:", chrome.runtime.lastError.message);
-        autoGenerationTriggered.delete(videoId);
+        clearAutoGenerationTrigger(videoId);
       } else {
         debugLog("Auto-generation triggered successfully, response:", response);
       }
@@ -293,7 +218,7 @@ function monitorUrlChanges() {
 
       // If video ID changed, clear the auto-generation tracking for the old video
       if (oldVideoId !== newVideoId) {
-        autoGenerationTriggered.delete(oldVideoId);
+        clearAutoGenerationTrigger(oldVideoId);
       }
 
       onUrlChange();
@@ -350,9 +275,7 @@ function initialize() {
 function setupMessageListener() {
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === MESSAGE_ACTIONS.GET_VIDEO_TITLE) {
-      const titleElement = document.querySelector("h1.ytd-watch-metadata yt-formatted-string");
-      const title = titleElement ? titleElement.textContent : null;
-      sendResponse({ title: title });
+      handleGetVideoTitle(message, sendResponse);
       return true;
     } else if (message.action === MESSAGE_ACTIONS.GENERATE_SUMMARY) {
       handleGenerateSummary(message, sendResponse);
@@ -371,6 +294,17 @@ function setupMessageListener() {
       return true;
     }
   });
+}
+
+/**
+ * Handle get video title request
+ * @param {Object} message - Message object
+ * @param {Function} sendResponse - Response callback
+ */
+function handleGetVideoTitle(message, sendResponse) {
+  const titleElement = document.querySelector("h1.ytd-watch-metadata yt-formatted-string");
+  const title = titleElement ? titleElement.textContent : null;
+  sendResponse({ title: title });
 }
 
 /**
@@ -459,7 +393,7 @@ function handleGenerateSubtitles(message, sendResponse) {
       } else {
         debugLog("Message sent to background, response:", response);
         if (response?.status === "error") {
-          autoGenerationTriggered.delete(videoId);
+          clearAutoGenerationTrigger(videoId);
         }
       }
     }
@@ -524,7 +458,7 @@ function loadCaptionFontSize() {
       try {
         if (chrome.runtime.lastError) {
           const errorMsg = chrome.runtime.lastError.message || "";
-          if (errorMsg.includes("Extension context invalidated")) {
+          if (isContextInvalidated(chrome.runtime.lastError)) {
             debugLog("Font size load aborted - extension context invalidated.");
             return;
           }
@@ -629,18 +563,18 @@ function clearSubtitles() {
 }
 
 // Initialize immediately since we're using document_end in manifest
-(function() {
+(function () {
   debugLog("Content script loaded, readyState:", document.readyState);
-  
+
   const startInitialization = () => {
     initialize();
     monitorUrlChanges();
   };
-  
+
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", startInitialization);
   } else {
     // Give YouTube a moment to render if we're already loaded
-    setTimeout(startInitialization, 500);
+    setTimeout(startInitialization, TIMING.CONTENT_SCRIPT_INIT_DELAY_MS);
   }
 })();

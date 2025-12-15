@@ -4,7 +4,7 @@
  */
 
 import { extractVideoId } from "../url.js";
-import { getCurrentVideoTab } from "./generation.js";
+import { getCurrentVideoTab } from "./videoUtils.js";
 import { log as logDebug } from "./logger.js";
 import { displaySummary } from "./ui.js";
 

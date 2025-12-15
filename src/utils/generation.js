@@ -7,23 +7,8 @@ import { MESSAGE_ACTIONS, STORAGE_KEYS } from "../constants.js";
 import { getStoredSubtitles } from "../storage.js";
 import { extractVideoId } from "../url.js";
 import { getRefinerModel, getSummarizerModel, getTargetLanguage } from "./sidepanelSettings.js";
-
-/**
- * Get current YouTube video tab
- * @returns {Promise<chrome.tabs.Tab>} Current tab or null
- */
-export async function getCurrentVideoTab() {
-  return new Promise((resolve) => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      const currentTab = tabs[0];
-      if (currentTab && currentTab.url && currentTab.url.includes('youtube.com/watch')) {
-        resolve(currentTab);
-      } else {
-        resolve(null);
-      }
-    });
-  });
-}
+import { getCurrentVideoTab, getVideoIdFromCurrentTab, validateVideoId } from "./videoUtils.js";
+import { validateApiKeys } from "./apiValidation.js";
 
 /**
  * Check if refined captions exist for current video and update copy button state
@@ -33,14 +18,7 @@ export async function checkRefinedCaptionsAvailability(copyCaptionBtn) {
   if (!copyCaptionBtn) return;
 
   try {
-    const currentTab = await getCurrentVideoTab();
-
-    if (!currentTab) {
-      copyCaptionBtn.disabled = true;
-      return;
-    }
-
-    const videoId = extractVideoId(currentTab.url);
+    const videoId = await getVideoIdFromCurrentTab();
     if (!videoId) {
       copyCaptionBtn.disabled = true;
       return;
@@ -49,7 +27,7 @@ export async function checkRefinedCaptionsAvailability(copyCaptionBtn) {
     const subtitles = await getStoredSubtitles(videoId);
     copyCaptionBtn.disabled = !subtitles || !Array.isArray(subtitles) || subtitles.length === 0;
   } catch (error) {
-    console.error('Error checking refined captions:', error);
+    console.error("Error checking refined captions:", error);
     copyCaptionBtn.disabled = true;
   }
 }
@@ -61,25 +39,50 @@ export async function checkRefinedCaptionsAvailability(copyCaptionBtn) {
  * @param {Function} showSettingsView - Function to show settings view
  * @returns {boolean} True if valid
  */
-function validateApiKeys(result, statusElement, showSettingsView) {
-  const scrapeKey = result[STORAGE_KEYS.SCRAPE_CREATORS_API_KEY];
-  const openrouterKey = result[STORAGE_KEYS.OPENROUTER_API_KEY];
-
-  if (!scrapeKey) {
-    statusElement.textContent = 'Please enter Scrape Creators API key in Settings';
-    statusElement.className = 'status error';
+function validateApiKeysForGeneration(result, statusElement, showSettingsView) {
+  const validation = validateApiKeys(result);
+  if (!validation.isValid) {
+    const missingKey = validation.missingKeys[0];
+    statusElement.textContent = `Please enter ${missingKey} in Settings`;
+    statusElement.className = "status error";
     showSettingsView();
     return false;
   }
-
-  if (!openrouterKey) {
-    statusElement.textContent = 'Please enter OpenRouter API key in Settings';
-    statusElement.className = 'status error';
-    showSettingsView();
-    return false;
-  }
-
   return true;
+}
+
+/**
+ * Get video ID from current tab with validation
+ * @param {HTMLElement} statusElement - Status element to show errors
+ * @returns {Promise<string|null>} Video ID or null
+ */
+async function getValidatedVideoId(statusElement) {
+  const currentTab = await getCurrentVideoTab();
+  if (!currentTab) {
+    statusElement.textContent = "Not a YouTube video page";
+    statusElement.className = "status error";
+    return null;
+  }
+
+  const videoId = extractVideoId(currentTab.url);
+  const validation = validateVideoId(videoId);
+  if (!validation.isValid) {
+    statusElement.textContent = validation.error;
+    statusElement.className = "status error";
+    return null;
+  }
+
+  return { videoId, tabId: currentTab.id };
+}
+
+/**
+ * Set loading state for generation buttons
+ * @param {Object} elements - DOM elements
+ * @param {boolean} disabled - Whether buttons should be disabled
+ */
+function setGenerationLoadingState(elements, disabled) {
+  elements.generateSummaryBtn.disabled = disabled;
+  elements.generateCaptionBtn.disabled = disabled;
 }
 
 /**
@@ -92,8 +95,8 @@ export async function generateSummary(elements, showSettingsView) {
     return;
   }
 
-  elements.status.textContent = '';
-  elements.status.className = 'status';
+  elements.status.textContent = "";
+  elements.status.className = "status";
 
   // Get settings
   chrome.storage.local.get(
@@ -109,7 +112,7 @@ export async function generateSummary(elements, showSettingsView) {
     ],
     async (result) => {
       // Validate API keys
-      if (!validateApiKeys(result, elements.status, showSettingsView)) {
+      if (!validateApiKeysForGeneration(result, elements.status, showSettingsView)) {
         return;
       }
 
@@ -119,33 +122,22 @@ export async function generateSummary(elements, showSettingsView) {
       const targetLanguage = elements.targetLanguageInput?.value.trim() || getTargetLanguage(result);
 
       // Show loading state
-      elements.status.textContent = 'Generating summary...';
-      elements.generateSummaryBtn.disabled = true;
-      elements.generateCaptionBtn.disabled = true;
+      elements.status.textContent = "Generating summary...";
+      setGenerationLoadingState(elements, true);
       elements.summaryContent.innerHTML = '<div class="summary-placeholder">Generating summary, please wait...</div>';
 
-      // Get current tab
-      const currentTab = await getCurrentVideoTab();
-      if (!currentTab) {
-        elements.status.textContent = 'Not a YouTube video page';
-        elements.status.className = 'status error';
-        elements.generateSummaryBtn.disabled = false;
-        elements.generateCaptionBtn.disabled = false;
+      // Get current tab and validate video ID
+      const videoInfo = await getValidatedVideoId(elements.status);
+      if (!videoInfo) {
+        setGenerationLoadingState(elements, false);
         return;
       }
 
-      const videoId = extractVideoId(currentTab.url);
-      if (!videoId) {
-        elements.status.textContent = 'Could not extract video ID';
-        elements.status.className = 'status error';
-        elements.generateSummaryBtn.disabled = false;
-        elements.generateCaptionBtn.disabled = false;
-        return;
-      }
+      const { videoId, tabId } = videoInfo;
 
       // Send message to content script
       chrome.tabs.sendMessage(
-        currentTab.id,
+        tabId,
         {
           action: MESSAGE_ACTIONS.GENERATE_SUMMARY,
           videoId: videoId,
@@ -156,21 +148,19 @@ export async function generateSummary(elements, showSettingsView) {
         },
         (response) => {
           if (chrome.runtime.lastError) {
-            elements.status.textContent = 'Error: ' + chrome.runtime.lastError.message;
-            elements.status.className = 'status error';
-            elements.generateSummaryBtn.disabled = false;
-            elements.generateCaptionBtn.disabled = false;
+            elements.status.textContent = "Error: " + chrome.runtime.lastError.message;
+            elements.status.className = "status error";
+            setGenerationLoadingState(elements, false);
             elements.summaryContent.innerHTML = '<div class="summary-placeholder">Failed to generate summary. Please try again.</div>';
-          } else if (response && response.status === 'started') {
-            elements.status.textContent = 'Processing video transcript...';
-          } else if (response && response.status === 'error') {
-            const errorMsg = response.message || 'Unknown error';
-            elements.status.textContent = 'Error: ' + errorMsg;
-            elements.status.className = 'status error';
-            elements.generateSummaryBtn.disabled = false;
-            elements.generateCaptionBtn.disabled = false;
+          } else if (response?.status === "started") {
+            elements.status.textContent = "Processing video transcript...";
+          } else if (response?.status === "error") {
+            const errorMsg = response.message || "Unknown error";
+            elements.status.textContent = "Error: " + errorMsg;
+            elements.status.className = "status error";
+            setGenerationLoadingState(elements, false);
             // Don't clear summary content if it's just a "already running" error
-            if (!errorMsg.includes('already in progress')) {
+            if (!errorMsg.includes("already in progress")) {
               elements.summaryContent.innerHTML = '<div class="summary-placeholder">Failed to generate summary. Please try again.</div>';
             }
           }
@@ -190,8 +180,8 @@ export async function generateCaptions(elements, showSettingsView) {
     return;
   }
 
-  elements.status.textContent = '';
-  elements.status.className = 'status';
+  elements.status.textContent = "";
+  elements.status.className = "status";
 
   chrome.storage.local.get(
     [
@@ -202,39 +192,28 @@ export async function generateCaptions(elements, showSettingsView) {
     ],
     async (result) => {
       // Validate API keys
-      if (!validateApiKeys(result, elements.status, showSettingsView)) {
+      if (!validateApiKeysForGeneration(result, elements.status, showSettingsView)) {
         return;
       }
 
       const refinerModel = elements.refinerInput?.value.trim() || getRefinerModel(result);
 
       // Show loading state
-      elements.status.textContent = 'Generating refined captions...';
-      elements.generateCaptionBtn.disabled = true;
-      elements.generateSummaryBtn.disabled = true;
+      elements.status.textContent = "Generating refined captions...";
+      setGenerationLoadingState(elements, true);
 
-      // Get current tab
-      const currentTab = await getCurrentVideoTab();
-      if (!currentTab) {
-        elements.status.textContent = 'Not a YouTube video page';
-        elements.status.className = 'status error';
-        elements.generateCaptionBtn.disabled = false;
-        elements.generateSummaryBtn.disabled = false;
+      // Get current tab and validate video ID
+      const videoInfo = await getValidatedVideoId(elements.status);
+      if (!videoInfo) {
+        setGenerationLoadingState(elements, false);
         return;
       }
 
-      const videoId = extractVideoId(currentTab.url);
-      if (!videoId) {
-        elements.status.textContent = 'Could not extract video ID';
-        elements.status.className = 'status error';
-        elements.generateCaptionBtn.disabled = false;
-        elements.generateSummaryBtn.disabled = false;
-        return;
-      }
+      const { videoId, tabId } = videoInfo;
 
       // Send message to content script
       chrome.tabs.sendMessage(
-        currentTab.id,
+        tabId,
         {
           action: MESSAGE_ACTIONS.GENERATE_SUBTITLES,
           videoId: videoId,
@@ -245,17 +224,15 @@ export async function generateCaptions(elements, showSettingsView) {
         },
         (response) => {
           if (chrome.runtime.lastError) {
-            elements.status.textContent = 'Error: ' + chrome.runtime.lastError.message;
-            elements.status.className = 'status error';
-            elements.generateCaptionBtn.disabled = false;
-            elements.generateSummaryBtn.disabled = false;
-          } else if (response && response.status === 'started') {
-            elements.status.textContent = 'Fetching and refining transcript...';
-          } else if (response && response.status === 'error') {
-            elements.status.textContent = 'Error: ' + (response.message || 'Unknown error');
-            elements.status.className = 'status error';
-            elements.generateCaptionBtn.disabled = false;
-            elements.generateSummaryBtn.disabled = false;
+            elements.status.textContent = "Error: " + chrome.runtime.lastError.message;
+            elements.status.className = "status error";
+            setGenerationLoadingState(elements, false);
+          } else if (response?.status === "started") {
+            elements.status.textContent = "Fetching and refining transcript...";
+          } else if (response?.status === "error") {
+            elements.status.textContent = "Error: " + (response.message || "Unknown error");
+            elements.status.className = "status error";
+            setGenerationLoadingState(elements, false);
           }
         }
       );

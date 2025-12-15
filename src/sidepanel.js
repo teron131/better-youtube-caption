@@ -3,8 +3,8 @@
  * Main entry point for side panel UI
  */
 
+import { TIMING } from "./constants.js";
 import { getStoredSubtitles } from "./storage.js";
-import { extractVideoId } from "./url.js";
 import { initializeComboboxes } from "./utils/combobox.js";
 import { initializeFontSizeSelectors } from "./utils/fontSize.js";
 import { checkRefinedCaptionsAvailability, generateCaptions, generateSummary } from "./utils/generation.js";
@@ -12,6 +12,7 @@ import { loadExistingSummary } from "./utils/loadSummary.js";
 import { setupMessageListener } from "./utils/messageHandler.js";
 import { loadSettings, setupSettingsListeners } from "./utils/sidepanelSettings.js";
 import { initializeTooltips } from "./utils/tooltip.js";
+import { getVideoIdFromCurrentTab } from "./utils/videoUtils.js";
 
 document.addEventListener('DOMContentLoaded', function() {
   // DOM Elements
@@ -69,22 +70,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     try {
-      const currentTab = await new Promise((resolve) => {
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-          resolve(tabs[0]);
-        });
-      });
-
-      if (!currentTab || !currentTab.url || !currentTab.url.includes('youtube.com/watch')) {
-        elements.status.textContent = 'Not a YouTube video page';
-        elements.status.className = 'status error';
-        return;
-      }
-
-      const videoId = extractVideoId(currentTab.url);
+      const videoId = await getVideoIdFromCurrentTab();
       if (!videoId) {
-        elements.status.textContent = 'Could not extract video ID';
-        elements.status.className = 'status error';
+        elements.status.textContent = "Not a YouTube video page";
+        elements.status.className = "status error";
         return;
       }
 
@@ -109,9 +98,9 @@ document.addEventListener('DOMContentLoaded', function() {
       elements.status.className = 'status success';
       
       setTimeout(() => {
-        elements.status.textContent = '';
-        elements.status.className = 'status';
-      }, 2000);
+        elements.status.textContent = "";
+        elements.status.className = "status";
+      }, TIMING.STATUS_MESSAGE_DISPLAY_MS);
     } catch (error) {
       console.error('Error copying refined caption:', error);
       elements.status.textContent = 'Failed to copy caption';

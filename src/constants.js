@@ -22,6 +22,10 @@ export const TIMING = {
   INIT_RETRY_DELAY_MS: 500, // Delay between initialization retries
   SUBTITLE_UPDATE_INTERVAL_MS: 100, // How often to update subtitle display
   MAX_INIT_ATTEMPTS: 5, // Maximum retry attempts for finding video elements
+  CONTENT_SCRIPT_INIT_DELAY_MS: 500, // Delay for content script initialization
+  STATUS_MESSAGE_DISPLAY_MS: 2000, // How long to display status messages
+  SUMMARY_SUCCESS_DISPLAY_MS: 3000, // How long to display summary success message
+  CAPTION_CHECK_DELAY_MS: 500, // Delay before checking caption availability
 };
 
 // Storage constants
@@ -121,4 +125,16 @@ export const ELEMENT_IDS = {
 export const REFINER_CONFIG = {
   MAX_SEGMENTS_PER_CHUNK: 30,
   CHUNK_SENTINEL: "<<<__CHUNK_END__>>>",
+};
+
+// Error messages
+export const ERROR_MESSAGES = {
+  CONTEXT_INVALIDATED: "Extension context invalidated",
+  VIDEO_ID_REQUIRED: "Video ID is required.",
+  NO_VIDEO_ID: "Could not extract video ID from URL.",
+  NO_TRANSCRIPT: "No transcript available for this video",
+  SCRAPE_KEY_MISSING: "Scrape Creators API key not found. Please set it in settings.",
+  OPENROUTER_KEY_MISSING: "OpenRouter API key not found",
+  NOT_YOUTUBE_PAGE: "Not a YouTube video page",
+  SUMMARY_IN_PROGRESS: "Summary generation is already in progress for this video.",
 };
