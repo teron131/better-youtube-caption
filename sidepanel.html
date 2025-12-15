@@ -16,6 +16,7 @@
         --surface-secondary: rgba(28, 28, 28, 0.94);
         --text-primary: #f5f5f5;
         --text-secondary: #c8c8c8;
+        --text-tertiary: rgba(255, 255, 255, 0.52);
         --border: rgba(255, 255, 255, 0.06);
         --border-strong: rgba(255, 0, 0, 0.4);
         --primary: #ff0000;
@@ -23,9 +24,39 @@
         --primary-dark: #cc0000;
         --success: #3ad369;
         --error: #ff6b6b;
-        --radius-lg: 22px;
-        --radius-md: 16px;
+        
+        /* Spacing scale (4px base unit) */
+        --spacing-xs: 4px;
+        --spacing-sm: 8px;
+        --spacing-md: 12px;
+        --spacing-lg: 16px;
+        --spacing-xl: 20px;
+        --spacing-2xl: 24px;
+        --spacing-3xl: 28px;
+        
+        /* Border radius */
+        --radius-xs: 8px;
         --radius-sm: 12px;
+        --radius-md: 16px;
+        --radius-lg: 22px;
+        
+        /* Font sizes */
+        --font-xs: 11px;
+        --font-sm: 12px;
+        --font-md: 13px;
+        --font-base: 14px;
+        --font-lg: 15px;
+        --font-xl: 16px;
+        --font-2xl: 17px;
+        --font-3xl: 20px;
+        
+        /* Line heights */
+        --line-tight: 1.3;
+        --line-normal: 1.4;
+        --line-relaxed: 1.5;
+        --line-loose: 1.8;
+        
+        /* Shadows */
         --shadow-card: 0 28px 60px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.02);
         --shadow-button: 0 24px 48px rgba(255, 0, 0, 0.45);
       }
@@ -39,8 +70,10 @@
         width: 100%;
         min-height: 100vh;
         margin: 0;
-        padding: 16px 12px;
+        padding: var(--spacing-lg) var(--spacing-md);
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        font-size: var(--font-base);
+        line-height: var(--line-normal);
         background: var(--bg-gradient), #030303;
         color: var(--text-primary);
         display: flex;
@@ -60,13 +93,13 @@
         max-width: 100%;
         display: flex;
         flex-direction: column;
-        gap: 16px;
+        gap: var(--spacing-lg);
       }
 
       .view {
         display: none;
         flex-direction: column;
-        gap: 16px;
+        gap: var(--spacing-lg);
       }
 
       .view.active {
@@ -77,26 +110,27 @@
         display: flex;
         align-items: flex-start;
         justify-content: space-between;
-        gap: 8px;
+        gap: var(--spacing-sm);
         flex-wrap: wrap;
       }
 
       .header-right {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--spacing-sm);
         flex-shrink: 0;
       }
 
       .header-toggle {
         display: flex;
         align-items: center;
-        gap: 6px;
+        gap: var(--spacing-xs);
       }
 
       .header-toggle-label {
-        font-size: 12px;
+        font-size: var(--font-sm);
         font-weight: 500;
+        line-height: var(--line-normal);
         color: var(--text-secondary);
         white-space: nowrap;
       }
@@ -104,7 +138,7 @@
       .header-left {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: var(--spacing-md);
         flex: 1;
         min-width: 0;
       }
@@ -112,7 +146,7 @@
       .logo-badge {
         width: 40px;
         height: 40px;
-        border-radius: 14px;
+        border-radius: var(--radius-sm);
         background: linear-gradient(140deg, var(--primary), var(--primary-soft));
         display: flex;
         align-items: center;
@@ -143,23 +177,23 @@
       }
 
       .header-text h1 {
-        font-size: 16px;
+        font-size: var(--font-xl);
         font-weight: 600;
         letter-spacing: -0.01em;
-        line-height: 1.3;
+        line-height: var(--line-tight);
       }
 
       .header-text p {
-        font-size: 11px;
+        font-size: var(--font-xs);
         color: var(--text-secondary);
-        margin-top: 2px;
-        line-height: 1.4;
+        margin-top: var(--spacing-xs);
+        line-height: var(--line-normal);
       }
 
       .icon-button {
         width: 32px;
         height: 32px;
-        border-radius: 10px;
+        border-radius: var(--radius-xs);
         border: 1px solid transparent;
         background: rgba(255, 255, 255, 0.05);
         color: var(--text-primary);
@@ -193,36 +227,37 @@
       .icon-button.back-button {
         width: 36px;
         height: 36px;
-        margin-right: 2px;
+        margin-right: var(--spacing-xs);
       }
 
       .card {
         background: var(--surface-primary);
         border: 1px solid var(--border);
         border-radius: var(--radius-md);
-        padding: 16px;
+        padding: var(--spacing-lg);
         box-shadow: var(--shadow-card);
         backdrop-filter: blur(12px);
       }
 
       .card-label {
-        font-size: 12px;
+        font-size: var(--font-sm);
         text-transform: uppercase;
         letter-spacing: 0.12em;
-        color: rgba(255, 255, 255, 0.52);
-        margin-bottom: 14px;
+        color: var(--text-tertiary);
+        margin-bottom: var(--spacing-md);
+        line-height: var(--line-normal);
       }
 
       .video-row {
         display: flex;
         align-items: center;
-        gap: 16px;
+        gap: var(--spacing-lg);
       }
 
       .media-badge {
         width: 44px;
         height: 44px;
-        border-radius: 14px;
+        border-radius: var(--radius-sm);
         background: rgba(255, 0, 0, 0.16);
         display: flex;
         align-items: center;
@@ -231,10 +266,10 @@
       }
 
       .video-title {
-        font-size: 15px;
+        font-size: var(--font-lg);
         font-weight: 500;
         color: var(--text-primary);
-        line-height: 1.4;
+        line-height: var(--line-normal);
       }
 
       .primary-action {
@@ -242,9 +277,10 @@
         min-width: 0;
         border: none;
         border-radius: var(--radius-md);
-        padding: 10px 12px;
-        font-size: 14px;
+        padding: var(--spacing-md) var(--spacing-md);
+        font-size: var(--font-base);
         font-weight: 600;
+        line-height: var(--line-normal);
         cursor: pointer;
         color: #ffffff;
         background: linear-gradient(125deg, var(--primary), var(--primary));
@@ -252,7 +288,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 8px;
+        gap: var(--spacing-sm);
         transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
       }
 
@@ -306,15 +342,15 @@
       }
 
       .status {
-        font-size: 12px;
+        font-size: var(--font-sm);
         text-align: center;
         color: var(--text-secondary);
         min-height: 16px;
-        line-height: 1.4;
+        line-height: var(--line-normal);
       }
 
       .status:not(:empty) {
-        padding: 10px 12px;
+        padding: var(--spacing-md) var(--spacing-md);
         border-radius: var(--radius-sm);
         border: 1px solid var(--border);
         background: rgba(255, 255, 255, 0.04);
@@ -351,19 +387,19 @@
 
       .summary-content {
         position: relative;
-        font-size: var(--summary-font-size-base, 15px);
-        line-height: 1.8;
-        color: #f5f5f5;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+        font-size: var(--summary-font-size-base, var(--font-lg));
+        line-height: var(--line-loose);
+        color: var(--text-primary);
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         letter-spacing: 0.01em;
       }
 
       .summary-content h2 {
-        font-size: var(--summary-font-size-h2, 20px);
+        font-size: var(--summary-font-size-h2, var(--font-3xl));
         font-weight: 600;
         color: var(--text-primary);
-        margin: 28px 0 18px;
-        line-height: 1.4;
+        margin: var(--spacing-3xl) 0 var(--spacing-lg);
+        line-height: var(--line-normal);
         letter-spacing: -0.01em;
       }
 
@@ -372,27 +408,27 @@
       }
 
       .summary-content h3 {
-        font-size: var(--summary-font-size-h3, 17px);
+        font-size: var(--summary-font-size-h3, var(--font-2xl));
         font-weight: 600;
         color: var(--text-primary);
-        margin: 24px 0 14px;
-        line-height: 1.4;
+        margin: var(--spacing-2xl) 0 var(--spacing-md);
+        line-height: var(--line-normal);
         letter-spacing: -0.005em;
       }
 
       .summary-content ul {
         list-style: none;
         padding: 0;
-        margin: 18px 0;
+        margin: var(--spacing-lg) 0;
         display: flex;
         flex-direction: column;
-        gap: 14px;
+        gap: var(--spacing-md);
       }
 
       .summary-content li {
         position: relative;
-        padding-left: 20px;
-        line-height: 1.8;
+        padding-left: var(--spacing-xl);
+        line-height: var(--line-loose);
       }
 
       .summary-content li::before {
@@ -400,15 +436,15 @@
         position: absolute;
         left: 0;
         color: rgba(255, 255, 255, 0.7);
-        font-size: 18px;
-        line-height: 1.8;
+        font-size: var(--font-lg);
+        line-height: var(--line-loose);
         font-weight: 300;
       }
 
       .summary-content p {
-        margin: 14px 0;
-        line-height: 1.8;
-        color: #f5f5f5;
+        margin: var(--spacing-md) 0;
+        line-height: var(--line-loose);
+        color: var(--text-primary);
       }
 
       .summary-content p:first-child {
@@ -427,26 +463,28 @@
 
       .summary-content code {
         background: rgba(255, 255, 255, 0.08);
-        padding: 2px 6px;
-        border-radius: 4px;
+        padding: var(--spacing-xs) var(--spacing-xs);
+        border-radius: var(--spacing-xs);
         font-family: 'Monaco', 'Courier New', monospace;
-        font-size: 13px;
+        font-size: var(--font-md);
         color: var(--text-primary);
       }
 
       .summary-content em {
         font-style: italic;
-        color: #f0f0f0;
+        color: var(--text-primary);
       }
 
       .summary-placeholder {
-        padding: 40px 24px;
+        padding: var(--spacing-3xl) var(--spacing-2xl);
         text-align: center;
         border-radius: var(--radius-md);
         border: 1px dashed rgba(255, 255, 255, 0.12);
         background: rgba(255, 255, 255, 0.02);
         color: var(--text-secondary);
         font-style: italic;
+        font-size: var(--font-base);
+        line-height: var(--line-normal);
       }
 
       #settingsView .page-header {
@@ -456,7 +494,7 @@
       .logo-badge.is-settings {
         background: linear-gradient(140deg, rgba(255, 0, 0, 0.36), rgba(80, 0, 0, 0.65));
         border: 1px solid rgba(255, 0, 0, 0.42);
-        box-shadow: 0 14px 32px rgba(255, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+        box-shadow: 0 var(--spacing-md) 32px rgba(255, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.18);
       }
 
       .logo-badge.is-settings svg {
@@ -470,28 +508,29 @@
       .settings-card {
         display: flex;
         flex-direction: column;
-        gap: 14px;
+        gap: var(--spacing-md);
       }
 
       .form-stack {
         display: flex;
         flex-direction: column;
-        gap: 14px;
+        gap: var(--spacing-md);
       }
 
       .section-heading {
-        font-size: 14px;
+        font-size: var(--font-base);
         font-weight: 600;
-        padding-top: 2px;
+        line-height: var(--line-normal);
+        padding-top: var(--spacing-xs);
       }
 
       .form-group label {
         display: block;
-        font-size: 12px;
+        font-size: var(--font-sm);
         font-weight: 500;
-        margin-bottom: 6px;
+        margin-bottom: var(--spacing-xs);
         color: var(--text-primary);
-        line-height: 1.4;
+        line-height: var(--line-normal);
       }
 
       .form-group input,
@@ -501,14 +540,15 @@
         border: 1px solid var(--border);
         background: var(--surface-secondary);
         color: var(--text-primary);
-        padding: 10px 12px;
-        font-size: 13px;
+        padding: var(--spacing-md) var(--spacing-md);
+        font-size: var(--font-md);
+        line-height: var(--line-normal);
         transition: border 0.2s ease, box-shadow 0.2s ease;
       }
 
       .form-group input::placeholder {
         color: rgba(255, 255, 255, 0.38);
-        font-size: 12px;
+        font-size: var(--font-sm);
       }
 
       .form-group input:focus,
@@ -519,16 +559,16 @@
       }
 
       .form-hint {
-        font-size: 11px;
+        font-size: var(--font-xs);
         color: var(--text-secondary);
-        margin-top: 4px;
-        line-height: 1.4;
+        margin-top: var(--spacing-xs);
+        line-height: var(--line-normal);
       }
 
       .model-row {
         display: flex;
         flex-direction: column;
-        gap: 14px;
+        gap: var(--spacing-md);
       }
 
       .model-row .form-group {
@@ -538,45 +578,45 @@
       .form-divider {
         height: 1px;
         background: rgba(255, 255, 255, 0.05);
-        margin: 2px 0;
+        margin: var(--spacing-xs) 0;
       }
 
       .toggle-card {
         border-radius: var(--radius-sm);
         border: 1px solid var(--border);
         background: rgba(255, 255, 255, 0.02);
-        padding: 12px 14px;
+        padding: var(--spacing-md) var(--spacing-md);
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 12px;
+        gap: var(--spacing-md);
       }
 
       .toggle-card.compact {
-        margin-top: -4px;
-        padding: 10px 14px;
+        margin-top: calc(-1 * var(--spacing-xs));
+        padding: var(--spacing-md) var(--spacing-md);
         background: rgba(255, 255, 255, 0.03);
       }
 
       .toggle-card.compact .toggle-info h3 {
-        font-size: 13px;
+        font-size: var(--font-md);
       }
 
       .toggle-card.compact .toggle-info p {
-        font-size: 11px;
+        font-size: var(--font-xs);
       }
 
       .toggle-info h3 {
-        font-size: 13px;
+        font-size: var(--font-md);
         font-weight: 600;
-        margin-bottom: 4px;
-        line-height: 1.3;
+        margin-bottom: var(--spacing-xs);
+        line-height: var(--line-tight);
       }
 
       .toggle-info p {
-        font-size: 11px;
+        font-size: var(--font-xs);
         color: var(--text-secondary);
-        line-height: 1.4;
+        line-height: var(--line-normal);
       }
 
       .toggle-switch {
@@ -625,11 +665,11 @@
       }
 
       .save-btn {
-        margin-top: 8px;
+        margin-top: var(--spacing-sm);
       }
 
       #settingsStatus {
-        margin-top: -4px;
+        margin-top: calc(-1 * var(--spacing-xs));
       }
 
       .sr-only {
@@ -653,13 +693,14 @@
         background: var(--surface-secondary);
         border: 1px solid var(--border);
         border-radius: var(--radius-md);
-        padding: 12px 14px;
+        padding: var(--spacing-md) var(--spacing-md);
         cursor: pointer;
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--spacing-sm);
         color: var(--text-primary);
-        font-size: 14px;
+        font-size: var(--font-base);
+        line-height: var(--line-normal);
         min-height: 20px;
         transition: border-color 0.2s ease;
       }
@@ -704,13 +745,15 @@
       .select-item {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 10px 14px;
+        gap: var(--spacing-sm);
+        padding: var(--spacing-md) var(--spacing-md);
         cursor: pointer;
         border-bottom: 1px solid var(--border);
         transition: background 0.2s ease;
         color: var(--text-primary);
         background: transparent; /* Ensure no transparency */
+        font-size: var(--font-base);
+        line-height: var(--line-normal);
       }
 
       .select-item:hover {
@@ -728,7 +771,7 @@
 
       .select-arrow {
         margin-left: auto;
-        font-size: 12px;
+        font-size: var(--font-sm);
         transition: transform 0.2s ease;
       }
 
@@ -746,11 +789,11 @@
         position: relative;
         display: flex;
         align-items: center;
-        gap: 6px;
+        gap: var(--spacing-xs);
         background: var(--surface-secondary);
         border: 1px solid var(--border);
         border-radius: var(--radius-sm);
-        padding: 0 12px;
+        padding: 0 var(--spacing-md);
         min-height: 38px;
         outline: none;
       }
@@ -777,8 +820,9 @@
         border: none !important;
         background: transparent;
         color: var(--text-primary);
-        font-size: 13px;
-        padding: 10px 0;
+        font-size: var(--font-md);
+        line-height: var(--line-normal);
+        padding: var(--spacing-md) 0;
         outline: none !important;
         min-width: 0;
         box-shadow: none !important;
@@ -795,16 +839,16 @@
 
       .combobox-input::placeholder {
         color: var(--text-secondary);
-        font-size: 12px;
+        font-size: var(--font-sm);
       }
 
       .combobox-arrow {
         background: transparent;
         border: none;
         color: var(--text-secondary);
-        font-size: 10px;
+        font-size: var(--font-xs);
         cursor: pointer;
-        padding: 3px;
+        padding: var(--spacing-xs);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -843,14 +887,15 @@
       .combobox-item {
         display: flex;
         align-items: center;
-        gap: 6px;
-        padding: 8px 12px;
+        gap: var(--spacing-xs);
+        padding: var(--spacing-sm) var(--spacing-md);
         cursor: pointer;
         border-bottom: 1px solid var(--border);
         transition: background 0.2s ease;
         color: var(--text-primary);
         background: transparent;
-        font-size: 13px;
+        font-size: var(--font-md);
+        line-height: var(--line-normal);
       }
 
       .combobox-item:hover {
@@ -891,9 +936,9 @@
         border-radius: 50%;
         background: rgba(255, 0, 0, 0.2);
         color: var(--primary);
-        font-size: 12px;
+        font-size: var(--font-sm);
         font-weight: bold;
-        margin-left: 8px;
+        margin-left: var(--spacing-sm);
         transition: background 0.2s ease;
         border: 1px solid rgba(255, 0, 0, 0.3);
         position: relative;
@@ -913,14 +958,15 @@
 
       .info-icon-wrapper .info-tooltip {
         position: absolute;
-        bottom: calc(100% + 8px);
+        bottom: calc(100% + var(--spacing-sm));
         left: 50%;
         transform: translateX(-50%);
         background: rgba(0, 0, 0, 0.95);
         color: white;
-        padding: 10px 14px;
-        border-radius: 8px;
-        font-size: 12px;
+        padding: var(--spacing-md) var(--spacing-md);
+        border-radius: var(--radius-xs);
+        font-size: var(--font-sm);
+        line-height: var(--line-relaxed);
         max-width: 650px;
         min-width: 200px;
         white-space: normal;
@@ -935,8 +981,7 @@
         -moz-user-select: text;
         -ms-user-select: text;
         cursor: text;
-        line-height: 1.5;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        box-shadow: 0 var(--spacing-xs) var(--spacing-md) rgba(0, 0, 0, 0.4);
       }
 
       .info-icon-wrapper .info-tooltip.show {
@@ -964,13 +1009,14 @@
       .header-right {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: var(--spacing-md);
         flex-wrap: wrap;
       }
 
       .save-btn-small {
-        padding: 8px 12px;
-        font-size: 13px;
+        padding: var(--spacing-sm) var(--spacing-md);
+        font-size: var(--font-md);
+        line-height: var(--line-normal);
         border-radius: var(--radius-sm);
         background: rgba(255, 255, 255, 0.05);
         color: var(--text-primary);
@@ -987,8 +1033,9 @@
       }
 
       #settingsStatus {
-        font-size: 12px;
-        padding: 4px 8px;
+        font-size: var(--font-sm);
+        line-height: var(--line-normal);
+        padding: var(--spacing-xs) var(--spacing-sm);
         border-radius: var(--radius-sm);
         max-width: 300px;
         text-align: center;
@@ -1025,26 +1072,27 @@
         flex-direction: row;
         justify-content: space-between;
         align-items: center;
-        gap: 16px;
+        gap: var(--spacing-lg);
         width: 100%;
         padding: 0;
       }
 
       .font-size-selector {
         display: flex;
-        gap: 6px;
+        gap: var(--spacing-xs);
         align-items: center;
       }
 
       .font-size-button {
         flex: 1;
-        padding: 8px 10px;
+        padding: var(--spacing-sm) var(--spacing-md);
         border-radius: var(--radius-sm);
         border: 1px solid var(--border);
         background: var(--surface-secondary);
         color: var(--text-primary);
-        font-size: 12px;
+        font-size: var(--font-sm);
         font-weight: 500;
+        line-height: var(--line-normal);
         cursor: pointer;
         transition: all 0.2s ease;
         text-align: center;
