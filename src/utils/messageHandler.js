@@ -140,13 +140,17 @@ function handleSummaryGenerated(message, elements) {
  * @param {Object} elements - DOM elements
  */
 export function setupMessageListener(elements) {
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === MESSAGE_ACTIONS.SHOW_ERROR) {
-      handleErrorMessage(message, elements);
-    } else if (message.action === MESSAGE_ACTIONS.UPDATE_POPUP_STATUS) {
-      handleStatusUpdate(message, elements);
-    } else if (message.action === "SUMMARY_GENERATED") {
-      handleSummaryGenerated(message, elements);
+  const handlers = {
+    [MESSAGE_ACTIONS.SHOW_ERROR]: handleErrorMessage,
+    [MESSAGE_ACTIONS.UPDATE_POPUP_STATUS]: handleStatusUpdate,
+    [MESSAGE_ACTIONS.SUMMARY_GENERATED]: handleSummaryGenerated,
+  };
+
+  chrome.runtime.onMessage.addListener((message) => {
+    const handler = handlers[message.action];
+    if (!handler) {
+      return;
     }
+    handler(message, elements);
   });
 }

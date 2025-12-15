@@ -3,6 +3,8 @@
  * Centralized error extraction and formatting
  */
 
+import { ERROR_MESSAGES } from "../constants.js";
+
 /**
  * Convert error to string message
  * @param {*} error - Error (can be Error, string, object, etc.)
@@ -37,7 +39,7 @@ export function extractErrorMessage(error) {
  * @returns {boolean} True if context invalidated error
  */
 export function isContextInvalidatedError(error) {
-  return extractErrorMessage(error).toLowerCase().includes("extension context invalidated");
+  return extractErrorMessage(error).toLowerCase().includes(ERROR_MESSAGES.CONTEXT_INVALIDATED.toLowerCase());
 }
 
 /**

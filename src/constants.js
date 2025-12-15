@@ -138,3 +138,10 @@ export const ERROR_MESSAGES = {
   NOT_YOUTUBE_PAGE: "Not a YouTube video page",
   SUMMARY_IN_PROGRESS: "Summary generation is already in progress for this video.",
 };
+
+// Segment parser configuration
+export const SEGMENT_PARSER_CONFIG = {
+  GAP_PENALTY: -0.30,
+  TAIL_GUARD_SIZE: 5,
+  LENGTH_TOLERANCE: 0.10,
+};

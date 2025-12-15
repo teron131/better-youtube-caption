@@ -7,11 +7,7 @@
  * similar to sequence alignment to handle edge cases like merged/split lines.
  */
 
-const SEGMENT_PARSER_CONFIG = {
-  GAP_PENALTY: -0.30,
-  TAIL_GUARD_SIZE: 5,
-  LENGTH_TOLERANCE: 0.10,
-};
+import { SEGMENT_PARSER_CONFIG } from "./constants.js";
 
 /**
  * Compute character-level similarity ratio

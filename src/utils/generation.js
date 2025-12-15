@@ -6,9 +6,9 @@
 import { MESSAGE_ACTIONS, STORAGE_KEYS } from "../constants.js";
 import { getStoredSubtitles } from "../storage.js";
 import { extractVideoId } from "../url.js";
-import { getRefinerModel, getSummarizerModel, getTargetLanguage } from "./sidepanelSettings.js";
-import { getCurrentVideoTab, getVideoIdFromCurrentTab, validateVideoId } from "./videoUtils.js";
 import { validateApiKeys } from "./apiValidation.js";
+import { getRefinerModelFromStorage, getSummarizerModelFromStorage, getTargetLanguageFromStorage } from "./modelSelection.js";
+import { getCurrentVideoTab, getVideoIdFromCurrentTab, validateVideoId } from "./videoUtils.js";
 
 /**
  * Check if refined captions exist for current video and update copy button state
@@ -38,6 +38,11 @@ export async function checkRefinedCaptionsAvailability(copyCaptionBtn) {
 function showError(statusElement, message) {
   statusElement.textContent = message;
   statusElement.className = "status error";
+}
+
+function setStatus(statusElement, message) {
+  statusElement.textContent = message;
+  statusElement.className = "status";
 }
 
 /**
@@ -89,6 +94,26 @@ function setGenerationLoadingState(elements, isLoading) {
   elements.generateCaptionBtn.disabled = isLoading;
 }
 
+function isGenerationBusy(elements) {
+  return elements.generateSummaryBtn.disabled || elements.generateCaptionBtn.disabled;
+}
+
+function initGeneration(elements) {
+  if (isGenerationBusy(elements)) {
+    return false;
+  }
+  setStatus(elements.status, "");
+  return true;
+}
+
+function startGeneration(elements, statusText, placeholderHtml) {
+  setStatus(elements.status, statusText);
+  setGenerationLoadingState(elements, true);
+  if (placeholderHtml) {
+    elements.summaryContent.innerHTML = placeholderHtml;
+  }
+}
+
 /**
  * Handle summary generation response
  */
@@ -119,12 +144,9 @@ function handleSummaryResponse(elements, response) {
  * @param {Function} showSettingsView - Function to show settings view
  */
 export async function generateSummary(elements, showSettingsView) {
-  if (elements.generateSummaryBtn.disabled || elements.generateCaptionBtn.disabled) {
+  if (!initGeneration(elements)) {
     return;
   }
-
-  elements.status.textContent = "";
-  elements.status.className = "status";
 
   chrome.storage.local.get(
     [
@@ -141,13 +163,14 @@ export async function generateSummary(elements, showSettingsView) {
       }
 
       // Get models and target language from UI or storage
-      const summarizerModel = elements.summarizerInput?.value.trim() || getSummarizerModel(result);
-      const targetLanguage = elements.targetLanguageInput?.value.trim() || getTargetLanguage(result);
+      const summarizerModel = elements.summarizerInput?.value.trim() || (await getSummarizerModelFromStorage(result));
+      const targetLanguage = elements.targetLanguageInput?.value.trim() || (await getTargetLanguageFromStorage(result));
 
-      // Show loading state
-      elements.status.textContent = "Generating summary...";
-      setGenerationLoadingState(elements, true);
-      elements.summaryContent.innerHTML = '<div class="summary-placeholder">Generating summary, please wait...</div>';
+      startGeneration(
+        elements,
+        "Generating summary...",
+        '<div class="summary-placeholder">Generating summary, please wait...</div>'
+      );
 
       // Get and validate video ID
       const videoInfo = await getValidatedVideoId(elements.status);
@@ -199,12 +222,9 @@ function handleCaptionResponse(elements, response) {
  * @param {Function} showSettingsView - Function to show settings view
  */
 export async function generateCaptions(elements, showSettingsView) {
-  if (elements.generateSummaryBtn.disabled || elements.generateCaptionBtn.disabled) {
+  if (!initGeneration(elements)) {
     return;
   }
-
-  elements.status.textContent = "";
-  elements.status.className = "status";
 
   chrome.storage.local.get(
     [
@@ -218,11 +238,9 @@ export async function generateCaptions(elements, showSettingsView) {
         return;
       }
 
-      const refinerModel = elements.refinerInput?.value.trim() || getRefinerModel(result);
+      const refinerModel = elements.refinerInput?.value.trim() || (await getRefinerModelFromStorage(result));
 
-      // Show loading state
-      elements.status.textContent = "Generating refined captions...";
-      setGenerationLoadingState(elements, true);
+      startGeneration(elements, "Generating refined captions...");
 
       // Get and validate video ID
       const videoInfo = await getValidatedVideoId(elements.status);

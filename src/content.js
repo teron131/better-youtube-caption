@@ -9,6 +9,7 @@ import {
     STORAGE_KEYS,
     TIMING,
 } from "./constants.js";
+import { saveSubtitles } from "./storage.js";
 import { extractVideoId } from "./url.js";
 import {
     clearAutoGenerationTrigger,
@@ -17,6 +18,7 @@ import {
 } from "./utils/autoGeneration.js";
 import { isContextInvalidated, isExtensionContextValid } from "./utils/contextValidation.js";
 import { log as debugLog, error as logError, warn as logWarn } from "./utils/logger.js";
+import { getRefinerModelFromStorage } from "./utils/modelSelection.js";
 import {
     applyCaptionFontSize,
     clearRenderer,
@@ -34,29 +36,13 @@ let showSubtitlesEnabled = true; // Whether subtitles should be displayed
 let urlObserver = null; // MutationObserver for URL changes
 
 /**
- * Get refiner model selection from storage result
- * Priority: custom model > recommended model > default
- * @param {Object} result - Storage result object
- * @returns {string} Selected model
- */
-function getRefinerModelSelection(result) {
-  const customModel = result[STORAGE_KEYS.REFINER_CUSTOM_MODEL]?.trim();
-  const recommendedModel = result[STORAGE_KEYS.REFINER_RECOMMENDED_MODEL]?.trim();
-  return (
-    (customModel && customModel.length > 0 ? customModel : null) ||
-    (recommendedModel && recommendedModel.length > 0 ? recommendedModel : null) ||
-    DEFAULTS.MODEL_REFINER
-  );
-}
-
-/**
  * Check if auto-generation should be triggered and trigger it if conditions are met
  * @param {string} videoId - Video ID
  * @param {Object} storageResult - Storage result with API keys and settings
  * @param {boolean} checkCaptionsEnabled - Whether to check if captions are enabled
  * @param {boolean} withDelay - Whether to add a delay before triggering (for initial page load)
  */
-function checkAndTriggerAutoGeneration(videoId, storageResult, checkCaptionsEnabled = true, withDelay = false) {
+async function checkAndTriggerAutoGeneration(videoId, storageResult, checkCaptionsEnabled = true, withDelay = false) {
   const validation = validateAutoGenerationConditions(
     videoId,
     storageResult,
@@ -68,7 +54,7 @@ function checkAndTriggerAutoGeneration(videoId, storageResult, checkCaptionsEnab
     return false;
   }
 
-  const modelSelection = getRefinerModelSelection(storageResult);
+  const modelSelection = await getRefinerModelFromStorage(storageResult);
   const triggerFn = () => {
     triggerAutoGeneration(
       videoId,
@@ -421,16 +407,8 @@ function handleSubtitlesGenerated(message, sendResponse) {
     const videoId = message.videoId || extractVideoId(window.location.href);
 
     if (videoId) {
-      chrome.storage.local.set({ [videoId]: currentSubtitles }, () => {
-        if (chrome.runtime.lastError) {
-          if (chrome.runtime.lastError.message && chrome.runtime.lastError.message.includes("QUOTA")) {
-            logWarn("Storage quota exceeded. Transcript will not be saved, but subtitles will still display.");
-          } else {
-            logError("Error saving subtitles:", chrome.runtime.lastError.message);
-          }
-        } else {
-          debugLog("Subtitles saved to local storage for video ID:", videoId);
-        }
+      saveSubtitles(videoId, currentSubtitles).catch(error => {
+        logError("Error saving subtitles:", error);
       });
     } else {
       logWarn("Could not extract video ID, subtitles not saved.");

@@ -4,6 +4,16 @@
  */
 
 /**
+ * Get extension URL or fallback for non-extension context
+ * @returns {string} Extension URL
+ */
+export function getExtensionUrl() {
+  return typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.getURL
+    ? chrome.runtime.getURL("")
+    : "https://github.com/better-youtube-caption";
+}
+
+/**
  * Check if extension context is valid
  * @returns {boolean} True if context is valid
  */

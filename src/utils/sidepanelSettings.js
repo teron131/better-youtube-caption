@@ -127,35 +127,3 @@ export function setupSettingsListeners(elements) {
   // Target Language is handled by combobox.js
 }
 
-/**
- * Get current model selection for summarizer
- * @param {Object} result - Storage result object
- * @returns {string} Selected model
- */
-export function getSummarizerModel(result) {
-  const customModel = result[STORAGE_KEYS.SUMMARIZER_CUSTOM_MODEL]?.trim();
-  const recommendedModel = result[STORAGE_KEYS.SUMMARIZER_RECOMMENDED_MODEL]?.trim();
-  return customModel || recommendedModel || DEFAULTS.MODEL_SUMMARIZER;
-}
-
-/**
- * Get current model selection for refiner
- * @param {Object} result - Storage result object
- * @returns {string} Selected model
- */
-export function getRefinerModel(result) {
-  const customModel = result[STORAGE_KEYS.REFINER_CUSTOM_MODEL]?.trim();
-  const recommendedModel = result[STORAGE_KEYS.REFINER_RECOMMENDED_MODEL]?.trim();
-  return customModel || recommendedModel || DEFAULTS.MODEL_REFINER;
-}
-
-/**
- * Get current target language selection
- * @param {Object} result - Storage result object
- * @returns {string} Selected target language
- */
-export function getTargetLanguage(result) {
-  const customLanguage = result[STORAGE_KEYS.TARGET_LANGUAGE_CUSTOM]?.trim();
-  const recommendedLanguage = result[STORAGE_KEYS.TARGET_LANGUAGE_RECOMMENDED]?.trim();
-  return customLanguage || recommendedLanguage || DEFAULTS.TARGET_LANGUAGE_RECOMMENDED;
-}

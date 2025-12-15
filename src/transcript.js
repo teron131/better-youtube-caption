@@ -92,6 +92,19 @@ export function formatTimestamp(ms) {
 }
 
 /**
+ * Enhance segments with startTimeText if missing
+ * @param {Array} segments - Transcript segments
+ * @returns {Array} Enhanced segments
+ */
+export function enhanceSegmentsWithTimestamps(segments) {
+  return segments.map((seg) => ({
+    ...seg,
+    startTimeText: seg.startTimeText || formatTimestamp(seg.startTime),
+  }));
+}
+
+
+/**
  * Convert internal format to refiner format
  */
 function convertToRefinerFormat(segments) {

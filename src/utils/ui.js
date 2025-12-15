@@ -31,29 +31,29 @@ export function escapeHTML(text) {
 
 /**
  * Format inline markdown (bold, italic, code)
+ * SAFE: Escapes HTML first, then applies markdown formatting
  * @param {string} text - Text with markdown
  * @returns {string} HTML formatted text
  */
 export function formatInlineMarkdown(text) {
+  if (!text) return '';
+  
+  // 1. Escape HTML first to prevent XSS
+  let result = escapeHTML(text);
+  
+  // 2. Apply markdown replacements
   // Bold (**text** or __text__)
-  text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  text = text.replace(/__(.+?)__/g, '<strong>$1</strong>');
+  result = result.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  result = result.replace(/__(.+?)__/g, '<strong>$1</strong>');
   
   // Italic (*text* or _text_) - only match if not part of bold
-  text = text.replace(/(?<!\*)\*([^*]+?)\*(?!\*)/g, '<em>$1</em>');
-  text = text.replace(/(?<!_)_([^_]+?)_(?!_)/g, '<em>$1</em>');
+  result = result.replace(/(?<!\*)\*([^*]+?)\*(?!\*)/g, '<em>$1</em>');
+  result = result.replace(/(?<!_)_([^_]+?)_(?!_)/g, '<em>$1</em>');
   
   // Code (`text`)
-  text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
+  result = result.replace(/`([^`]+)`/g, '<code>$1</code>');
   
-  // Split by HTML tags, escape non-tag parts, then rejoin
-  const parts = text.split(/(<[^>]+>)/g);
-  const result = parts.map((part, index) => {
-    // Odd indices are HTML tags, keep as-is; even indices are text, escape them
-    return index % 2 === 1 ? part : escapeHTML(part);
-  });
-  
-  return result.join('');
+  return result;
 }
 
 /**

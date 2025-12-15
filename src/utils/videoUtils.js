@@ -4,6 +4,7 @@
  */
 
 import { extractVideoId } from "../url.js";
+import { ERROR_MESSAGES } from "../constants.js";
 
 /**
  * Get current YouTube video tab
@@ -41,7 +42,7 @@ export function validateVideoId(videoId) {
   if (!videoId) {
     return {
       isValid: false,
-      error: "Could not extract video ID from URL.",
+      error: ERROR_MESSAGES.NO_VIDEO_ID,
     };
   }
   return { isValid: true, error: null };

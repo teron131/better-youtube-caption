@@ -14,16 +14,20 @@ chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })
  * Main message listener
  */
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  console.log('Background: Received message:', message.action, 'from:', sender.tab ? 'tab' : 'sidepanel');
-  
-  const tabId = sender.tab?.id;
+  console.log("Background: Received message:", message.action, "from:", sender.tab ? "tab" : "sidepanel");
 
-  if (message.action === MESSAGE_ACTIONS.GENERATE_SUMMARY) {
-    handleGenerateSummary(message, tabId, sendResponse);
-    return true; // Keep channel open for async response
-  } else if (message.action === MESSAGE_ACTIONS.FETCH_SUBTITLES) {
-    handleFetchSubtitles(message, tabId, sendResponse);
-    return true; // Keep channel open for async response
+  const tabId = sender.tab?.id;
+  const handlers = {
+    [MESSAGE_ACTIONS.GENERATE_SUMMARY]: handleGenerateSummary,
+    [MESSAGE_ACTIONS.FETCH_SUBTITLES]: handleFetchSubtitles,
+  };
+
+  const handler = handlers[message.action];
+  if (!handler) {
+    return;
   }
+
+  handler(message, tabId, sendResponse);
+  return true; // Keep channel open for async response
 });
 

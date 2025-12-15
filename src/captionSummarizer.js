@@ -6,6 +6,7 @@
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { END, START, StateGraph } from "@langchain/langgraph/web";
 import { ChatOpenAI } from "@langchain/openai";
+import { getExtensionUrl } from "./utils/contextValidation.js";
 import { PromptBuilder } from "./utils/promptBuilder.js";
 import { QualityUtils, SUMMARY_CONFIG } from "./utils/qualityUtils.js";
 import { AnalysisSchema, GraphStateSchema, QualitySchema } from "./utils/schemas.js";
@@ -18,18 +19,13 @@ import { AnalysisSchema, GraphStateSchema, QualitySchema } from "./utils/schemas
  * Create OpenRouter LLM instance using LangChain
  */
 function createOpenRouterLLM(model, apiKey) {
-  const refererUrl =
-    typeof chrome !== "undefined" && chrome.runtime
-      ? chrome.runtime.getURL("")
-      : "https://github.com/better-youtube-caption";
-
   return new ChatOpenAI({
     model: model,
     apiKey: apiKey,
     configuration: {
       baseURL: "https://openrouter.ai/api/v1",
       defaultHeaders: {
-        "HTTP-Referer": refererUrl,
+        "HTTP-Referer": getExtensionUrl(),
         "X-Title": "Better YouTube Caption",
       },
     },

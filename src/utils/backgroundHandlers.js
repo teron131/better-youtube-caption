@@ -6,12 +6,17 @@
 import { executeSummarizationWorkflow } from "../captionSummarizer.js";
 import { ERROR_MESSAGES } from "../constants.js";
 import { ensureStorageSpace, getStoredSubtitles, saveSubtitles } from "../storage.js";
-import { fetchYouTubeTranscript, formatTimestamp, refineTranscriptSegments } from "../transcript.js";
+import {
+  enhanceSegmentsWithTimestamps,
+  fetchYouTubeTranscript,
+  refineTranscriptSegments
+} from "../transcript.js";
 import { getApiKeys } from "./apiValidation.js";
 import { extractErrorMessage } from "./errorHandling.js";
 import { sendError, sendStatusUpdate, sendSubtitlesGenerated, sendSummaryGenerated } from "./messageUtils.js";
 import { getRefinerModelFromStorage, getSummarizerModelFromStorage, getTargetLanguageFromStorage } from "./modelSelection.js";
 import { convertS2T, convertSegmentsS2T } from "./opencc.js";
+import { validateVideoId } from "./videoUtils.js";
 
 // Track running summary generations to prevent concurrent runs
 const runningSummaryGenerations = new Set();
@@ -24,47 +29,6 @@ const summaryLock = {
   acquire: (videoId) => runningSummaryGenerations.add(videoId),
   release: (videoId) => runningSummaryGenerations.delete(videoId),
 };
-
-/**
- * Validate video ID
- * @param {string} videoId - Video ID to validate
- * @returns {Object} Validation result
- */
-function validateVideoId(videoId) {
-  if (!videoId) {
-    return { isValid: false, error: ERROR_MESSAGES.VIDEO_ID_REQUIRED };
-  }
-  return { isValid: true };
-}
-
-/**
- * Fetch and validate transcript
- * @param {string} urlForApi - YouTube URL
- * @param {string} scrapeCreatorsKey - API key
- * @returns {Promise<Object|null>} Transcript data or null
- */
-async function fetchAndValidateTranscript(urlForApi, scrapeCreatorsKey) {
-  const transcriptData = await fetchYouTubeTranscript(urlForApi, scrapeCreatorsKey);
-
-  if (!transcriptData?.segments?.length) {
-    return null;
-  }
-
-  console.log(`Fetched ${transcriptData.segments.length} segments`);
-  return transcriptData;
-}
-
-/**
- * Enhance segments with startTimeText
- * @param {Array} segments - Transcript segments
- * @returns {Array} Enhanced segments
- */
-function enhanceSegmentsWithTimestamps(segments) {
-  return segments.map((seg) => ({
-    ...seg,
-    startTimeText: seg.startTimeText || formatTimestamp(seg.startTime),
-  }));
-}
 
 /**
  * Create progress callback for refinement
@@ -235,8 +199,8 @@ export async function handleGenerateSummary(message, tabId, sendResponse) {
     console.log("Using summarizer model:", modelSelection);
 
     // Fetch transcript
-    const transcriptData = await fetchAndValidateTranscript(urlForApi, scrapeCreatorsKey);
-    if (!transcriptData) {
+    const transcriptData = await fetchYouTubeTranscript(urlForApi, scrapeCreatorsKey);
+    if (!transcriptData?.segments?.length) {
       sendStatusUpdate(tabId, ERROR_MESSAGES.NO_TRANSCRIPT, false, true);
       return;
     }
@@ -367,11 +331,13 @@ async function processNewSubtitles(
       throw new Error(ERROR_MESSAGES.SCRAPE_KEY_MISSING);
     }
 
-    const transcriptData = await fetchAndValidateTranscript(urlForApi, scrapeCreatorsKey);
-    if (!transcriptData) {
+    const transcriptData = await fetchYouTubeTranscript(urlForApi, scrapeCreatorsKey);
+    if (!transcriptData?.segments?.length) {
       sendStatusUpdate(tabId, ERROR_MESSAGES.NO_TRANSCRIPT, false, true);
       return;
     }
+
+    console.log(`Fetched ${transcriptData.segments.length} segments`);
 
     console.log(`Video: ${transcriptData.title}`);
 

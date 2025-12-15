@@ -7,6 +7,7 @@ import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { ChatOpenAI } from "@langchain/openai";
 import { DEFAULTS, REFINER_CONFIG } from "./constants.js";
 import { chunkSegmentsByCount, parseRefinedSegments } from "./segmentParser.js";
+import { getExtensionUrl } from "./utils/contextValidation.js";
 
 // ============================================================================
 // Constants
@@ -36,11 +37,6 @@ up to $900. From $900 up to $1,100.
 If you sold at the reasonable
 valuations, when the gains that already
 had been had, you missed out big time. I`;
-
-const REFERER_URL = 
-  typeof chrome !== "undefined" && chrome.runtime
-    ? chrome.runtime.getURL("")
-    : "https://github.com/better-youtube-caption";
 
 // ============================================================================
 // Utility Functions
@@ -92,7 +88,7 @@ function createLLM(apiKey, model) {
     configuration: {
       baseURL: "https://openrouter.ai/api/v1",
       defaultHeaders: {
-        "HTTP-Referer": REFERER_URL,
+        "HTTP-Referer": getExtensionUrl(),
         "X-Title": "Better YouTube Caption",
       },
     },
