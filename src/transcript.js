@@ -105,36 +105,27 @@ export function enhanceSegmentsWithTimestamps(segments) {
 
 
 /**
- * Convert internal format to refiner format
+ * Adapt internal segment format to refiner format
  */
-function convertToRefinerFormat(segments) {
-  return segments.map(seg => ({
-    text: seg.text,
-    startMs: seg.startTime,
-    endMs: seg.endTime,
-    startTimeText: seg.startTimeText || formatTimestamp(seg.startTime),
-  }));
+function toRefinerFormat(segment) {
+  return {
+    text: segment.text,
+    startMs: segment.startTime,
+    endMs: segment.endTime,
+    startTimeText: segment.startTimeText || formatTimestamp(segment.startTime),
+  };
 }
 
 /**
- * Convert refiner format back to internal format
+ * Adapt refiner format back to internal segment format
  */
-function convertFromRefinerFormat(segments) {
-  return segments.map(seg => ({
-    startTime: seg.startMs,
-    endTime: seg.endMs,
-    text: seg.text,
-    startTimeText: seg.startTimeText,
-  }));
-}
-
-/**
- * Create progress callback adapter
- */
-function createProgressAdapter(progressCallback) {
-  if (!progressCallback) return null;
-  return (chunkIdx, totalChunks) => 
-    progressCallback(`Refining chunk ${chunkIdx}/${totalChunks}...`);
+function fromRefinerFormat(segment) {
+  return {
+    startTime: segment.startMs,
+    endTime: segment.endMs,
+    text: segment.text,
+    startTimeText: segment.startTimeText,
+  };
 }
 
 /**
@@ -143,8 +134,8 @@ function createProgressAdapter(progressCallback) {
  * @param {string} title - Video title
  * @param {string} description - Video description
  * @param {string} openRouterApiKey - OpenRouter API key
- * @param {Function} progressCallback - Progress callback
- * @param {string} model - Model name
+ * @param {Function} progressCallback - Progress callback (optional)
+ * @param {string} model - Model name (defaults to DEFAULTS.MODEL_REFINER)
  * @returns {Promise<Array>} Refined segments
  */
 export async function refineTranscriptSegments(
@@ -159,8 +150,11 @@ export async function refineTranscriptSegments(
     throw new Error("No transcript segments provided");
   }
 
-  const refinerSegments = convertToRefinerFormat(segments);
-  const progressAdapter = createProgressAdapter(progressCallback);
+  // Convert segments to refiner format and refine
+  const refinerSegments = segments.map(toRefinerFormat);
+  const progressAdapter = progressCallback
+    ? (chunkIdx, totalChunks) => progressCallback(`Refining chunk ${chunkIdx}/${totalChunks}...`)
+    : null;
 
   const refinedSegments = await refineTranscriptWithLLM(
     refinerSegments,
@@ -171,8 +165,8 @@ export async function refineTranscriptSegments(
     model
   );
 
-  const result = convertFromRefinerFormat(refinedSegments);
-
+  // Convert back to internal format
+  const result = refinedSegments.map(fromRefinerFormat);
   console.log(`Refined ${result.length} segments`);
   return result;
 }

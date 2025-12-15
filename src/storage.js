@@ -2,7 +2,7 @@
  * Chrome storage management for subtitles and settings
  */
 
-import { STORAGE, YOUTUBE } from "./constants.js";
+import { STORAGE, YOUTUBE, STORAGE_CLEANUP } from "./constants.js";
 import { log } from "./utils/logger.js";
 
 /**
@@ -106,9 +106,8 @@ function getVideoKeys(allItems) {
  * Select which keys to remove during cleanup
  */
 function selectKeysToRemove(videoKeys, countToRemove) {
-  const MIN_KEEP = 5;
   const removeCount = videoKeys.length <= countToRemove
-    ? Math.max(1, videoKeys.length - MIN_KEEP)
+    ? Math.max(1, videoKeys.length - STORAGE_CLEANUP.MIN_VIDEOS_TO_KEEP)
     : countToRemove;
 
   return videoKeys.slice(0, removeCount);
@@ -141,7 +140,7 @@ export function getStorageValue(keyName) {
 }
 
 /**
- * Get API key from storage (alias for consistency)
+ * Get API key from storage
  */
 export const getApiKeyFromStorage = getStorageValue;
 
@@ -161,15 +160,14 @@ export function setStorageValue(key, value) {
 }
 
 /**
- * Save API key to storage (alias for consistency)
- */
-export const saveApiKey = setStorageValue;
-
-/**
- * Save setting to storage (synchronous, logs result)
+ * Save setting to storage (synchronous callback-based)
  */
 export function saveSetting(key, value) {
   chrome.storage.local.set({ [key]: value }, () => {
-    log('Auto-saved:', key, value);
+    if (chrome.runtime.lastError) {
+      console.error('Failed to save setting:', key, chrome.runtime.lastError);
+    } else {
+      log('Auto-saved:', key, value);
+    }
   });
 }

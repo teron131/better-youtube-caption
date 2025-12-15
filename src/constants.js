@@ -145,3 +145,9 @@ export const SEGMENT_PARSER_CONFIG = {
   TAIL_GUARD_SIZE: 5,
   LENGTH_TOLERANCE: 0.10,
 };
+
+// Storage cleanup configuration
+export const STORAGE_CLEANUP = {
+  MIN_VIDEOS_TO_KEEP: 5,
+  DEFAULT_BATCH_SIZE: 10,
+};
