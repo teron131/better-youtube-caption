@@ -4,24 +4,31 @@
  */
 
 /**
+ * Convert error to string message
+ * @param {*} error - Error (can be Error, string, object, etc.)
+ * @returns {string} Error message
+ */
+function errorToMessage(error) {
+  if (typeof error === "string") return error;
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object" && error !== null) {
+    if (error.message) return String(error.message);
+    if (error.error) return errorToMessage(error.error);
+    return JSON.stringify(error);
+  }
+  return String(error);
+}
+
+/**
  * Extract and format error message from various error types
  * @param {Error|Object|string} error - Error object
  * @returns {string} Formatted error message
  */
 export function extractErrorMessage(error) {
-  if (error instanceof Error) {
-    const msg = error.message || "Unknown error";
-    // Extract cleaner message for OpenRouter API errors
-    const match = msg.match(/OpenRouter API error: (.+)/);
-    return match ? match[1] : msg;
-  }
-
-  if (typeof error === "object" && error !== null) {
-    if (error.message) return String(error.message);
-    return JSON.stringify(error);
-  }
-
-  return String(error);
+  const msg = errorToMessage(error);
+  // Extract cleaner message for OpenRouter API errors
+  const match = msg.match(/OpenRouter API error: (.+)/);
+  return match ? match[1] : msg;
 }
 
 /**
@@ -30,32 +37,7 @@ export function extractErrorMessage(error) {
  * @returns {boolean} True if context invalidated error
  */
 export function isContextInvalidatedError(error) {
-  const msg = extractErrorMessage(error).toLowerCase();
-  return msg.includes("extension context invalidated");
-}
-
-/**
- * Safely convert error to string and lowercase
- * @param {*} error - Error (can be string, object, array, etc.)
- * @returns {string} Lowercased error string
- */
-export function errorToString(error) {
-  if (typeof error === "string") {
-    return error.toLowerCase();
-  }
-  if (error instanceof Error) {
-    return error.message.toLowerCase();
-  }
-  if (typeof error === "object" && error !== null) {
-    if (error.message) {
-      return String(error.message).toLowerCase();
-    }
-    if (error.error) {
-      return errorToString(error.error);
-    }
-    return JSON.stringify(error).toLowerCase();
-  }
-  return String(error).toLowerCase();
+  return extractErrorMessage(error).toLowerCase().includes("extension context invalidated");
 }
 
 /**
@@ -64,7 +46,7 @@ export function errorToString(error) {
  * @returns {boolean} True if model error
  */
 export function isModelError(error) {
-  const lowerError = errorToString(error);
+  const lowerError = extractErrorMessage(error).toLowerCase();
   return (
     lowerError.includes("invalid model") ||
     lowerError.includes("not a valid model id") ||

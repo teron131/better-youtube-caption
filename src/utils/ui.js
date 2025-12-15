@@ -35,7 +35,6 @@ export function escapeHTML(text) {
  * @returns {string} HTML formatted text
  */
 export function formatInlineMarkdown(text) {
-  // Process markdown patterns before escaping
   // Bold (**text** or __text__)
   text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   text = text.replace(/__(.+?)__/g, '<strong>$1</strong>');
@@ -50,12 +49,8 @@ export function formatInlineMarkdown(text) {
   // Split by HTML tags, escape non-tag parts, then rejoin
   const parts = text.split(/(<[^>]+>)/g);
   const result = parts.map((part, index) => {
-    // Odd indices are HTML tags, keep them as-is
-    if (index % 2 === 1) {
-      return part;
-    }
-    // Even indices are text content, escape it
-    return escapeHTML(part);
+    // Odd indices are HTML tags, keep as-is; even indices are text, escape them
+    return index % 2 === 1 ? part : escapeHTML(part);
   });
   
   return result.join('');

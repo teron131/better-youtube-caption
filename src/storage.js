@@ -130,9 +130,9 @@ export async function ensureStorageSpace() {
 }
 
 /**
- * Get API key from storage
+ * Get value from storage
  */
-export function getApiKeyFromStorage(keyName) {
+export function getStorageValue(keyName) {
   return new Promise((resolve) => {
     chrome.storage.local.get([keyName], (result) => {
       resolve(result[keyName] || null);
@@ -141,11 +141,16 @@ export function getApiKeyFromStorage(keyName) {
 }
 
 /**
- * Save API key to storage
+ * Get API key from storage (alias for consistency)
  */
-export function saveApiKey(keyName, apiKey) {
+export const getApiKeyFromStorage = getStorageValue;
+
+/**
+ * Save value to storage
+ */
+export function setStorageValue(key, value) {
   return new Promise((resolve, reject) => {
-    chrome.storage.local.set({ [keyName]: apiKey }, () => {
+    chrome.storage.local.set({ [key]: value }, () => {
       if (chrome.runtime.lastError) {
         reject(new Error(chrome.runtime.lastError.message));
       } else {
@@ -156,7 +161,12 @@ export function saveApiKey(keyName, apiKey) {
 }
 
 /**
- * Save a setting to storage
+ * Save API key to storage (alias for consistency)
+ */
+export const saveApiKey = setStorageValue;
+
+/**
+ * Save setting to storage (synchronous, logs result)
  */
 export function saveSetting(key, value) {
   chrome.storage.local.set({ [key]: value }, () => {

@@ -8,9 +8,14 @@ import { cleanYouTubeUrl } from "./url.js";
 
 /**
  * Fetch YouTube transcript from Scrape Creators API
+ * @param {string} videoUrl - YouTube video URL
+ * @param {string} apiKey - Scrape Creators API key
+ * @returns {Promise<Object|null>} Transcript data or null
  */
 export async function fetchYouTubeTranscript(videoUrl, apiKey) {
-  if (!apiKey) throw new Error("Scrape Creators API key is required");
+  if (!apiKey) {
+    throw new Error("Scrape Creators API key is required");
+  }
 
   const apiUrl = `${API_ENDPOINTS.SCRAPE_CREATORS}?url=${encodeURIComponent(
     cleanYouTubeUrl(videoUrl)
@@ -22,7 +27,7 @@ export async function fetchYouTubeTranscript(videoUrl, apiKey) {
   });
 
   if (!response.ok) {
-    console.warn(`Scrape Creators API request failed with status ${response.status}`);
+    console.warn(`Scrape Creators API failed: ${response.status}`);
     return null;
   }
 
@@ -40,7 +45,7 @@ export async function fetchYouTubeTranscript(videoUrl, apiKey) {
     return null;
   }
 
-  console.log(`Fetched ${segments.length} transcript segments from Scrape Creators API`);
+  console.log(`Fetched ${segments.length} transcript segments`);
 
   return {
     segments,
@@ -76,45 +81,14 @@ function convertTranscriptSegments(apiSegments) {
 
 /**
  * Format timestamp in milliseconds to M:SS
+ * @param {number} ms - Milliseconds
+ * @returns {string} Formatted timestamp
  */
 export function formatTimestamp(ms) {
   const totalSeconds = Math.floor(ms / 1000);
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-}
-
-/**
- * Refine transcript segments using LLM
- */
-export async function refineTranscriptSegments(
-  segments,
-  title,
-  description,
-  openRouterApiKey,
-  progressCallback,
-  model = DEFAULTS.MODEL_REFINER
-) {
-  if (!segments?.length) {
-    throw new Error("No transcript segments provided");
-  }
-
-  const refinerSegments = convertToRefinerFormat(segments);
-  const progressAdapter = createProgressAdapter(progressCallback);
-
-  const refinedSegments = await refineTranscriptWithLLM(
-    refinerSegments,
-    title,
-    description,
-    openRouterApiKey,
-    progressAdapter,
-    model
-  );
-
-  const result = convertFromRefinerFormat(refinedSegments);
-
-  console.log(`Refined ${result.length} transcript segments`);
-  return result;
 }
 
 /**
@@ -146,5 +120,46 @@ function convertFromRefinerFormat(segments) {
  */
 function createProgressAdapter(progressCallback) {
   if (!progressCallback) return null;
-  return (chunkIdx, totalChunks) => progressCallback(`Refining chunk ${chunkIdx}/${totalChunks}...`);
+  return (chunkIdx, totalChunks) => 
+    progressCallback(`Refining chunk ${chunkIdx}/${totalChunks}...`);
+}
+
+/**
+ * Refine transcript segments using LLM
+ * @param {Array} segments - Transcript segments
+ * @param {string} title - Video title
+ * @param {string} description - Video description
+ * @param {string} openRouterApiKey - OpenRouter API key
+ * @param {Function} progressCallback - Progress callback
+ * @param {string} model - Model name
+ * @returns {Promise<Array>} Refined segments
+ */
+export async function refineTranscriptSegments(
+  segments,
+  title,
+  description,
+  openRouterApiKey,
+  progressCallback,
+  model = DEFAULTS.MODEL_REFINER
+) {
+  if (!segments?.length) {
+    throw new Error("No transcript segments provided");
+  }
+
+  const refinerSegments = convertToRefinerFormat(segments);
+  const progressAdapter = createProgressAdapter(progressCallback);
+
+  const refinedSegments = await refineTranscriptWithLLM(
+    refinerSegments,
+    title,
+    description,
+    openRouterApiKey,
+    progressAdapter,
+    model
+  );
+
+  const result = convertFromRefinerFormat(refinedSegments);
+
+  console.log(`Refined ${result.length} segments`);
+  return result;
 }

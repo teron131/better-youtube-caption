@@ -4,10 +4,11 @@
  */
 
 import { DEFAULTS, STORAGE_KEYS } from "../constants.js";
-import { getApiKeyFromStorage } from "../storage.js";
+import { getStorageValue } from "../storage.js";
 
 /**
  * Get model selection with fallback priority
+ * Priority: message > custom > recommended > default
  * @param {string} messageModelSelection - Model from message (highest priority)
  * @param {string} customModel - Custom model from storage
  * @param {string} recommendedModel - Recommended model from storage
@@ -17,8 +18,8 @@ import { getApiKeyFromStorage } from "../storage.js";
 export function getModelSelection(messageModelSelection, customModel, recommendedModel, defaultModel) {
   return (
     messageModelSelection ||
-    (customModel?.trim() ? customModel.trim() : "") ||
-    (recommendedModel?.trim() ? recommendedModel.trim() : "") ||
+    customModel?.trim() ||
+    recommendedModel?.trim() ||
     defaultModel
   );
 }
@@ -35,8 +36,8 @@ export async function getSummarizerModelFromStorage(storageResult = null) {
     return customModel || recommendedModel || DEFAULTS.MODEL_SUMMARIZER;
   }
 
-  const customModel = await getApiKeyFromStorage(STORAGE_KEYS.SUMMARIZER_CUSTOM_MODEL);
-  const recommendedModel = await getApiKeyFromStorage(STORAGE_KEYS.SUMMARIZER_RECOMMENDED_MODEL);
+  const customModel = await getStorageValue(STORAGE_KEYS.SUMMARIZER_CUSTOM_MODEL);
+  const recommendedModel = await getStorageValue(STORAGE_KEYS.SUMMARIZER_RECOMMENDED_MODEL);
   return getModelSelection(null, customModel, recommendedModel, DEFAULTS.MODEL_SUMMARIZER);
 }
 
@@ -52,8 +53,8 @@ export async function getRefinerModelFromStorage(storageResult = null) {
     return customModel || recommendedModel || DEFAULTS.MODEL_REFINER;
   }
 
-  const customModel = await getApiKeyFromStorage(STORAGE_KEYS.REFINER_CUSTOM_MODEL);
-  const recommendedModel = await getApiKeyFromStorage(STORAGE_KEYS.REFINER_RECOMMENDED_MODEL);
+  const customModel = await getStorageValue(STORAGE_KEYS.REFINER_CUSTOM_MODEL);
+  const recommendedModel = await getStorageValue(STORAGE_KEYS.REFINER_RECOMMENDED_MODEL);
   return getModelSelection(null, customModel, recommendedModel, DEFAULTS.MODEL_REFINER);
 }
 
@@ -69,8 +70,8 @@ export async function getTargetLanguageFromStorage(storageResult = null) {
     return customLanguage || recommendedLanguage || DEFAULTS.TARGET_LANGUAGE_RECOMMENDED;
   }
 
-  const customLanguage = await getApiKeyFromStorage(STORAGE_KEYS.TARGET_LANGUAGE_CUSTOM);
-  const recommendedLanguage = await getApiKeyFromStorage(STORAGE_KEYS.TARGET_LANGUAGE_RECOMMENDED);
+  const customLanguage = await getStorageValue(STORAGE_KEYS.TARGET_LANGUAGE_CUSTOM);
+  const recommendedLanguage = await getStorageValue(STORAGE_KEYS.TARGET_LANGUAGE_RECOMMENDED);
   return getModelSelection(null, customLanguage, recommendedLanguage, DEFAULTS.TARGET_LANGUAGE_RECOMMENDED);
 }
 

@@ -17,29 +17,13 @@ import { convertS2T, convertSegmentsS2T } from "./opencc.js";
 const runningSummaryGenerations = new Set();
 
 /**
- * Check if summary generation is already running
- * @param {string} videoId - Video ID
- * @returns {boolean} True if already running
+ * Summary generation lock management
  */
-function isSummaryGenerationRunning(videoId) {
-  return runningSummaryGenerations.has(videoId);
-}
-
-/**
- * Mark summary generation as running
- * @param {string} videoId - Video ID
- */
-function markSummaryGenerationRunning(videoId) {
-  runningSummaryGenerations.add(videoId);
-}
-
-/**
- * Mark summary generation as complete
- * @param {string} videoId - Video ID
- */
-function markSummaryGenerationComplete(videoId) {
-  runningSummaryGenerations.delete(videoId);
-}
+const summaryLock = {
+  isRunning: (videoId) => runningSummaryGenerations.has(videoId),
+  acquire: (videoId) => runningSummaryGenerations.add(videoId),
+  release: (videoId) => runningSummaryGenerations.delete(videoId),
+};
 
 /**
  * Validate video ID
@@ -57,17 +41,16 @@ function validateVideoId(videoId) {
  * Fetch and validate transcript
  * @param {string} urlForApi - YouTube URL
  * @param {string} scrapeCreatorsKey - API key
- * @returns {Promise<Object>} Transcript data or null
+ * @returns {Promise<Object|null>} Transcript data or null
  */
 async function fetchAndValidateTranscript(urlForApi, scrapeCreatorsKey) {
   const transcriptData = await fetchYouTubeTranscript(urlForApi, scrapeCreatorsKey);
 
   if (!transcriptData?.segments?.length) {
-    console.log("No transcript available, skipping");
     return null;
   }
 
-  console.log(`Fetched ${transcriptData.segments.length} transcript segments`);
+  console.log(`Fetched ${transcriptData.segments.length} segments`);
   return transcriptData;
 }
 
@@ -81,6 +64,16 @@ function enhanceSegmentsWithTimestamps(segments) {
     ...seg,
     startTimeText: seg.startTimeText || formatTimestamp(seg.startTime),
   }));
+}
+
+/**
+ * Create progress callback for refinement
+ */
+function createRefinementProgressCallback(tabId) {
+  return (message) => {
+    console.log("Refinement progress:", message);
+    sendStatusUpdate(tabId, message);
+  };
 }
 
 /**
@@ -102,38 +95,28 @@ async function refineSegmentsWithFallback(
   tabId
 ) {
   if (!openRouterKey?.trim()) {
-    console.log("OpenRouter API key not found, skipping refinement");
+    console.log("OpenRouter key not found, skipping refinement");
     return enhancedSegments;
   }
 
   sendStatusUpdate(tabId, "Refining transcript with AI...");
 
   try {
-    const progressCallback = (message) => {
-      console.log("Background (transcript): Progress -", message);
-      sendStatusUpdate(tabId, message);
-    };
-
-    console.log(
-      "Background (transcript): Starting refinement with",
-      enhancedSegments.length,
-      "segments"
-    );
+    console.log(`Starting refinement with ${enhancedSegments.length} segments`);
     const refined = await refineTranscriptSegments(
       enhancedSegments,
       title,
       description,
       openRouterKey,
-      progressCallback,
+      createRefinementProgressCallback(tabId),
       modelSelection
     );
 
-    console.log(`Background (transcript): Refinement complete - ${refined.length} segments`);
+    console.log(`Refinement complete: ${refined.length} segments`);
     return refined;
-  } catch (refinementError) {
-    console.warn("Transcript refinement failed, using original:", refinementError);
-    const errorMessage = extractErrorMessage(refinementError);
-    sendError(tabId, errorMessage);
+  } catch (error) {
+    console.warn("Refinement failed, using original:", error);
+    sendError(tabId, extractErrorMessage(error));
     sendStatusUpdate(tabId, "Using original transcript (refinement failed)");
     return enhancedSegments;
   }
@@ -146,22 +129,28 @@ async function refineSegmentsWithFallback(
  * @param {number|null} tabId - Tab ID
  */
 async function processAndSaveSubtitles(videoId, subtitles, tabId) {
-  // Convert Simplified Chinese to Traditional Chinese
   const convertedSubtitles = convertSegmentsS2T(subtitles);
 
-  // Send to content script
   sendSubtitlesGenerated(tabId, convertedSubtitles, videoId);
   sendStatusUpdate(tabId, "Transcript fetched and ready!", true);
 
-  // Save subtitles
   try {
     await ensureStorageSpace();
-  } catch (storageError) {
-    console.warn("Storage management failed:", storageError);
+    await saveSubtitles(videoId, convertedSubtitles);
+    console.log("Subtitles saved successfully");
+  } catch (error) {
+    console.warn("Storage error:", error);
   }
+}
 
-  await saveSubtitles(videoId, convertedSubtitles);
-  console.log("Background: Subtitle fetch completed successfully");
+/**
+ * Create progress callback for summary workflow
+ */
+function createSummaryProgressCallback(tabId) {
+  return (message) => {
+    console.log("Summary progress:", message);
+    sendStatusUpdate(tabId, message);
+  };
 }
 
 /**
@@ -180,12 +169,7 @@ async function executeSummaryWorkflow(
   openRouterKey,
   tabId
 ) {
-  const progressCallback = (message) => {
-    console.log("Summary workflow:", message);
-    sendStatusUpdate(tabId, message);
-  };
-
-  return await executeSummarizationWorkflow(
+  return executeSummarizationWorkflow(
     {
       transcript: transcriptText,
       analysis_model: modelSelection,
@@ -193,7 +177,7 @@ async function executeSummaryWorkflow(
       target_language: targetLanguage,
     },
     openRouterKey,
-    progressCallback
+    createSummaryProgressCallback(tabId)
   );
 }
 
@@ -212,7 +196,7 @@ export async function handleGenerateSummary(message, tabId, sendResponse) {
     targetLanguage: messageTargetLanguage,
   } = message;
 
-  console.log("Background Script: Received generateSummary request for Video ID:", videoId);
+  console.log("Received generateSummary request for video:", videoId);
 
   const validation = validateVideoId(videoId);
   if (!validation.isValid) {
@@ -220,12 +204,12 @@ export async function handleGenerateSummary(message, tabId, sendResponse) {
     return;
   }
 
-  if (isSummaryGenerationRunning(videoId)) {
+  if (summaryLock.isRunning(videoId)) {
     sendResponse({ status: "error", message: ERROR_MESSAGES.SUMMARY_IN_PROGRESS });
     return;
   }
 
-  markSummaryGenerationRunning(videoId);
+  summaryLock.acquire(videoId);
   const urlForApi = `https://www.youtube.com/watch?v=${videoId}`;
 
   try {
@@ -245,12 +229,10 @@ export async function handleGenerateSummary(message, tabId, sendResponse) {
     }
 
     // Get model and language selection
-    const modelSelection =
-      messageModelSelection || (await getSummarizerModelFromStorage());
-    const targetLanguage =
-      messageTargetLanguage || (await getTargetLanguageFromStorage());
+    const modelSelection = messageModelSelection || (await getSummarizerModelFromStorage());
+    const targetLanguage = messageTargetLanguage || (await getTargetLanguageFromStorage());
 
-    console.log("Background (summary): using model", modelSelection);
+    console.log("Using summarizer model:", modelSelection);
 
     // Fetch transcript
     const transcriptData = await fetchAndValidateTranscript(urlForApi, scrapeCreatorsKey);
@@ -301,7 +283,7 @@ export async function handleGenerateSummary(message, tabId, sendResponse) {
     }
     sendResponse({ status: "error", message: errorMessage });
   } finally {
-    markSummaryGenerationComplete(videoId);
+    summaryLock.release(videoId);
   }
 }
 
@@ -320,7 +302,7 @@ export async function handleFetchSubtitles(message, tabId, sendResponse) {
     forceRegenerate = false,
   } = message;
 
-  console.log("Background Script: Received fetchSubtitles request for Video ID:", videoId);
+  console.log("Received fetchSubtitles request for video:", videoId);
 
   const validation = validateVideoId(videoId);
   if (!validation.isValid) {
@@ -329,25 +311,21 @@ export async function handleFetchSubtitles(message, tabId, sendResponse) {
   }
 
   const urlForApi = `https://www.youtube.com/watch?v=${videoId}`;
-  console.log("Background Script: Using URL for API:", urlForApi);
-
-  // Send immediate acknowledgment
   sendResponse({ status: "processing", message: "Request received, processing..." });
 
   if (!forceRegenerate) {
-    // Check if subtitles are cached
     try {
       const cachedSubtitles = await getStoredSubtitles(videoId);
       if (cachedSubtitles) {
-        console.log("Subtitles found in local storage for this video.");
+        console.log("Using cached subtitles");
         sendSubtitlesGenerated(tabId, cachedSubtitles, videoId);
         return;
       }
     } catch (error) {
-      console.error("Error checking storage:", error);
+      console.error("Storage check error:", error);
     }
   } else {
-    console.log("Force regenerate subtitles requested, bypassing cache.");
+    console.log("Force regenerate requested, bypassing cache");
   }
 
   processNewSubtitles(
@@ -377,11 +355,9 @@ async function processNewSubtitles(
   messageModelSelection,
   tabId
 ) {
-  console.log("No cached subtitles found. Fetching transcript...");
   sendStatusUpdate(tabId, "Fetching YouTube transcript...");
 
   try {
-    // Get API keys
     const { scrapeCreatorsKey, openRouterKey } = await getApiKeys(
       messageScrapeCreatorsKey,
       messageOpenRouterKey
@@ -391,24 +367,19 @@ async function processNewSubtitles(
       throw new Error(ERROR_MESSAGES.SCRAPE_KEY_MISSING);
     }
 
-    // Fetch transcript
     const transcriptData = await fetchAndValidateTranscript(urlForApi, scrapeCreatorsKey);
     if (!transcriptData) {
       sendStatusUpdate(tabId, ERROR_MESSAGES.NO_TRANSCRIPT, false, true);
       return;
     }
 
-    console.log(`Video title: ${transcriptData.title}`);
+    console.log(`Video: ${transcriptData.title}`);
 
-    // Enhance segments with timestamps
     const enhancedSegments = enhanceSegmentsWithTimestamps(transcriptData.segments);
+    const modelSelection = messageModelSelection || (await getRefinerModelFromStorage());
+    
+    console.log("Using refiner model:", modelSelection);
 
-    // Get model selection
-    const modelSelection =
-      messageModelSelection || (await getRefinerModelFromStorage());
-    console.log("Background (transcript): using model", modelSelection);
-
-    // Refine transcript if OpenRouter key is available
     const subtitles = await refineSegmentsWithFallback(
       enhancedSegments,
       transcriptData.title,
@@ -418,11 +389,9 @@ async function processNewSubtitles(
       tabId
     );
 
-    // Process and save subtitles
     await processAndSaveSubtitles(videoId, subtitles, tabId);
   } catch (error) {
-    console.error("Error fetching/parsing subtitles:", error);
-    const errorMessage = `Error: ${extractErrorMessage(error)}`;
-    sendStatusUpdate(tabId, errorMessage, false, true);
+    console.error("Subtitle processing error:", error);
+    sendStatusUpdate(tabId, `Error: ${extractErrorMessage(error)}`, false, true);
   }
 }

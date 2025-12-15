@@ -7,12 +7,36 @@
  * similar to sequence alignment to handle edge cases like merged/split lines.
  */
 
-// Algorithm configuration
 const SEGMENT_PARSER_CONFIG = {
-  GAP_PENALTY: -0.30,          // Penalty for gaps in alignment
-  TAIL_GUARD_SIZE: 5,          // Number of segments at chunk end to guard
-  LENGTH_TOLERANCE: 0.10,      // 10% length difference tolerance
+  GAP_PENALTY: -0.30,
+  TAIL_GUARD_SIZE: 5,
+  LENGTH_TOLERANCE: 0.10,
 };
+
+/**
+ * Compute character-level similarity ratio
+ */
+function computeCharSimilarity(a, b) {
+  const [longer, shorter] = a.length > b.length ? [a, b] : [b, a];
+  if (!longer.length) return 1.0;
+  
+  let matches = 0;
+  for (let i = 0; i < shorter.length; i++) {
+    if (longer.includes(shorter[i])) matches++;
+  }
+  return matches / longer.length;
+}
+
+/**
+ * Compute token-level Jaccard similarity
+ */
+function computeTokenSimilarity(a, b) {
+  const aTokens = new Set(a.toLowerCase().match(/[a-z0-9']+/gi) || []);
+  const bTokens = new Set(b.toLowerCase().match(/[a-z0-9']+/gi) || []);
+  const intersection = new Set([...aTokens].filter(x => bTokens.has(x)));
+  const union = new Set([...aTokens, ...bTokens]);
+  return union.size ? intersection.size / union.size : 0.0;
+}
 
 /**
  * Compute similarity between two text strings
@@ -20,25 +44,7 @@ const SEGMENT_PARSER_CONFIG = {
  */
 function computeLineSimilarity(a, b) {
   if (!a || !b) return 0.0;
-
-  const [longer, shorter] = a.length > b.length ? [a, b] : [b, a];
-  if (!longer.length) return 1.0;
-
-  // Character-level similarity
-  let matches = 0;
-  for (let i = 0; i < shorter.length; i++) {
-    if (longer.includes(shorter[i])) matches++;
-  }
-  const charRatio = matches / longer.length;
-
-  // Token-level Jaccard similarity
-  const aTokens = new Set(a.toLowerCase().match(/[a-z0-9']+/gi) || []);
-  const bTokens = new Set(b.toLowerCase().match(/[a-z0-9']+/gi) || []);
-  const intersection = new Set([...aTokens].filter((x) => bTokens.has(x)));
-  const union = new Set([...aTokens, ...bTokens]);
-  const jacc = union.size ? intersection.size / union.size : 0.0;
-
-  return 0.7 * charRatio + 0.3 * jacc;
+  return 0.7 * computeCharSimilarity(a, b) + 0.3 * computeTokenSimilarity(a, b);
 }
 
 /**
@@ -47,8 +53,8 @@ function computeLineSimilarity(a, b) {
  */
 function normalizeLineToText(line) {
   const normalized = line.split(/\s+/).join(" ").trim();
-  const match = normalized.match(/^\[([^\]]+)\]\s*(.*)$/);
-  return match ? match[2].trim() : normalized;
+  const timestampMatch = normalized.match(/^\[([^\]]+)\]\s*(.*)$/);
+  return timestampMatch ? timestampMatch[2].trim() : normalized;
 }
 
 /**

@@ -6,6 +6,15 @@
 import { MESSAGE_ACTIONS } from "../constants.js";
 
 /**
+ * Ignore Chrome runtime errors (for closed tabs/panels)
+ */
+function ignoreRuntimeError() {
+  if (chrome.runtime.lastError) {
+    // Intentionally ignore - sidepanel/tab might be closed
+  }
+}
+
+/**
  * Send status update to sidepanel
  * @param {number|null} tabId - Tab ID
  * @param {string} text - Status text
@@ -16,16 +25,12 @@ export function sendStatusUpdate(tabId, text, success = false, error = false) {
   chrome.runtime.sendMessage(
     {
       action: MESSAGE_ACTIONS.UPDATE_POPUP_STATUS,
-      text: text,
-      success: success,
-      error: error,
-      tabId: tabId,
+      text,
+      success,
+      error,
+      tabId,
     },
-    () => {
-      if (chrome.runtime.lastError) {
-        // Sidepanel might be closed, ignore
-      }
-    }
+    ignoreRuntimeError
   );
 }
 
@@ -39,13 +44,9 @@ export function sendError(tabId, errorMessage) {
     {
       action: MESSAGE_ACTIONS.SHOW_ERROR,
       error: errorMessage,
-      tabId: tabId,
+      tabId,
     },
-    () => {
-      if (chrome.runtime.lastError) {
-        // Sidepanel might be closed, ignore
-      }
-    }
+    ignoreRuntimeError
   );
 }
 
@@ -80,17 +81,10 @@ export function sendSubtitlesGenerated(tabId, subtitles, videoId) {
     tabId,
     {
       action: MESSAGE_ACTIONS.SUBTITLES_GENERATED,
-      subtitles: subtitles,
-      videoId: videoId,
+      subtitles,
+      videoId,
     },
-    () => {
-      if (chrome.runtime.lastError) {
-        console.log(
-          "Could not send message to tab (tab may be closed):",
-          chrome.runtime.lastError.message
-        );
-      }
-    }
+    ignoreRuntimeError
   );
 }
 
@@ -102,15 +96,15 @@ export function sendSubtitlesGenerated(tabId, subtitles, videoId) {
  */
 export function sendSummaryGenerated(tabId, summary, videoId) {
   const message = {
-    action: "SUMMARY_GENERATED",
-    summary: summary,
-    videoId: videoId,
+    action: MESSAGE_ACTIONS.SUMMARY_GENERATED,
+    summary,
+    videoId,
     tabId: tabId || null,
   };
 
   if (tabId) {
-    chrome.tabs.sendMessage(tabId, message);
+    chrome.tabs.sendMessage(tabId, message, ignoreRuntimeError);
   }
-  chrome.runtime.sendMessage(message);
+  chrome.runtime.sendMessage(message, ignoreRuntimeError);
 }
 
