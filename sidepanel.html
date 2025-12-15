@@ -238,10 +238,11 @@
       }
 
       .primary-action {
-        width: 100%;
+        flex: 1;
+        min-width: 0;
         border: none;
         border-radius: var(--radius-md);
-        padding: 12px 16px;
+        padding: 10px 12px;
         font-size: 14px;
         font-weight: 600;
         cursor: pointer;
@@ -259,8 +260,8 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 22px;
-        height: 22px;
+        width: 18px;
+        height: 18px;
         border-radius: 50%;
         background: rgba(255, 255, 255, 0.18);
       }
@@ -1021,9 +1022,12 @@
 
       .button-row {
         display: flex;
-        flex-direction: column;
-        gap: 12px;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
         width: 100%;
+        padding: 0;
       }
 
       .font-size-selector {
@@ -1118,29 +1122,33 @@
         </div>
 
         <div class="button-row">
-          <button class="primary-action generate-btn" id="generateCaptionBtn" type="button" style="flex: 1;">
+          <button class="primary-action generate-btn" id="generateCaptionBtn" type="button" aria-label="Generate Caption">
             <span class="action-icon">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path
                   stroke-linecap="round"
                   stroke-linejoin="round"
-                  d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-3.227-1.591 1.591M5.25 12H3m3.227-4.773L4.636 5.636M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"
+                  d="M12 20.25c4.97 0 9-3.694 9-8.25s-4.03-8.25-9-8.25S3 7.444 3 12c0 2.104.859 4.023 2.273 5.48.432.447.74 1.04.586 1.641a4.483 4.483 0 01-.923 1.785A5.969 5.969 0 006 21c1.282 0 2.47-.402 3.445-1.087.81.22 1.668.337 2.555.337zM9 12h6M9 15h3"
                 ></path>
               </svg>
             </span>
-            <span>Generate Caption</span>
+            <span>Caption</span>
           </button>
-          <button class="primary-action generate-btn" id="generateSummaryBtn" type="button" style="flex: 1;">
+          <button class="primary-action generate-btn" id="generateSummaryBtn" type="button" aria-label="Generate Summary">
             <span class="action-icon">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-3.227-1.591 1.591M5.25 12H3m3.227-4.773L4.636 5.636M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"
-                ></path>
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path>
+                <path d="M5 3v4"></path>
+                <path d="M19 17v4"></path>
+                <path d="M3 5h4"></path>
+                <path d="M17 19h4"></path>
+                <path d="m19 3-1.5 4.5"></path>
+                <path d="m5 21-1.5-4.5"></path>
+                <path d="m21 5-4.5 1.5"></path>
+                <path d="m3 19 4.5-1.5"></path>
               </svg>
             </span>
-            <span>Generate Summary</span>
+            <span>Summary</span>
           </button>
         </div>
 
