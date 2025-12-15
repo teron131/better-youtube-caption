@@ -1,6 +1,5 @@
 /**
- * Storage Management Utilities
- * Uses video IDs as storage keys for better robustness
+ * Chrome storage management for subtitles and settings
  */
 
 import { STORAGE, YOUTUBE } from "./constants.js";
@@ -18,31 +17,34 @@ export function getStoredSubtitles(videoId) {
 }
 
 /**
- * Save subtitles for a video to local storage with quota management
+ * Save subtitles for a video to local storage
+ * Automatically handles quota exceeded by cleaning old entries
  */
-export function saveSubtitles(videoId, subtitles) {
+export async function saveSubtitles(videoId, subtitles) {
+  try {
+    await chromeStorageSet({ [videoId]: subtitles });
+    console.log("Subtitles saved to local storage for video ID:", videoId);
+  } catch (error) {
+    if (error.message?.includes("QUOTA")) {
+      console.warn("Storage quota exceeded, attempting cleanup...");
+      await cleanupOldSubtitles(STORAGE.CLEANUP_BATCH_SIZE);
+      await chromeStorageSet({ [videoId]: subtitles });
+      console.log("Subtitles saved after cleanup for video:", videoId);
+    } else {
+      throw error;
+    }
+  }
+}
+
+/**
+ * Wrapper for chrome.storage.local.set with promise interface
+ */
+function chromeStorageSet(items) {
   return new Promise((resolve, reject) => {
-    chrome.storage.local.set({ [videoId]: subtitles }, () => {
+    chrome.storage.local.set(items, () => {
       if (chrome.runtime.lastError) {
-        if (chrome.runtime.lastError.message?.includes("QUOTA")) {
-          console.warn("Storage quota exceeded, attempting cleanup...");
-          cleanupOldSubtitles(STORAGE.CLEANUP_BATCH_SIZE)
-            .then(() => {
-              chrome.storage.local.set({ [videoId]: subtitles }, () => {
-                if (chrome.runtime.lastError) {
-                  reject(new Error(`Storage quota exceeded: ${chrome.runtime.lastError.message}`));
-                } else {
-                  console.log("Subtitles saved after cleanup for video:", videoId);
-                  resolve();
-                }
-              });
-            })
-            .catch((error) => reject(new Error(`Storage quota exceeded and cleanup failed: ${error.message}`)));
-        } else {
-          reject(new Error(chrome.runtime.lastError.message));
-        }
+        reject(new Error(chrome.runtime.lastError.message));
       } else {
-        console.log("Subtitles saved to local storage for video ID:", videoId);
         resolve();
       }
     });
@@ -66,6 +68,7 @@ export function getStorageUsage() {
 
 /**
  * Clean up old subtitles when storage is full
+ * Removes oldest videos while keeping a minimum number
  */
 export async function cleanupOldSubtitles(countToRemove = 10) {
   return new Promise((resolve, reject) => {
@@ -75,16 +78,9 @@ export async function cleanupOldSubtitles(countToRemove = 10) {
         return;
       }
 
-      // Filter for video IDs (11 chars, array values)
-      const videoKeys = Object.keys(allItems).filter(
-        (key) => key.length === YOUTUBE.VIDEO_ID_LENGTH && Array.isArray(allItems[key])
-      );
+      const videoKeys = getVideoKeys(allItems);
+      const keysToRemove = selectKeysToRemove(videoKeys, countToRemove);
 
-      const keepCount = 5; // Keep at least 5 videos
-      const removeCount =
-        videoKeys.length <= countToRemove ? Math.max(1, videoKeys.length - keepCount) : countToRemove;
-
-      const keysToRemove = videoKeys.slice(0, removeCount);
       chrome.storage.local.remove(keysToRemove, () => {
         if (chrome.runtime.lastError) {
           reject(new Error(chrome.runtime.lastError.message));
@@ -98,7 +94,28 @@ export async function cleanupOldSubtitles(countToRemove = 10) {
 }
 
 /**
- * Proactively check and clean storage if needed
+ * Get all video keys from storage items
+ */
+function getVideoKeys(allItems) {
+  return Object.keys(allItems).filter(
+    key => key.length === YOUTUBE.VIDEO_ID_LENGTH && Array.isArray(allItems[key])
+  );
+}
+
+/**
+ * Select which keys to remove during cleanup
+ */
+function selectKeysToRemove(videoKeys, countToRemove) {
+  const MIN_KEEP = 5;
+  const removeCount = videoKeys.length <= countToRemove
+    ? Math.max(1, videoKeys.length - MIN_KEEP)
+    : countToRemove;
+
+  return videoKeys.slice(0, removeCount);
+}
+
+/**
+ * Proactively check and clean storage if nearing limit
  */
 export async function ensureStorageSpace() {
   const usage = await getStorageUsage();
@@ -140,12 +157,9 @@ export function saveApiKey(keyName, apiKey) {
 
 /**
  * Save a setting to storage
- * @param {string} key - Storage key
- * @param {*} value - Value to save
  */
 export function saveSetting(key, value) {
-  const settings = { [key]: value };
-  chrome.storage.local.set(settings, () => {
+  chrome.storage.local.set({ [key]: value }, () => {
     log('Auto-saved:', key, value);
   });
 }
