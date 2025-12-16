@@ -13,22 +13,35 @@ import { cleanYouTubeUrl } from "./url.js";
  * @returns {Promise<Object|null>} Transcript data or null
  */
 export async function fetchYouTubeTranscript(videoUrl, apiKey) {
-  if (!apiKey) {
+  const normalizedApiKey = typeof apiKey === "string" ? apiKey.trim() : "";
+  if (!normalizedApiKey) {
     throw new Error("Scrape Creators API key is required");
   }
 
-  const apiUrl = `${API_ENDPOINTS.SCRAPE_CREATORS}?url=${encodeURIComponent(
-    cleanYouTubeUrl(videoUrl)
-  )}&get_transcript=true`;
+  // Keep the request shape identical to the simple playground example:
+  //   .../youtube/video?url=https://www.youtube.com/watch?v=VIDEO_ID&get_transcript=true
+  // Note: do not URL-encode the nested YouTube URL (ScrapeCreators expects it raw).
+  const cleanedUrl = cleanYouTubeUrl(videoUrl);
+  const apiUrl = `${API_ENDPOINTS.SCRAPE_CREATORS}?url=${cleanedUrl}&get_transcript=true`;
 
   const response = await fetch(apiUrl, {
     method: "GET",
-    headers: { "x-api-key": apiKey },
+    headers: {
+      "x-api-key": normalizedApiKey,
+      Accept: "application/json",
+    },
   });
 
   if (!response.ok) {
-    console.warn(`Scrape Creators API failed: ${response.status}`);
-    return null;
+    let bodyText = "";
+    try {
+      bodyText = await response.text();
+    } catch {
+      // ignore
+    }
+    throw new Error(
+      `Scrape Creators API failed (${response.status})${bodyText ? `: ${bodyText}` : ""}`
+    );
   }
 
   const data = await response.json();
