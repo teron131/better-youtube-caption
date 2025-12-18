@@ -59,9 +59,7 @@ async function analysisNode(state) {
   }
 
   const llm = createOpenRouterLLM(state.analysis_model, apiKey);
-  const structuredLLM = llm.withStructuredOutput(AnalysisSchema, {
-    method: "jsonMode",
-  });
+  const structuredLLM = llm.withStructuredOutput(AnalysisSchema);
 
   let prompt;
 

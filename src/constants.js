@@ -47,8 +47,6 @@ export const RECOMMENDED_SUMMARIZER_MODELS = [
 
 export const RECOMMENDED_REFINER_MODELS = [
   { value: "google/gemini-2.5-flash-lite-preview-09-2025", label: "Gemini 2.5 Flash Lite" },
-  { value: "openai/gpt-oss-120b", label: "gpt-oss-120b" },
-  { value: "openai/gpt-5-nano", label: "GPT-5 Nano" },
   { value: "x-ai/grok-4.1-fast", label: "Grok 4.1 Fast" },
 ];
 
