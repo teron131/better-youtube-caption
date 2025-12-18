@@ -42,13 +42,13 @@
         
         /* Font sizes */
         --font-xs: 11px;
-        --font-sm: 12px;
-        --font-md: 13px;
-        --font-base: 14px;
-        --font-lg: 15px;
-        --font-xl: 16px;
-        --font-2xl: 17px;
-        --font-3xl: 20px;
+        --font-sm: 13px;
+        --font-md: 15px;
+        --font-base: 16px;
+        --font-lg: 18px;
+        --font-xl: 20px;
+        --font-2xl: 22px;
+        --font-3xl: 26px;
         
         /* Line heights */
         --line-tight: 1.3;
@@ -387,8 +387,8 @@
 
       .summary-content {
         position: relative;
-        font-size: var(--summary-font-size-base, var(--font-lg));
-        line-height: var(--line-loose);
+        font-size: var(--summary-font-size-base, var(--font-base));
+        line-height: var(--line-relaxed);
         color: var(--text-primary);
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         letter-spacing: 0.01em;
@@ -399,7 +399,7 @@
         font-weight: 600;
         color: var(--text-primary);
         margin: var(--spacing-3xl) 0 var(--spacing-lg);
-        line-height: var(--line-normal);
+        line-height: var(--line-tight);
         letter-spacing: -0.01em;
       }
 
@@ -412,7 +412,7 @@
         font-weight: 600;
         color: var(--text-primary);
         margin: var(--spacing-2xl) 0 var(--spacing-md);
-        line-height: var(--line-normal);
+        line-height: var(--line-tight);
         letter-spacing: -0.005em;
       }
 
@@ -428,23 +428,27 @@
       .summary-content li {
         position: relative;
         padding-left: var(--spacing-xl);
-        line-height: var(--line-loose);
+        line-height: var(--line-relaxed);
+        font-size: var(--summary-font-size-base, var(--font-base));
+        color: var(--text-primary);
       }
 
       .summary-content li::before {
         content: '•';
         position: absolute;
         left: 0;
-        color: rgba(255, 255, 255, 0.7);
-        font-size: var(--font-lg);
-        line-height: var(--line-loose);
-        font-weight: 300;
+        color: var(--text-secondary);
+        font-size: var(--summary-font-size-base, var(--font-base));
+        line-height: var(--line-relaxed);
+        font-weight: 400;
+        opacity: 0.7;
       }
 
       .summary-content p {
         margin: var(--spacing-md) 0;
-        line-height: var(--line-loose);
+        line-height: var(--line-relaxed);
         color: var(--text-primary);
+        font-size: var(--summary-font-size-base, var(--font-base));
       }
 
       .summary-content p:first-child {
@@ -459,6 +463,7 @@
         color: var(--text-primary);
         font-weight: 600;
         letter-spacing: 0.01em;
+        font-size: inherit;
       }
 
       .summary-content code {
@@ -466,13 +471,15 @@
         padding: var(--spacing-xs) var(--spacing-xs);
         border-radius: var(--spacing-xs);
         font-family: 'Monaco', 'Courier New', monospace;
-        font-size: var(--font-md);
+        font-size: calc(var(--summary-font-size-base, var(--font-base)) * 0.9);
         color: var(--text-primary);
+        line-height: var(--line-normal);
       }
 
       .summary-content em {
         font-style: italic;
         color: var(--text-primary);
+        font-size: inherit;
       }
 
       .summary-placeholder {
@@ -811,8 +818,8 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 14px;
-        line-height: 14px;
+        font-size: var(--font-sm);
+        line-height: var(--line-normal);
       }
 
       .combobox-input {
@@ -918,8 +925,8 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 14px;
-        line-height: 14px;
+        font-size: var(--font-sm);
+        line-height: var(--line-normal);
       }
 
       .combobox-item-label {
@@ -937,7 +944,7 @@
         background: rgba(204, 0, 0, 0.2);
         color: var(--primary);
         font-size: var(--font-sm);
-        font-weight: bold;
+        font-weight: 600;
         margin-left: var(--spacing-sm);
         transition: background 0.2s ease;
         border: 1px solid rgba(204, 0, 0, 0.3);
@@ -1140,7 +1147,7 @@
 
       /* Override markdown typography inside structured analysis (more specific than `.summary-content h2/h3`) */
       .summary-content .structured-analysis h2.analysis-title {
-        color: var(--primary);
+        color: var(--text-primary);
       }
 
       .summary-content .structured-analysis h3.section-title {
@@ -1153,28 +1160,32 @@
         font-weight: 600;
         letter-spacing: 0.1em;
         color: var(--primary);
-        border: 1px solid rgba(204, 0, 0, 0.4);
+        border: 1px solid var(--border-strong);
         border-radius: 20px;
-        padding: 4px 10px;
+        padding: var(--spacing-xs) 10px;
         margin-bottom: var(--spacing-sm);
         background: rgba(204, 0, 0, 0.1);
+        line-height: var(--line-normal);
       }
 
       .analysis-title {
-        font-size: var(--font-2xl);
-        font-weight: 700;
+        font-size: var(--summary-font-size-h2, var(--font-3xl));
+        font-weight: 600;
         margin: 0 0 var(--spacing-xs) 0;
         line-height: var(--line-tight);
+        color: var(--text-primary);
+        letter-spacing: -0.01em;
       }
 
       .analysis-subtitle {
         font-size: var(--font-sm);
         color: var(--text-secondary);
         margin: 0;
+        line-height: var(--line-normal);
       }
 
       .analysis-section {
-        margin-bottom: var(--spacing-2xl);
+        margin-bottom: var(--spacing-3xl);
       }
 
       .section-header {
@@ -1189,11 +1200,13 @@
         height: 32px;
         border-radius: 50%;
         background: rgba(204, 0, 0, 0.1);
-        border: 1px solid rgba(204, 0, 0, 0.2);
+        border: 1px solid rgba(204, 0, 0, 0.25);
         display: flex;
         align-items: center;
         justify-content: center;
         color: var(--primary);
+        flex-shrink: 0;
+        opacity: 0.9;
       }
 
       .section-icon svg {
@@ -1203,20 +1216,30 @@
 
       .section-title {
         font-size: var(--font-sm);
-        font-weight: 700;
+        font-weight: 600;
         color: var(--primary);
         letter-spacing: 0.05em;
         text-transform: uppercase;
+        line-height: var(--line-normal);
       }
 
       .section-content {
-        padding-left: 0; /* Align with left edge or section header? Screenshot shows alignment with header text roughly, maybe no indent */
+        padding-left: 0;
       }
-      
+
       .section-content p {
-        line-height: var(--line-loose);
+        line-height: var(--line-relaxed);
         color: var(--text-primary);
-        font-size: var(--font-base);
+        font-size: var(--summary-font-size-base, var(--font-base));
+        margin: var(--spacing-md) 0;
+      }
+
+      .section-content p:first-child {
+        margin-top: 0;
+      }
+
+      .section-content p:last-child {
+        margin-bottom: 0;
       }
 
       .takeaways-list, .chapters-list {
@@ -1244,7 +1267,8 @@
         justify-content: center;
         color: var(--primary);
         flex-shrink: 0;
-        margin-top: 2px;
+        margin-top: var(--spacing-xs);
+        border: 1px solid rgba(204, 0, 0, 0.25);
       }
 
       .check-icon svg {
@@ -1253,8 +1277,9 @@
       }
 
       .takeaways-list li span {
-        line-height: var(--line-loose);
+        line-height: var(--line-relaxed);
         color: var(--text-primary);
+        font-size: var(--summary-font-size-base, var(--font-base));
       }
 
       .chapters-list li {
@@ -1267,68 +1292,101 @@
         width: 24px;
         height: 24px;
         border-radius: 50%;
-        background: #b30000; /* Darker red for chapter numbers */
+        background: var(--primary);
         color: #ffffff;
-        font-size: 12px;
-        font-weight: 700;
+        font-size: var(--font-sm);
+        font-weight: 600;
         display: flex;
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
-        margin-top: 2px;
+        margin-top: var(--spacing-xs);
+        line-height: var(--line-normal);
       }
 
       .chapter-content {
-        line-height: var(--line-loose);
+        line-height: var(--line-relaxed);
         color: var(--text-primary);
         flex: 1;
+        font-size: var(--summary-font-size-base, var(--font-base));
       }
 
-      /* Chapter heading (dark red like reference) */
       .chapter-content .chapter-heading {
-        color: var(--primary-dark);
-        font-weight: 700;
-        font-size: 1.05em;
-        margin-bottom: 6px;
-        line-height: 1.35;
+        color: var(--primary);
+        font-weight: 600;
+        font-size: var(--summary-font-size-base, var(--font-base));
+        margin-bottom: var(--spacing-sm);
+        line-height: var(--line-tight);
+        letter-spacing: 0.01em;
       }
 
-      /* Chapter key points: match reference (red dot bullets, white text, less indent) */
+      .chapter-content .chapter-summary {
+        margin-bottom: var(--spacing-sm);
+        color: var(--text-primary);
+        line-height: var(--line-relaxed);
+        font-size: var(--summary-font-size-base, var(--font-base));
+      }
+
+      .chapter-content .chapter-fact-label {
+        color: var(--primary);
+        font-weight: 600;
+        font-size: inherit;
+      }
+
       .chapter-content .chapter-keypoints {
-        margin: 14px 0 0 0;
-        padding: 0 0 0 18px; /* create a small gutter so bullets never get clipped */
+        margin: var(--spacing-md) 0 0 0;
+        padding: 0 0 0 var(--spacing-lg);
         list-style: none;
       }
 
       .chapter-content .chapter-keypoint {
         position: relative;
-        margin: 0 0 14px 0;
-        padding: 0 0 0 0; /* text aligns to the gutter created on the UL */
-        color: rgba(255, 255, 255, 0.92);
-        line-height: 1.65;
-        font-size: 0.98em;
+        margin: 0 0 var(--spacing-md) 0;
+        padding: 0;
+        color: var(--text-primary);
+        line-height: var(--line-relaxed);
+        font-size: var(--summary-font-size-base, var(--font-base));
+      }
+
+      .chapter-content .chapter-keypoint:last-child {
+        margin-bottom: 0;
       }
 
       .chapter-content .chapter-keypoint::before {
         content: '';
         position: absolute;
-        left: -18px; /* sit inside the UL gutter */
-        top: 0.72em; /* align to first line cap-height */
+        left: calc(-1 * var(--spacing-lg));
+        top: 0.72em;
         width: 6px;
         height: 6px;
-        border-radius: 999px;
+        border-radius: 50%;
         background: var(--primary);
         box-shadow: 0 0 0 3px rgba(204, 0, 0, 0.18);
+        opacity: 0.8;
       }
 
-      /* Responsive font sizing for summary content */
+      /* Responsive font sizing for summary content - uses dynamic variables if set */
       @media (max-width: 600px) {
-        .analysis-title {
-          font-size: var(--font-xl);
+        .summary-content {
+          font-size: var(--summary-font-size-base, var(--font-sm));
         }
 
-        .section-content p {
-          font-size: var(--font-md);
+        .summary-content h2,
+        .analysis-title {
+          font-size: var(--summary-font-size-h2, var(--font-xl));
+        }
+
+        .summary-content h3 {
+          font-size: var(--summary-font-size-h3, var(--font-lg));
+        }
+
+        .section-content p,
+        .takeaways-list li span,
+        .chapter-content,
+        .chapter-content .chapter-heading,
+        .chapter-content .chapter-summary,
+        .chapter-content .chapter-keypoint {
+          font-size: var(--summary-font-size-base, var(--font-sm));
         }
       }
     </style>

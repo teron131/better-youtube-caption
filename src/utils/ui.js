@@ -176,8 +176,6 @@ function renderStructuredAnalysis(analysis) {
   // Header
   html += `
     <div class="analysis-header-container">
-      <div class="analysis-badge">AI ANALYSIS</div>
-      <h2 class="analysis-title">Structured Analysis</h2>
     </div>
   `;
 
@@ -242,20 +240,20 @@ function renderStructuredAnalysis(analysis) {
             // Handle structured chapter object (header, summary, key_points)
             if (typeof item === 'object') {
               const header = item.header ? `<div class="chapter-heading">${formatInlineMarkdown(item.header)}</div>` : '';
-              const summary = item.summary ? `<div style="margin-bottom:8px;">${formatInlineMarkdown(item.summary)}</div>` : '';
-              const keyPoints = item.key_points && Array.isArray(item.key_points) 
+              const summary = item.summary ? `<div class="chapter-summary">${formatInlineMarkdown(item.summary)}</div>` : '';
+              const keyPoints = item.key_points && Array.isArray(item.key_points)
                 ? `<ul class="chapter-keypoints">
                     ${item.key_points.map(kp => `<li class="chapter-keypoint">${formatInlineMarkdown(kp)}</li>`).join('')}
-                   </ul>` 
+                   </ul>`
                 : '';
               content = header + summary + keyPoints;
-            } 
+            }
             // Handle simple string key fact
             else {
               content = formatInlineMarkdown(item);
               if (content.includes(':')) {
                   const parts = content.split(':');
-                  content = `<strong style="color:var(--primary-soft)">${parts[0]}:</strong>${parts.slice(1).join(':')}`;
+                  content = `<strong class="chapter-fact-label">${parts[0]}:</strong>${parts.slice(1).join(':')}`;
               }
             }
             

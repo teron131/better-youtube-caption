@@ -10,22 +10,29 @@ import { log as logDebug } from "./logger.js";
 /**
  * Apply summary font size to summary content
  * @param {string} size - Size key (S, M, L)
+ * @param {HTMLElement} [summaryContent] - Optional summary content element
  */
-function applySummaryFontSize(size) {
+function applySummaryFontSize(size, summaryContent) {
   const sizeConfig = FONT_SIZES.SUMMARY[size] || FONT_SIZES.SUMMARY.M;
-  const summaryContent = document.getElementById('summaryContent');
+  const content = summaryContent || document.getElementById('summaryContent');
   
-  if (summaryContent) {
-    summaryContent.style.setProperty('--summary-font-size-base', sizeConfig.base);
-    summaryContent.style.setProperty('--summary-font-size-h2', sizeConfig.h2);
-    summaryContent.style.setProperty('--summary-font-size-h3', sizeConfig.h3);
+  if (content) {
+    content.style.setProperty('--summary-font-size-base', sizeConfig.base);
+    content.style.setProperty('--summary-font-size-h2', sizeConfig.h2);
+    content.style.setProperty('--summary-font-size-h3', sizeConfig.h3);
+    logDebug('Sidepanel: Applied summary font size:', size, sizeConfig);
+  } else {
+    logDebug('Sidepanel: summaryContent element not found for font size application');
   }
 }
 
 /**
  * Initialize font size selectors
+ * @param {Object} [elements] - Optional elements object from sidepanel.js
  */
-export function initializeFontSizeSelectors() {
+export function initializeFontSizeSelectors(elements) {
+  const summaryContent = elements?.summaryContent;
+  
   // Load saved font sizes
   chrome.storage.local.get(
     [STORAGE_KEYS.CAPTION_FONT_SIZE, STORAGE_KEYS.SUMMARY_FONT_SIZE],
@@ -51,7 +58,7 @@ export function initializeFontSizeSelectors() {
       });
       
       // Apply font sizes
-      applySummaryFontSize(summarySize);
+      applySummaryFontSize(summarySize, summaryContent);
     }
   );
   
@@ -60,6 +67,8 @@ export function initializeFontSizeSelectors() {
     button.addEventListener('click', function() {
       const size = this.dataset.size;
       const type = this.dataset.type;
+      
+      logDebug('Sidepanel: Font size button clicked:', type, size);
       
       // Update active state
       document.querySelectorAll(`.font-size-button[data-type="${type}"]`).forEach(btn => {
@@ -90,7 +99,7 @@ export function initializeFontSizeSelectors() {
           }
         });
       } else {
-        applySummaryFontSize(size);
+        applySummaryFontSize(size, summaryContent);
       }
     });
   });

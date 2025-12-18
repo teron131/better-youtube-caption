@@ -77,9 +77,9 @@ export const FONT_SIZES = {
     L: { base: "2.2vw", max: "34px", min: "16px", fullscreen: "2.7vw", fullscreenMax: "44px" },
   },
   SUMMARY: {
-    S: { base: "13px", h2: "17px", h3: "15px" },
-    M: { base: "15px", h2: "20px", h3: "17px" },
-    L: { base: "17px", h2: "23px", h3: "19px" },
+    S: { base: "16px", h2: "22px", h3: "19px" },
+    M: { base: "18px", h2: "26px", h3: "22px" },
+    L: { base: "20px", h2: "30px", h3: "24px" },
   },
 };
 
