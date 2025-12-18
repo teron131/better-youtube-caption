@@ -38,18 +38,17 @@ export const STORAGE = {
 
 // New separate lists for summarizer and refiner
 export const RECOMMENDED_SUMMARIZER_MODELS = [
-  { value: "x-ai/grok-4.1-fast", label: "Grok 4.1 Fast" },
-  { value: "x-ai/grok-4", label: "Grok 4" },
-  { value: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash" },
+  { value: "google/gemini-3-flash-preview", label: "Gemini 3 Flash" },
   { value: "google/gemini-3-pro-preview", label: "Gemini 3 Pro" },
   { value: "openai/gpt-5-mini", label: "GPT-5 Mini" },
-  { value: "openai/gpt-5.1", label: "GPT-5.1" },
-  { value: "anthropic/claude-haiku-4.5", label: "Claude Haiku 4.5" },
-  { value: "anthropic/claude-sonnet-4.5", label: "Claude Sonnet 4.5" },
+  { value: "openai/gpt-5.2", label: "GPT-5.2" },
+  { value: "x-ai/grok-4.1-fast", label: "Grok 4.1 Fast" },
 ];
 
 export const RECOMMENDED_REFINER_MODELS = [
   { value: "google/gemini-2.5-flash-lite-preview-09-2025", label: "Gemini 2.5 Flash Lite" },
+  { value: "openai/gpt-oss-120b", label: "gpt-oss-120b" },
+  { value: "openai/gpt-5-nano", label: "GPT-5 Nano" },
   { value: "x-ai/grok-4.1-fast", label: "Grok 4.1 Fast" },
 ];
 
