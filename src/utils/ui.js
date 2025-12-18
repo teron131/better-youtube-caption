@@ -242,7 +242,7 @@ function renderStructuredAnalysis(analysis) {
             // Handle structured chapter object (header, summary, key_points)
             if (typeof item === 'object') {
               const header = item.header ? `<div class="chapter-heading">${formatInlineMarkdown(item.header)}</div>` : '';
-              const summary = item.summary ? `<div class="chapter-summary">${formatInlineMarkdown(item.summary)}</div>` : '';
+              const summary = item.summary ? `<div style="margin-bottom:8px;">${formatInlineMarkdown(item.summary)}</div>` : '';
               const keyPoints = item.key_points && Array.isArray(item.key_points) 
                 ? `<ul class="chapter-keypoints">
                     ${item.key_points.map(kp => `<li class="chapter-keypoint">${formatInlineMarkdown(kp)}</li>`).join('')}
@@ -255,7 +255,7 @@ function renderStructuredAnalysis(analysis) {
               content = formatInlineMarkdown(item);
               if (content.includes(':')) {
                   const parts = content.split(':');
-                  content = `<strong class="chapter-label">${parts[0]}:</strong>${parts.slice(1).join(':')}`;
+                  content = `<strong style="color:var(--primary-soft)">${parts[0]}:</strong>${parts.slice(1).join(':')}`;
               }
             }
             

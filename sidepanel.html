@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <title>Better YouTube Caption</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <style>
+    <style>
       :root {
         --bg-gradient: linear-gradient(
           150deg,
@@ -21,13 +21,9 @@
         --border-strong: rgba(204, 0, 0, 0.4);
         --primary: #cc0000;
         --primary-soft: #cc0000;
-        --primary-dark: #b30000;
+        --primary-dark: #cc0000;
         --success: #3ad369;
         --error: #ff6b6b;
-
-        /* Typography */
-        --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        --font-mono: ui-monospace, 'SFMono-Regular', 'Monaco', 'Courier New', monospace;
         
         /* Spacing scale (4px base unit) */
         --spacing-xs: 4px;
@@ -75,7 +71,7 @@
         min-height: 100vh;
         margin: 0;
         padding: var(--spacing-lg) var(--spacing-md);
-        font-family: var(--font-sans);
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         font-size: var(--font-base);
         line-height: var(--line-normal);
         background: var(--bg-gradient), #030303;
@@ -394,7 +390,7 @@
         font-size: var(--summary-font-size-base, var(--font-lg));
         line-height: var(--line-loose);
         color: var(--text-primary);
-        font-family: var(--font-sans);
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         letter-spacing: 0.01em;
       }
 
@@ -469,7 +465,7 @@
         background: rgba(255, 255, 255, 0.08);
         padding: var(--spacing-xs) var(--spacing-xs);
         border-radius: var(--spacing-xs);
-        font-family: var(--font-mono);
+        font-family: 'Monaco', 'Courier New', monospace;
         font-size: var(--font-md);
         color: var(--text-primary);
       }
@@ -1138,22 +1134,17 @@
         content: none !important;
       }
 
-      /* Chapter keypoints are also <ul><li> and would otherwise inherit markdown bullets */
-      .summary-content .structured-analysis .chapter-keypoints > li::before {
-        content: none;
-      }
-
-      /* Prevent markdown typography rules from changing layout inside structured analysis */
-      .summary-content .structured-analysis h3.section-title {
-        margin: 0;
-      }
-
-      .summary-content .structured-analysis .section-content p {
-        margin: 0;
-      }
-
       .analysis-header-container {
         margin-bottom: var(--spacing-lg);
+      }
+
+      /* Override markdown typography inside structured analysis (more specific than `.summary-content h2/h3`) */
+      .summary-content .structured-analysis h2.analysis-title {
+        color: var(--primary);
+      }
+
+      .summary-content .structured-analysis h3.section-title {
+        color: var(--primary);
       }
 
       .analysis-badge {
@@ -1163,19 +1154,17 @@
         letter-spacing: 0.1em;
         color: var(--primary);
         border: 1px solid rgba(204, 0, 0, 0.4);
-        border-radius: 999px;
-        padding: var(--spacing-xs) var(--spacing-md);
+        border-radius: 20px;
+        padding: 4px 10px;
         margin-bottom: var(--spacing-sm);
         background: rgba(204, 0, 0, 0.1);
       }
 
       .analysis-title {
-        font-size: var(--summary-font-size-h2, var(--font-3xl));
-        font-weight: 600;
+        font-size: var(--font-2xl);
+        font-weight: 700;
         margin: 0 0 var(--spacing-xs) 0;
-        line-height: var(--line-normal);
-        letter-spacing: -0.01em;
-        color: var(--text-primary);
+        line-height: var(--line-tight);
       }
 
       .analysis-subtitle {
@@ -1213,13 +1202,11 @@
       }
 
       .section-title {
-        font-size: var(--summary-font-size-h3, var(--font-2xl));
-        font-weight: 600;
-        color: var(--text-primary);
-        letter-spacing: -0.005em;
-        text-transform: none;
-        margin: 0;
-        line-height: var(--line-normal);
+        font-size: var(--font-sm);
+        font-weight: 700;
+        color: var(--primary);
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
       }
 
       .section-content {
@@ -1229,7 +1216,7 @@
       .section-content p {
         line-height: var(--line-loose);
         color: var(--text-primary);
-        font-size: inherit;
+        font-size: var(--font-base);
       }
 
       .takeaways-list, .chapters-list {
@@ -1280,10 +1267,10 @@
         width: 24px;
         height: 24px;
         border-radius: 50%;
-        background: var(--primary-dark);
+        background: #b30000; /* Darker red for chapter numbers */
         color: #ffffff;
-        font-size: var(--font-sm);
-        font-weight: 600;
+        font-size: 12px;
+        font-weight: 700;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -1300,34 +1287,25 @@
       /* Chapter heading (dark red like reference) */
       .chapter-content .chapter-heading {
         color: var(--primary-dark);
-        font-weight: 600;
-        font-size: 1em;
+        font-weight: 700;
+        font-size: 1.05em;
         margin-bottom: 6px;
-        line-height: var(--line-normal);
-      }
-
-      .chapter-content .chapter-summary {
-        margin-bottom: var(--spacing-sm);
-        color: var(--text-primary);
-      }
-
-      .chapter-content .chapter-label {
-        color: var(--primary);
+        line-height: 1.35;
       }
 
       /* Chapter key points: match reference (red dot bullets, white text, less indent) */
       .chapter-content .chapter-keypoints {
-        margin: var(--spacing-lg) 0 0 0;
+        margin: 14px 0 0 0;
         padding: 0 0 0 18px; /* create a small gutter so bullets never get clipped */
         list-style: none;
       }
 
       .chapter-content .chapter-keypoint {
         position: relative;
-        margin: 0 0 var(--spacing-lg) 0;
+        margin: 0 0 14px 0;
         padding: 0 0 0 0; /* text aligns to the gutter created on the UL */
-        color: var(--text-primary);
-        line-height: var(--line-loose);
+        color: rgba(255, 255, 255, 0.92);
+        line-height: 1.65;
         font-size: 0.98em;
       }
 
@@ -1624,3 +1602,4 @@
     <script src="dist/sidepanel.bundle.js"></script>
   </body>
 </html>
+
