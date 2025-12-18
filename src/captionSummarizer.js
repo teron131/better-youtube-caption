@@ -30,10 +30,8 @@ function createOpenRouterLLM(model, apiKey) {
       },
     },
     temperature: 0.0,
-    use_responses_api: true,
     reasoning: { effort: "medium" },
     extra_body: {
-      include_reasoning: false,
       provider: { sort: "throughput" },
     },
   });

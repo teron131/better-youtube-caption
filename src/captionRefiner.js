@@ -93,10 +93,8 @@ function createLLM(apiKey, model) {
       },
     },
     temperature: 0,
-    use_responses_api: true,
     reasoning: { effort: "minimal" },
     extra_body: {
-      include_reasoning: false,
       provider: { sort: "throughput" },
     },
   });
@@ -106,10 +104,22 @@ function createLLM(apiKey, model) {
  * Extract text from LLM response
  */
 function extractResponseText(response) {
-  // With use_responses_api, access content via content_blocks
-  return response.content_blocks?.length > 0
-    ? response.content_blocks[response.content_blocks.length - 1].text
-    : response.content;
+  const content = response?.content;
+  if (typeof content === "string") return content;
+
+  // LangChain can represent multimodal content as an array of parts.
+  // We only care about any text parts and concatenate them.
+  if (Array.isArray(content)) {
+    return content
+      .map((part) => {
+        if (!part) return "";
+        if (typeof part === "string") return part;
+        return part.text || "";
+      })
+      .join("");
+  }
+
+  return content != null ? String(content) : "";
 }
 
 /**
